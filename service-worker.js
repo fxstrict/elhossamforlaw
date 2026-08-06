@@ -151,7 +151,7 @@
  * function for the residual limitation this does NOT solve.
  * ---------------------------------------------------------------------- */
 
-var SW_VERSION = 'v6'; // PHASE 33 — bumped for the new Modal Engine files below
+var SW_VERSION = 'v7'; // PHASE 34 — bumped for the mobile-overflow responsive fixes (auth.css, license.css, clients.js, cases.js, UsersAdminPanel.js)
 var SHELL_CACHE = 'ahp-shell-' + SW_VERSION;
 var ICON_CACHE = 'ahp-icons-' + SW_VERSION;
 var IMAGE_CACHE = 'ahp-images-' + SW_VERSION;
