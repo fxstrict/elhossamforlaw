@@ -1,0 +1,82 @@
+{
+  "id": "/",
+  "name": "نظام الحسام لإدارة مكاتب المحاماة",
+  "short_name": "الحسام",
+  "description": "نظام الحسام لإدارة مكاتب المحاماة — إدارة القضايا والجلسات وملفات العملاء والمستندات، مع تنبيهات مواعيد تلقائية وتقارير ومزامنة سحابية آمنة. يعمل بالكامل دون اتصال بالإنترنت.",
+  "start_url": "./index.html?source=pwa",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui", "browser"],
+  "orientation": "portrait-primary",
+  "lang": "ar",
+  "dir": "rtl",
+  "theme_color": "#0D1B2A",
+  "background_color": "#050A14",
+  "prefer_related_applications": false,
+  "categories": ["business", "productivity", "legal"],
+  "icons": [
+    { "src": "assets/icons/icon-16.png", "sizes": "16x16", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icons/icon-32.png", "sizes": "32x32", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icons/icon-48.png", "sizes": "48x48", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icons/icon-64.png", "sizes": "64x64", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icons/icon-72.png", "sizes": "72x72", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icons/icon-96.png", "sizes": "96x96", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icons/icon-128.png", "sizes": "128x128", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icons/icon-144.png", "sizes": "144x144", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icons/icon-152.png", "sizes": "152x152", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icons/icon-180.png", "sizes": "180x180", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icons/icon-256.png", "sizes": "256x256", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icons/icon-384.png", "sizes": "384x384", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icons/maskable/icon-maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "assets/icons/maskable/icon-maskable-384.png", "sizes": "384x384", "type": "image/png", "purpose": "maskable" },
+    { "src": "assets/icons/maskable/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "assets/icons/maskable/icon-maskable-1024.png", "sizes": "1024x1024", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    {
+      "name": "لوحة التحكم",
+      "short_name": "الرئيسية",
+      "description": "الانتقال مباشرة إلى لوحة التحكم",
+      "url": "./index.html?shortcut=dashboard",
+      "icons": [{ "src": "assets/icons/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "القضايا",
+      "short_name": "القضايا",
+      "description": "الانتقال مباشرة إلى قائمة القضايا",
+      "url": "./index.html?shortcut=cases",
+      "icons": [{ "src": "assets/icons/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "الجلسات",
+      "short_name": "الجلسات",
+      "description": "الانتقال مباشرة إلى مواعيد الجلسات",
+      "url": "./index.html?shortcut=sessions",
+      "icons": [{ "src": "assets/icons/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "العملاء",
+      "short_name": "العملاء",
+      "description": "الانتقال مباشرة إلى ملفات العملاء",
+      "url": "./index.html?shortcut=clients",
+      "icons": [{ "src": "assets/icons/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "assets/og/og-image.png",
+      "sizes": "1200x630",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "نظام الحسام لإدارة مكاتب المحاماة"
+    },
+    {
+      "src": "assets/social/social-square.png",
+      "sizes": "1080x1080",
+      "type": "image/png",
+      "label": "نظام الحسام لإدارة مكاتب المحاماة"
+    }
+  ]
+}

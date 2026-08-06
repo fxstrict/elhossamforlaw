@@ -1,0 +1,9 @@
+{
+  "name": "al-hussam-legal-system-tests",
+  "private": true,
+  "description": "Test-only package manifest (PHASE 13.5 — Test Harness Modernization). Not part of the application bundle; used solely to run js/tests/*.js.",
+  "devDependencies": {
+    "jsdom": "^24.0.0",
+    "playwright": "^1.44.0"
+  }
+}
