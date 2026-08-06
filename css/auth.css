@@ -29,6 +29,17 @@
 .hsm-auth-card{
   width:100%;max-width:400px;background:var(--navy-lt);border-radius:var(--radius);
   box-shadow:var(--shadow);padding:28px 26px;text-align:right;
+  max-height:92vh;overflow-y:auto;box-sizing:border-box;
+}
+
+/* BUGFIX (mobile): on short viewports (address bar visible + on-screen
+   keyboard open) the fixed-height overlay could push the bottom of the
+   card (footer text / button) past the visible screen with no way to
+   reach it. max-height + overflow-y above makes the card itself scroll
+   instead of being clipped/pushed off. This query just tightens the
+   padding on very narrow phones so nothing feels cramped. */
+@media (max-width:380px){
+  .hsm-auth-card{padding:22px 16px;}
 }
 .hsm-auth-card h2{margin:0 0 6px;color:var(--white);font-size:20px;}
 .hsm-auth-card p.hsm-auth-sub{margin:0 0 20px;color:var(--muted);font-size:13.5px;}
@@ -55,9 +66,25 @@
 .hsm-auth-footer{margin-top:16px;text-align:center;font-size:12px;color:var(--muted);}
 
 /* ---- Users Admin Panel (settings card) ---- */
-.hsm-users-panel{margin-top:20px;}
-.hsm-users-table{width:100%;border-collapse:collapse;font-size:13px;}
-.hsm-users-table th,.hsm-users-table td{padding:8px 10px;text-align:right;border-bottom:1px solid rgba(0,0,0,0.08);}
+.hsm-users-panel{margin-top:20px;max-width:100%;}
+
+/* BUGFIX (mobile overflow): .hsm-users-table has 5 columns (name,
+   username, role, status, action button) with no wrap. Rendered
+   directly inside .hsm-users-panel (no scroll boundary of its own),
+   its min-content width used to force .hsm-users-panel — and with it
+   .settings-card / .page / body — wider than the phone screen, the
+   same class of bug fixed in css/license.css for .lic-grid. Wrapping
+   the table markup in .hsm-table-scroll (see js/auth/UsersAdminPanel.js)
+   contains that overflow to a horizontally-scrollable box instead of
+   letting it blow out the whole page. */
+.hsm-table-scroll{width:100%;max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;}
+.hsm-users-table{width:100%;min-width:520px;border-collapse:collapse;font-size:13px;}
+.hsm-users-table th,.hsm-users-table td{padding:8px 10px;text-align:right;border-bottom:1px solid rgba(0,0,0,0.08);white-space:nowrap;}
+
+@media (max-width:480px){
+  .hsm-users-table{font-size:12px;}
+  .hsm-users-table th,.hsm-users-table td{padding:7px 8px;}
+}
 .hsm-users-table th{color:var(--muted);font-weight:600;font-size:12px;}
 .hsm-users-status{display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;}
 .hsm-users-status.active{background:rgba(46,160,67,0.15);color:var(--success);}
