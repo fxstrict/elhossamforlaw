@@ -1,0 +1,71 @@
+/* ============================================================================
+ * PHASE 16.4 — BOOT SEQUENCE CONSOLIDATION + PROGRESSIVE HYDRATION
+ * File: css/skeleton.css
+ * ----------------------------------------------------------------------------
+ * WHAT THIS IS
+ *   A brand-new, standalone stylesheet for the Boot Skeleton overlay used by
+ *   js/core/boot/BootManager.js. This file does not modify base.css,
+ *   layout.css, components.css, responsive.css, utilities.css, or
+ *   variables.css in any way — it only reads the existing design tokens
+ *   from variables.css (--navy, --gold, --radius, --shadow, --transition)
+ *   and adds new, uniquely-named classes.
+ *
+ * WHY A SEPARATE FILE INSTEAD OF APPENDING TO components.css
+ *   Phase 16.4's rules explicitly forbid editing existing CSS except to add
+ *   new Skeleton classes. Keeping those classes in their own file makes
+ *   that boundary impossible to violate by accident, and makes this
+ *   phase's entire CSS footprint trivially removable/auditable on its own.
+ *
+ * DESIGN
+ *   position:fixed;inset:0 — same pattern already used by .loading-overlay
+ *   (z-index:500) and .splash-screen (z-index:900) in components.css.
+ *   z-index:850 sits between them intentionally: below the splash (so if
+ *   the splash is still covering the screen, it stays on top exactly as
+ *   before), above the loading overlay and normal content (so if hydration
+ *   genuinely takes longer than the splash's fixed timers, the skeleton —
+ *   not stale data — is what the user sees).
+ *
+ *   Hidden by default (display:none). BootManager toggles `.boot-skeleton
+ *   .show` via JS; nothing here changes appearance unless that class is
+ *   explicitly added by the new boot layer.
+ * ==========================================================================*/
+
+.boot-skeleton{
+  position:fixed;inset:0;z-index:850;
+  display:none;
+  flex-direction:column;
+  gap:16px;
+  padding:24px;
+  background:var(--navy,#F8F5EF);
+  box-sizing:border-box;
+  overflow:hidden;
+}
+.boot-skeleton.show{display:flex;}
+
+.boot-skeleton-block{
+  border-radius:var(--radius,12px);
+  background:linear-gradient(90deg,var(--navy-md,#EDE6D6) 25%,var(--navy-lt,#FFFFFF) 37%,var(--navy-md,#EDE6D6) 63%);
+  background-size:400% 100%;
+  animation:bootSkeletonShimmer 1.4s ease-in-out infinite;
+}
+
+.boot-skeleton-title{height:28px;width:220px;margin-bottom:4px;}
+.boot-skeleton-row{height:16px;width:100%;max-width:520px;}
+.boot-skeleton-row.short{max-width:320px;}
+
+.boot-skeleton-cards{
+  display:flex;gap:16px;flex-wrap:wrap;margin-top:8px;
+}
+.boot-skeleton-card{
+  height:88px;flex:1 1 180px;min-width:160px;
+  box-shadow:var(--shadow-sm,0 2px 12px rgba(0,0,0,0.07));
+}
+
+@keyframes bootSkeletonShimmer{
+  0%{background-position:100% 0;}
+  100%{background-position:0 0;}
+}
+
+@media (prefers-reduced-motion:reduce){
+  .boot-skeleton-block{animation:none;}
+}

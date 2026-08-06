@@ -1,0 +1,227 @@
+.app-shell{display:flex;min-height:100vh;}
+/* ================================================================
+   SIDEBAR — PHASE UX-05 (Modern Sidebar Redesign). Light, flat,
+   professional navigation surface modeled after Microsoft 365 /
+   Notion / Linear: neutral gray-50 background, a single hairline
+   border, generous spacing, a clear left accent bar for the active
+   item, and quiet, CSS-only transitions. Structure/markup and all
+   navigation/toggle/routing JS are unchanged — styling only. See
+   docs/UX05_Modern_Sidebar_Report.md (earlier redesigns:
+   docs/UX_First_Run_Report.md, docs/UX04A_Premium_Splash_Report.md).
+   ================================================================ */
+.sidebar{
+  width:268px;height:100vh;
+  background:#FAFAFB;
+  border-left:1px solid #E7E9ED;
+  box-shadow:1px 0 0 rgba(20,30,45,0.02);
+  display:flex;flex-direction:column;
+  position:fixed;top:0;right:0;z-index:100;
+  transition:transform .3s cubic-bezier(0.4,0,0.2,1);
+  overflow:hidden;
+}
+
+.sidebar-logo{
+  padding:22px 18px 18px;
+  border-bottom:1px solid #EEF0F3;
+  flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:9px;
+}
+.sidebar-logo-badge{
+  width:44px;height:44px;flex-shrink:0;
+  filter:drop-shadow(0 3px 8px rgba(201,168,76,0.28));
+}
+.sidebar-logo-badge svg{width:100%;height:100%;display:block;}
+.logo-title{text-align:center;font-size:13px;font-weight:700;color:#16283F;line-height:1.4;}
+.logo-sub{text-align:center;font-size:10px;color:var(--muted);margin-top:1px;}
+
+.sidebar-nav{flex:1;padding:14px 12px 18px;overflow-y:auto;overflow-x:hidden;scrollbar-width:thin;scrollbar-color:#DCD3BE transparent;}
+.sidebar-nav::-webkit-scrollbar{width:4px;}
+.sidebar-nav::-webkit-scrollbar-track{background:transparent;}
+.sidebar-nav::-webkit-scrollbar-thumb{background:#DCD3BE;border-radius:4px;}
+.sidebar-nav::-webkit-scrollbar-thumb:hover{background:var(--gold);}
+
+.nav-section-label{
+  font-size:9.5px;font-weight:700;color:#9FA9B7;letter-spacing:1.4px;
+  padding:18px 10px 7px;margin-top:2px;text-transform:uppercase;
+  border-top:1px solid #EFF1F4;
+}
+.nav-section-label:first-child{border-top:none;margin-top:0;padding-top:6px;}
+
+.nav-item{
+  display:flex;align-items:center;gap:11px;
+  padding:10.5px 13px;margin-bottom:3px;
+  cursor:pointer;position:relative;
+  color:#4B5768;font-size:13px;font-weight:600;white-space:nowrap;
+  border-radius:8px;
+  transition:background-color .18s ease,color .18s ease;
+}
+.nav-item::before{
+  content:'';position:absolute;top:18%;bottom:18%;right:-1px;width:3px;
+  border-radius:3px;background:var(--gold);
+  opacity:0;transform:scaleY(.4);
+  transition:opacity .18s ease,transform .18s ease;
+}
+.nav-item:hover{background:rgba(41,128,185,0.07);color:#1B5E8C;}
+.nav-item.active{
+  color:#8B6914;font-weight:700;
+  background:linear-gradient(90deg,rgba(201,168,76,0.13),rgba(201,168,76,0.04));
+  box-shadow:0 1px 3px rgba(20,30,45,0.05);
+}
+.nav-item.active::before{opacity:1;transform:scaleY(1);}
+.nav-item:focus-visible{outline:2px solid var(--info);outline-offset:2px;}
+
+.nav-icon{
+  font-size:16.5px;width:21px;min-width:21px;height:21px;
+  display:flex;align-items:center;justify-content:center;
+  color:#8B95A3;transition:color .18s ease;
+}
+.nav-item:hover .nav-icon{color:#1B5E8C;}
+.nav-item.active .nav-icon{color:var(--gold-dk);}
+
+.nav-badge{margin-right:auto;background:var(--gold);color:var(--offwhite);font-size:10px;font-weight:700;padding:1px 7px;border-radius:10px;min-width:18px;text-align:center;}
+
+.sidebar-footer{padding:14px 18px;border-top:1px solid #EEF0F3;flex-shrink:0;}
+.api-status{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--muted);}
+.status-dot{width:7px;height:7px;border-radius:50%;background:var(--muted);transition:background .3s;}
+.status-dot.connected{background:var(--success);}.status-dot.error{background:var(--danger);}
+
+/* Respect the user's OS-level motion preference across the sidebar:
+   collapse hover/active/mobile-slide transitions to be effectively
+   instant, no easing curves or transform-based movement. */
+@media (prefers-reduced-motion: reduce){
+  .sidebar,.nav-item,.nav-item::before,.nav-icon,.status-dot,.sidebar-overlay{transition:none !important;}
+}
+
+/* BUGFIX (Firefox width mismatch / left-side content clipping) — .main is
+   the only in-flow flex child of .app-shell (.sidebar is position:fixed,
+   so it doesn't count toward the flex layout). Flex items default to
+   min-width:auto, meaning the browser will NOT shrink .main below the
+   widest unwrapped content inside it (e.g. a long topbar row or card
+   title). Some browsers are more forgiving about this than others, which
+   is why element sizing could look different across browsers; either way,
+   once .main's required width exceeds (viewport - 268px sidebar), the
+   overflow is pushed out under dir="rtl" toward the LEFT edge, where
+   body's overflow-x:hidden (css/base.css) hides it with no way to scroll
+   back to it. min-width:0 lets .main — and everything inside it — actually
+   shrink/wrap to fit, so nothing is pushed off-screen. */
+.main{margin-right:268px;flex:1;min-width:0;display:flex;flex-direction:column;min-height:100vh;}
+.topbar{background:#FFFFFF;border-bottom:1px solid rgba(201,168,76,0.25);box-shadow:0 2px 8px rgba(0,0,0,0.06);padding:12px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;flex-wrap:wrap;row-gap:8px;}
+.topbar-title{font-size:18px;font-weight:700;color:#0D1B2A;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.topbar-title span{color:var(--gold);}
+.topbar-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0;justify-content:flex-end;}
+.page{flex:1;padding:24px;display:none;}.page.active{display:block;}
+.sidebar-overlay{
+  display:block;position:fixed;inset:0;background:rgba(15,23,32,0.45);z-index:99;
+  backdrop-filter:blur(3px);
+  opacity:0;visibility:hidden;pointer-events:none;
+  transition:opacity .25s ease,visibility .25s ease;
+}
+.burger{display:none;flex-direction:column;gap:5px;cursor:pointer;padding:4px;}
+.burger span{display:block;width:22px;height:2px;background:var(--gold);border-radius:2px;}
+.table-wrap{overflow-x:auto;}
+.mobile-card-list{display:none;}
+
+/* ================================================================
+   PHASE 14.2 — UI FOUNDATION LAYER (page-level classes)
+   These classes are NEW and currently UNUSED by any page/component.
+   They are prepared for a future phase that will migrate pages to
+   use them. Adding them here has zero visual/functional effect
+   today because nothing in index.html references them yet.
+   Existing classes above (.page, .toolbar, .table-wrap,
+   .mobile-card-list, etc.) are untouched and remain fully active.
+   See docs/... Phase 14.2 report for the mapping/rationale of
+   each class.
+   ================================================================ */
+
+/* Generic inner content wrapper for a page. Mirrors the padding
+   already applied by .page today; kept separate so .page (which is
+   also responsible for show/hide via .active in navigate()) is
+   never modified. */
+.page-container{
+  padding:24px;
+}
+
+/* Groups a logical block within a page (e.g. a stats grid, a table
+   block, a welcome banner) so vertical spacing between blocks can be
+   controlled from one place instead of ad-hoc margin-bottom values
+   scattered per page. */
+.page-section{
+  margin-bottom:24px;
+}
+
+/* Future replacement wrapper for the search/filter/action row above
+   a page's main content. Deliberately a NEW class, distinct from the
+   existing, currently-live ".toolbar" — so no current toolbar markup
+   is affected until a page is explicitly migrated in a later phase. */
+.page-toolbar{
+  display:flex;
+  align-items:center;
+  gap:9px;
+  margin-bottom:18px;
+  flex-wrap:wrap;
+}
+
+/* Left-hand cluster inside .page-toolbar — typically search + filters. */
+.page-toolbar-left{
+  display:flex;
+  align-items:center;
+  gap:9px;
+  flex-wrap:wrap;
+  flex:1;
+  min-width:0;
+}
+
+/* Right-hand cluster inside .page-toolbar — typically the primary
+   action button(s) and/or a result count. */
+.page-toolbar-right{
+  display:flex;
+  align-items:center;
+  gap:9px;
+  flex-wrap:wrap;
+}
+
+/* Vertical stack for the main body of a page (table/list/cards),
+   giving consistent spacing between stacked blocks without relying
+   on per-page inline margins. */
+.page-content{
+  display:flex;
+  flex-direction:column;
+  gap:18px;
+}
+
+/* Generic row for grouping action buttons (e.g. inside an empty
+   state, a card header, or a page header) — distinct from
+   .topbar-actions and .m-card-actions, which stay untouched. */
+.page-actions{
+  display:flex;
+  align-items:center;
+  gap:9px;
+  flex-wrap:wrap;
+}
+
+/* Generic wrapper intended to eventually replace the repeated
+   "<div class='card'><div class='card-body' style='padding:0;'>"
+   pattern seen across pages. Visually mirrors .card but is a
+   separate class so .card (actively used everywhere today) is left
+   completely untouched. */
+.card-section{
+  background:#FFFFFF;
+  border:1px solid rgba(201,168,76,0.2);
+  border-radius:var(--radius);
+  box-shadow:0 2px 8px rgba(0,0,0,0.06);
+  overflow:hidden;
+}
+
+/* Generic vertical list wrapper for card-style rows (desktop or
+   mobile). Distinct from ".mobile-card-list", which stays untouched
+   and remains the live class driving current mobile card views. */
+.list-container{
+  flex-direction:column;
+  gap:10px;
+}
+
+/* Generic horizontal-scroll wrapper for wide tables. Distinct from
+   ".table-wrap", which stays untouched and remains the live class
+   used by every existing table today. */
+.table-container{
+  overflow-x:auto;
+}

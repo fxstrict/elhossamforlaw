@@ -1,0 +1,16 @@
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Cairo',sans-serif;background:#F0EBE2;color:var(--white);min-height:100vh;overflow-x:hidden;}
+::-webkit-scrollbar{width:5px;}::-webkit-scrollbar-track{background:#EDE6D6;}::-webkit-scrollbar-thumb{background:var(--gold);border-radius:3px;}
+
+input[type="text"],input[type="date"],input[type="time"],input[type="email"],input[type="tel"],input[type="url"],input[type="number"],select,textarea{width:100%;background:var(--navy);border:1px solid rgba(0,0,0,0.13);border-radius:var(--radius);color:var(--white);font-family:'Cairo',sans-serif;font-size:13px;padding:9px 13px;transition:border-color var(--transition);outline:none;}
+input:focus,select:focus,textarea:focus{border-color:var(--gold);}
+input::placeholder,textarea::placeholder{color:#9AABB8;}
+select option{background:var(--navy);}textarea{resize:vertical;min-height:75px;}
+
+table{width:100%;border-collapse:collapse;font-size:13px;}
+th{background:rgba(201,168,76,0.12);color:#8B6914;font-weight:700;padding:11px 12px;text-align:right;white-space:nowrap;border-bottom:1px solid rgba(201,168,76,0.2);}
+td{padding:10px 12px;border-bottom:1px solid rgba(0,0,0,0.06);color:var(--white);vertical-align:middle;}
+tr:hover td{background:rgba(201,168,76,0.06);}tr:last-child td{border-bottom:none;}
+
+@keyframes slideIn{from{transform:translateX(-20px);opacity:0}to{transform:translateX(0);opacity:1}}
+@keyframes spin{to{transform:rotate(360deg)}}

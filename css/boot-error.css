@@ -1,0 +1,84 @@
+/* ============================================================================
+ * PHASE 17.0 — STARTUP RELIABILITY — BOOT ERROR SCREEN
+ * File: css/boot-error.css
+ * ----------------------------------------------------------------------------
+ * WHAT THIS IS
+ *   A brand-new, standalone stylesheet for the boot-failure error overlay
+ *   built at runtime by js/core/boot/BootManager.js
+ *   (_buildErrorScreen/_showErrorScreen). This file does not modify
+ *   base.css, layout.css, components.css, responsive.css, utilities.css,
+ *   variables.css, or skeleton.css in any way — it only reads the existing
+ *   design tokens from variables.css (--navy, --danger, --radius, --shadow,
+ *   --gold, --transition) and adds new, uniquely-named classes, following
+ *   the exact same convention already established by css/skeleton.css for
+ *   Phase 16.4.
+ *
+ * WHEN THIS IS SHOWN
+ *   Only when BootManager.js genuinely could not confirm that application
+ *   data finished loading in time (see js/core/RepositoryReadyCoordinator.js
+ *   §10 and js/core/boot/BootManager.js's PHASE 17.0 additions). Never
+ *   shown on a normal, successful boot.
+ *
+ * STACKING
+ *   z-index:950 — intentionally above .boot-skeleton (850), the splash
+ *   screen (900) and the loading overlay (500), so the error message is
+ *   always the top-most thing the user can see if boot genuinely failed.
+ * ==========================================================================*/
+
+.boot-error{
+  position:fixed;inset:0;z-index:950;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  padding:24px;
+  box-sizing:border-box;
+  background:rgba(26,38,64,0.55);
+}
+.boot-error.show{display:flex;}
+
+.boot-error-box{
+  width:100%;
+  max-width:420px;
+  background:var(--navy-lt,#FFFFFF);
+  border-radius:var(--radius,12px);
+  box-shadow:var(--shadow,0 8px 32px rgba(0,0,0,0.10));
+  padding:28px 24px;
+  text-align:center;
+  border-top:4px solid var(--danger,#C0392B);
+}
+
+.boot-error-icon{
+  font-size:34px;
+  line-height:1;
+  color:var(--danger,#C0392B);
+  margin-bottom:12px;
+}
+
+.boot-error-title{
+  font-weight:700;
+  font-size:18px;
+  color:var(--steel,#1E3452);
+  margin-bottom:8px;
+}
+
+.boot-error-message{
+  font-size:14px;
+  line-height:1.7;
+  color:var(--muted,#5A6E85);
+  margin-bottom:20px;
+}
+
+.boot-error-retry{
+  display:inline-block;
+  border:none;
+  cursor:pointer;
+  background:var(--gold,#C9A84C);
+  color:var(--white,#1A2640);
+  font-weight:700;
+  font-size:14px;
+  padding:10px 28px;
+  border-radius:var(--radius,12px);
+  transition:var(--transition,0.25s cubic-bezier(0.4,0,0.2,1));
+}
+.boot-error-retry:hover{background:var(--gold-lt,#E8C97A);}
+.boot-error-retry:active{background:var(--gold-dk,#9B7A1E);}

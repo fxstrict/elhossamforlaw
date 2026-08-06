@@ -1,0 +1,83 @@
+/* ============================================================================
+ * PHASE 17.6 — SAFE MODE BOOT
+ * File: css/safe-mode.css
+ * ----------------------------------------------------------------------------
+ * WHAT THIS IS
+ *   A brand-new, standalone stylesheet for the Safe Mode UI built at runtime
+ *   by js/core/boot/SafeModeController.js: the per-module nav-item status
+ *   marker (✓/✕), the dismiss-free "Safe Mode active" banner, and the
+ *   inline per-page notice shown on a page whose underlying Repository
+ *   never became ready in time.
+ *
+ *   Exactly like css/boot-error.css and css/skeleton.css before it, this
+ *   file does not modify base.css, layout.css, components.css,
+ *   responsive.css, utilities.css, or variables.css in any way — it only
+ *   reads existing design tokens (--success, --danger, --gold, --navy-lt,
+ *   --steel, --muted, --radius, --shadow, --transition) and adds new,
+ *   uniquely-named classes.
+ *
+ * WHEN THIS IS SHOWN
+ *   Only when at least one entity Repository failed to become ready within
+ *   RepositoryReadyCoordinator.js's boot timeout (see
+ *   js/core/boot/SafeModeController.js). On a normal, fully-successful
+ *   boot, none of these classes are ever added to the DOM — zero visual
+ *   change on the happy path.
+ *
+ * STACKING
+ *   z-index:400 — deliberately BELOW .boot-skeleton (850), the splash
+ *   screen (900), .boot-error (950), and the loading overlay (500), since
+ *   Safe Mode is, by definition, a non-blocking degraded state: the person
+ *   keeps using the parts of the app that work, so this banner must never
+ *   compete with or hide any of those higher-priority overlays.
+ * ==========================================================================*/
+
+.safe-mode-status{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:15px;height:15px;min-width:15px;
+  border-radius:50%;
+  font-size:9.5px;font-weight:700;line-height:1;
+  color:#FFFFFF;
+}
+.safe-mode-status--ok{background:var(--success,#27AE60);}
+.safe-mode-status--fail{background:var(--danger,#C0392B);}
+
+.safe-mode-banner{
+  position:fixed;left:16px;right:16px;bottom:16px;z-index:400;
+  display:none;
+  align-items:center;flex-wrap:wrap;gap:12px;
+  max-width:640px;margin:0 auto;
+  background:var(--navy-lt,#FFFFFF);
+  border-radius:var(--radius,12px);
+  box-shadow:var(--shadow,0 8px 32px rgba(0,0,0,0.10));
+  border-inline-start:4px solid var(--warning,#E67E22);
+  padding:12px 16px;
+  font-size:13px;line-height:1.7;color:var(--steel,#1E3452);
+}
+.safe-mode-banner.show{display:flex;}
+
+.safe-mode-banner-text{flex:1 1 260px;}
+
+.safe-mode-banner-retry{
+  flex:0 0 auto;
+  display:inline-block;border:none;cursor:pointer;
+  background:var(--gold,#C9A84C);color:var(--white,#1A2640);
+  font-weight:700;font-size:12.5px;
+  padding:8px 20px;border-radius:var(--radius,12px);
+  transition:var(--transition,0.25s cubic-bezier(0.4,0,0.2,1));
+}
+.safe-mode-banner-retry:hover{background:var(--gold-lt,#E8C97A);}
+.safe-mode-banner-retry:active{background:var(--gold-dk,#9B7A1E);}
+
+.safe-mode-page-notice{
+  display:flex;align-items:center;
+  background:rgba(230,126,34,0.08);
+  border:1px solid rgba(230,126,34,0.35);
+  border-radius:var(--radius,12px);
+  color:var(--steel,#1E3452);
+  font-size:13px;line-height:1.7;
+  padding:11px 15px;margin-bottom:14px;
+}
+
+@media (prefers-reduced-motion: reduce){
+  .safe-mode-banner-retry{transition:none !important;}
+}

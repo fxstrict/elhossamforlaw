@@ -1,0 +1,17 @@
+/* ============================================================
+   PHASE 15.3 — Inline Style Migration Utilities (Additive Only)
+   ------------------------------------------------------------
+   Every class below reproduces an inline `style="..."` value that
+   was found repeated, byte-for-byte identical, with no JS/runtime
+   dependency, and limited to Typography / Color / Border / Spacing
+   properties only. No existing class was modified. No new design
+   token was created — colors reference existing var() tokens only.
+   ============================================================ */
+
+.u-p-0{padding:0;}
+.u-mt-12{margin-top:12px;}
+.u-mb-11{margin-bottom:11px;}
+.u-color-gold{color:var(--gold);}
+.u-color-white{color:var(--white);}
+.u-btn-compact{padding:6px 10px;font-size:11px;}
+.u-meta-muted-sm{font-size:11px;color:var(--muted);margin-top:3px;}

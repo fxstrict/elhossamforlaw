@@ -1,0 +1,104 @@
+/* ==================================================================
+   css/dashboard-smart.css
+   PHASE 29 — SMART DASHBOARD (Priority 1 + Priority 3)
+   ==================================================================
+   New, standalone file. No other CSS file is touched by this phase.
+   Follows the existing design tokens declared in css/variables.css
+   (--gold, --steel, --radius, --shadow-sm, --danger, --muted, etc.)
+   so the new widgets are visually consistent with .stat-card,
+   .alert-bar and .dash-section-title already shipped in
+   css/components.css.
+   ================================================================== */
+
+/* -----------------------------------------------------------------
+   Today Center (مركز اليوم) — Priority 1
+   ----------------------------------------------------------------- */
+.today-center{
+  display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;
+  gap:14px;background:var(--navy-lt);border:1px solid rgba(201,168,76,0.25);
+  border-radius:var(--radius);padding:14px 20px;margin-bottom:18px;
+  box-shadow:var(--shadow-sm);
+}
+.today-center-dates{display:flex;flex-direction:column;gap:2px;}
+.today-center-gregorian{font-size:15px;font-weight:700;color:var(--steel);}
+.today-center-hijri{font-size:12.5px;color:var(--muted);}
+.today-center-day{font-size:12.5px;color:var(--gold-dk);font-weight:600;}
+.today-center-time{font-size:20px;font-weight:700;color:var(--steel);letter-spacing:.5px;}
+
+/* -----------------------------------------------------------------
+   Alerts Center (مركز التنبيهات) — Priority 3
+   ----------------------------------------------------------------- */
+.alerts-center{margin-bottom:22px;}
+.alerts-center-empty{
+  display:flex;align-items:center;gap:8px;color:var(--success);
+  font-size:13px;background:rgba(39,174,96,0.08);
+  border:1px solid rgba(39,174,96,0.25);border-radius:var(--radius);
+  padding:10px 16px;
+}
+.alerts-center-list{display:flex;flex-direction:column;gap:8px;}
+.alert-chip{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  background:linear-gradient(135deg,rgba(192,57,43,0.08),rgba(192,57,43,0.03));
+  border:1px solid rgba(192,57,43,0.25);border-radius:var(--radius);
+  padding:10px 16px;font-size:13px;cursor:pointer;
+  transition:transform var(--transition),box-shadow var(--transition);
+}
+.alert-chip:hover{transform:translateY(-2px);box-shadow:var(--shadow-sm);}
+.alert-chip .alert-chip-icon{font-size:16px;}
+.alert-chip .alert-chip-text{flex:1;color:#5a2a24;}
+.alert-chip .alert-chip-count{
+  background:var(--danger);color:#fff;font-weight:700;font-size:12px;
+  border-radius:999px;padding:2px 10px;white-space:nowrap;
+}
+.alert-chip.warning{
+  background:linear-gradient(135deg,rgba(230,126,34,0.10),rgba(230,126,34,0.04));
+  border-color:rgba(230,126,34,0.3);
+}
+.alert-chip.warning .alert-chip-text{color:#7a4a12;}
+.alert-chip.warning .alert-chip-count{background:var(--warning);}
+
+@media (max-width:640px){
+  .today-center{flex-direction:column;align-items:flex-start;}
+  .today-center-time{font-size:17px;}
+}
+
+/* -----------------------------------------------------------------
+   PHASE 29.2 — KPI cards (Priority: KPI section)
+   ----------------------------------------------------------------- */
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:22px;}
+.kpi-card{background:var(--navy-lt);border:1px solid rgba(201,168,76,0.2);border-radius:var(--radius);
+  padding:16px 18px;box-shadow:var(--shadow-sm);}
+.kpi-card .kpi-value{font-size:26px;font-weight:800;color:var(--steel);}
+.kpi-card .kpi-label{font-size:12.5px;color:var(--muted);margin-top:4px;}
+
+/* -----------------------------------------------------------------
+   PHASE 29.2 — Dependency-free bar charts (no canvas/SVG library —
+   offline-first app, no CDN chart script is precached)
+   ----------------------------------------------------------------- */
+.charts-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin-bottom:22px;}
+.chart-card{background:var(--navy-lt);border:1px solid rgba(201,168,76,0.2);border-radius:var(--radius);
+  padding:16px 18px;box-shadow:var(--shadow-sm);}
+.chart-card .chart-title{font-size:13px;font-weight:700;color:var(--steel);margin-bottom:10px;}
+.chart-bar-row{display:flex;align-items:center;gap:8px;margin-bottom:7px;font-size:12px;}
+.chart-bar-label{flex:0 0 92px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.chart-bar-track{flex:1;background:var(--navy-md);border-radius:6px;height:14px;overflow:hidden;}
+.chart-bar-fill{height:100%;background:linear-gradient(90deg,var(--gold-dk),var(--gold));border-radius:6px;}
+.chart-bar-count{flex:0 0 24px;text-align:left;color:var(--steel);font-weight:700;}
+.chart-empty{font-size:12.5px;color:var(--muted);}
+
+/* -----------------------------------------------------------------
+   PHASE 29.2 — Quick Search
+   ----------------------------------------------------------------- */
+.quick-search{position:relative;margin-bottom:18px;}
+.quick-search input{width:100%;padding:11px 16px;border-radius:var(--radius);
+  border:1px solid rgba(201,168,76,0.3);font-size:13px;background:var(--navy-lt);}
+.quick-search-results{position:absolute;z-index:20;top:calc(100% + 4px);right:0;left:0;
+  background:var(--navy-lt);border:1px solid rgba(201,168,76,0.3);border-radius:var(--radius);
+  box-shadow:var(--shadow);max-height:320px;overflow-y:auto;display:none;}
+.quick-search-results.open{display:block;}
+.quick-search-item{padding:9px 16px;font-size:13px;cursor:pointer;border-bottom:1px solid rgba(0,0,0,0.05);
+  display:flex;justify-content:space-between;gap:10px;}
+.quick-search-item:last-child{border-bottom:none;}
+.quick-search-item:hover{background:rgba(201,168,76,0.08);}
+.quick-search-item .qs-type{font-size:11px;color:var(--gold-dk);white-space:nowrap;}
+.quick-search-empty{padding:12px 16px;font-size:12.5px;color:var(--muted);}

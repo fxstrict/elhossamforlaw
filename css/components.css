@@ -1,0 +1,657 @@
+.btn{display:inline-flex;align-items:center;gap:7px;padding:8px 16px;border-radius:var(--radius);font-family:'Cairo',sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:all var(--transition);border:none;outline:none;text-decoration:none;white-space:nowrap;}
+.btn-primary{background:linear-gradient(135deg,var(--gold),var(--gold-dk));color:var(--navy);}
+.btn-primary:hover{transform:translateY(-1px);box-shadow:0 4px 16px rgba(201,168,76,0.4);}
+.btn-ghost{background:transparent;color:var(--muted);border:1px solid rgba(0,0,0,0.15);}
+.btn-ghost:hover{color:#0D1B2A;border-color:rgba(0,0,0,0.3);}
+.btn-danger{background:rgba(192,57,43,0.15);color:var(--danger);border:1px solid rgba(192,57,43,0.3);}
+.btn-danger:hover{background:var(--danger);color:#fff;}
+.btn-success{background:rgba(39,174,96,0.15);color:var(--success);border:1px solid rgba(39,174,96,0.3);}
+.btn-success:hover{background:var(--success);color:#fff;}
+.btn-info{background:rgba(41,128,185,0.15);color:var(--info);border:1px solid rgba(41,128,185,0.3);}
+.btn-info:hover{background:var(--info);color:#fff;}
+/* أزرار الاتصال المباشر / واتساب من صفحة الموكلين (بيانات خارجية:
+   tel:/wa.me — لا علاقة لها بحاويات التخزين المحلي). نفس نمط الأزرار
+   "الناعمة" أعلاه بلون مميز لكل قناة اتصال. */
+.btn-call{background:rgba(41,128,185,0.15);color:#2980b9;border:1px solid rgba(41,128,185,0.3);}
+.btn-call:hover{background:#2980b9;color:#fff;}
+.btn-whatsapp{background:rgba(37,211,102,0.15);color:#1da851;border:1px solid rgba(37,211,102,0.35);}
+.btn-whatsapp:hover{background:#25D366;color:#fff;}
+.btn-sm{padding:5px 11px;font-size:12px;}.btn-icon{padding:7px;width:32px;height:32px;justify-content:center;}
+
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:24px;}
+.stat-card{background:#FFFFFF;border:1px solid rgba(201,168,76,0.2);border-radius:var(--radius);padding:18px 20px;position:relative;overflow:hidden;transition:transform var(--transition),box-shadow var(--transition);cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.06);}
+.stat-card:hover{transform:translateY(-3px);box-shadow:0 10px 24px rgba(20,30,45,0.09);}
+.stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--gold),transparent);}
+.stat-icon{font-size:20px;margin-bottom:10px;width:38px;height:38px;border-radius:10px;background:rgba(201,168,76,0.12);display:flex;align-items:center;justify-content:center;}
+.stat-num{font-size:28px;font-weight:900;color:#16283F;line-height:1;letter-spacing:-.5px;}
+.stat-label{font-size:12px;color:var(--muted);margin-top:6px;font-weight:600;}
+
+/* Dashboard section headings — PHASE UX-02: purely decorative wrappers,
+   no effect on any existing id/behavior. */
+.dash-section-title{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:#16283F;margin:26px 0 12px;letter-spacing:.2px;}
+.dash-section-title .icon{color:var(--gold);}
+.dash-section-title:first-child{margin-top:0;}
+
+.dashboard-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;}
+.card{background:#FFFFFF;border:1px solid rgba(201,168,76,0.2);border-radius:var(--radius);overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.06);transition:box-shadow var(--transition);}
+.card-header{padding:14px 18px;border-bottom:1px solid rgba(0,0,0,0.07);display:flex;align-items:center;justify-content:space-between;font-size:14px;font-weight:700;}
+.card-header .icon{color:var(--gold);margin-left:7px;}.card-body{padding:18px;}
+
+.m-card{background:#FFFFFF;border:1px solid rgba(201,168,76,0.2);border-radius:var(--radius);padding:14px;margin-bottom:10px;box-shadow:0 2px 6px rgba(0,0,0,0.06);}
+.m-card:hover{border-color:rgba(201,168,76,0.3);}
+.m-card-header{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:8px;}
+/* BUGFIX (Firefox width mismatch / left-side content clipping) — a long
+   client/case name has no natural break point, so without min-width:0 some
+   browsers keep the card (and its parent row) at the name's full intrinsic
+   width instead of letting it wrap/truncate, pushing the card past the
+   viewport's left edge under dir="rtl" + overflow-x:hidden. */
+.m-card-title{font-size:14px;font-weight:700;color:#0D1B2A;flex:1;min-width:0;overflow-wrap:break-word;}
+.m-card-num{font-size:11px;font-weight:700;color:var(--gold);background:rgba(201,168,76,0.1);padding:2px 8px;border-radius:20px;white-space:nowrap;flex-shrink:0;}
+.m-card-meta{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:7px;}
+.m-card-meta span{font-size:12px;color:var(--muted);}
+.m-card-actions{display:flex;gap:7px;padding-top:8px;border-top:1px solid rgba(0,0,0,0.07);}
+
+.badge{display:inline-block;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:700;}
+.badge-active{background:rgba(39,174,96,0.2);color:#2ecc71;}.badge-pending{background:rgba(230,126,34,0.2);color:#f39c12;}
+.badge-closed{background:rgba(189,195,199,0.2);color:#95a5a6;}.badge-urgent{background:rgba(192,57,43,0.2);color:#e74c3c;}.badge-info{background:rgba(41,128,185,0.2);color:#3498db;}
+
+.toolbar{display:flex;gap:9px;margin-bottom:18px;flex-wrap:wrap;align-items:center;}
+.search-wrap{position:relative;flex:1;min-width:160px;}
+.search-wrap .icon{position:absolute;right:11px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:15px;pointer-events:none;}
+.search-wrap input{padding-right:38px;}
+
+.modal-overlay{position:fixed;inset:0;background:rgba(30,52,82,0.6);backdrop-filter:blur(4px);z-index:200;display:flex;align-items:center;justify-content:center;padding:14px;opacity:0;pointer-events:none;transition:opacity .25s;}
+/* PHASE 33 — Modal Engine (js/core/modal/ModalManager.js). Applied only by
+   the engine, only to a modal-overlay that is open but NOT the topmost of
+   a stack of 2+. Hides the duplicated backdrop/box of every background
+   modal instead of letting stacked backdrops compound. The element stays
+   technically "open" (state preserved) but is fully invisible and inert
+   until it becomes top again. !important is required to win over the
+   .open rule below on the same element. */
+.modal-overlay--stacked-hidden{opacity:0 !important;pointer-events:none !important;}
+.modal-overlay.open{padding-top:max(14px,env(safe-area-inset-top));opacity:1;pointer-events:all;}
+.modal{background:#FFFFFF;border:1px solid rgba(201,168,76,0.25);border-radius:16px;width:100%;max-width:680px;max-height:92vh;max-height:92dvh;overflow-y:auto;transform:scale(.95) translateY(10px);transition:transform .25s;}
+.modal-overlay.open .modal{transform:scale(1) translateY(0);}
+.modal-wide{max-width:820px;}
+.modal-header{padding:18px 22px;border-bottom:1px solid rgba(0,0,0,0.07);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--navy-lt);z-index:10;}
+.modal-title{font-size:16px;font-weight:700;}.modal-title .icon{color:var(--gold);margin-left:7px;}
+.modal-close{width:30px;height:30px;border-radius:50%;border:none;background:rgba(0,0,0,0.06);color:var(--muted);cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;transition:all var(--transition);}
+.modal-close:hover{background:rgba(192,57,43,0.12);color:var(--danger);}
+.modal-body{padding:22px;}
+.modal-footer{padding:14px 22px;border-top:1px solid rgba(0,0,0,0.07);display:flex;gap:9px;justify-content:flex-end;flex-wrap:wrap;position:sticky;bottom:0;background:#FFFFFF;}
+
+/* PHASE 14.2 — UI FOUNDATION LAYER
+   .modal-shell is a NEW, currently-UNUSED wrapper prepared as the
+   future single "shell" for all 12 modals (see Phase 14.1 report).
+   It intentionally mirrors .modal's current appearance rather than
+   redefining .modal itself, so every existing modal keeps working
+   and looking exactly as it does today. NOTE: .modal-header,
+   .modal-body and .modal-footer immediately above are ALREADY
+   live, active classes used by all 12 existing modals — per the
+   "don't duplicate existing classes" rule they are intentionally
+   NOT redefined here; a future migration can reuse them as-is
+   inside .modal-shell without any change to their current CSS. */
+.modal-shell{
+  background:#FFFFFF;
+  border:1px solid rgba(201,168,76,0.25);
+  border-radius:16px;
+  width:100%;
+  max-width:680px;
+  max-height:92vh;
+  overflow-y:auto;
+}
+
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.form-grid .full{grid-column:1/-1;}
+.form-group label{display:block;font-size:11px;font-weight:600;color:var(--muted);margin-bottom:5px;letter-spacing:.4px;}
+.form-group label .req{color:var(--gold);}
+.section-divider{grid-column:1/-1;border-top:1px solid rgba(201,168,76,0.2);margin:6px 0;padding-top:14px;}
+.section-divider h4{font-size:12px;font-weight:700;color:var(--gold);letter-spacing:1px;margin-bottom:10px;}
+
+.empty-state{text-align:center;padding:50px 20px;color:var(--muted);}
+.empty-state .icon{font-size:48px;margin-bottom:14px;opacity:.35;}
+.empty-state h3{font-size:15px;font-weight:600;margin-bottom:7px;color:var(--white);}
+.empty-state p{font-size:12px;line-height:1.7;max-width:340px;margin-left:auto;margin-right:auto;}
+.empty-state .btn{margin-top:16px;}
+
+/* PHASE 14.2 — UI FOUNDATION LAYER
+   .empty-container is a NEW, currently-UNUSED wrapper mirroring
+   .empty-state's current look, prepared for a future shared
+   EmptyState component. .empty-state above is left completely
+   untouched — it remains the live class used by all 12 current
+   empty states until an explicit later migration. */
+.empty-container{
+  text-align:center;
+  padding:50px 20px;
+  color:var(--muted);
+}
+
+.settings-card{background:#FFFFFF;border:1px solid rgba(201,168,76,0.2);border-radius:var(--radius);padding:22px;margin-bottom:18px;}
+.settings-title{font-size:14px;font-weight:700;color:var(--gold);margin-bottom:14px;padding-bottom:9px;border-bottom:1px solid rgba(201,168,76,0.15);}
+.api-input-wrap{display:flex;gap:9px;flex-wrap:wrap;}.api-input-wrap input{flex:1;min-width:180px;}
+
+.calendar-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;font-weight:700;}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;font-size:12px;text-align:center;}
+.cal-day-name{color:var(--gold);font-weight:700;padding:4px 0;}
+.cal-day{padding:5px 3px;border-radius:6px;cursor:pointer;transition:background var(--transition);min-height:28px;display:flex;align-items:center;justify-content:center;position:relative;}
+.cal-day:hover{background:rgba(201,168,76,0.15);}
+.cal-day.today{background:rgba(201,168,76,0.25);color:var(--gold);font-weight:700;}
+.cal-day.has-session::after{content:'';width:4px;height:4px;border-radius:50%;background:var(--gold);position:absolute;bottom:2px;left:50%;transform:translateX(-50%);}
+.cal-day.other-month{color:var(--muted);}
+
+.toast-container{position:fixed;bottom:20px;left:20px;z-index:1000;display:flex;flex-direction:column;gap:7px;}
+.toast{padding:11px 16px;border-radius:var(--radius);font-size:13px;font-weight:600;min-width:200px;max-width:300px;display:flex;align-items:center;gap:9px;animation:slideIn .3s ease;box-shadow:var(--shadow);}
+.toast-success{background:#d5f5e3;border:1px solid #27ae60;color:#1e6e40;}
+.toast-error{background:#fde8e6;border:1px solid #c0392b;color:#922b21;}
+.toast-info{background:#d6eaf8;border:1px solid #2980b9;color:#1a5276;}
+
+.loading-overlay{position:fixed;inset:0;background:rgba(248,245,239,0.9);z-index:500;display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;}
+.loading-overlay.show{display:flex;}
+
+/* ================================================================
+   SPLASH SCREEN — PHASE UX-04 / UX-04A (Premium Polish). Professional
+   desktop-app brand moment for "الحسام". Visible by default in the
+   markup for an instant first paint (no blank page), hidden by
+   firstrun.js shortly after local data renders. Purely presentational:
+   firstrun.js still controls only the #splashScreen node and its
+   .splash-hide class — timing values now live in that file's
+   MIN_VISIBLE_MS / hard-cap constants (see "Splash Timing Polish"
+   comment there); the "never wait on Google Sync" rule is untouched.
+   See docs/UX_First_Run_Report.md and docs/UX04A_Premium_Splash_Report.md.
+   ================================================================ */
+.splash-screen{
+  position:fixed;inset:0;z-index:900;overflow:hidden;
+  background:radial-gradient(circle at 50% 38%,#FFFFFF 0%,var(--navy) 62%,#F1EAD9 100%);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  /* SUB-TASK "Splash Timing Polish": fade in/out now uses an explicit
+     ease-in-out curve (cubic-bezier(0.4,0,0.2,1)) and a slightly longer
+     .6s duration so the exit reads as a smooth dissolve into the main
+     app rather than an abrupt cut. Colors/background/layout untouched. */
+  transition:opacity .6s cubic-bezier(0.4,0,0.2,1),visibility .6s cubic-bezier(0.4,0,0.2,1),transform .6s cubic-bezier(0.4,0,0.2,1);
+  transform:scale(1);
+}
+.splash-screen.splash-hide{opacity:0;visibility:hidden;pointer-events:none;transform:scale(.985);}
+
+/* Very slow, low-cost ambient gradient drift — a "living" background
+   without touching layout/paint-heavy properties. Purely decorative,
+   single element, background-position only. */
+.splash-screen::before{
+  content:'';position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(120deg,rgba(201,168,76,0.05) 0%,rgba(255,255,255,0) 28%,rgba(201,168,76,0.09) 55%,rgba(255,255,255,0) 82%);
+  background-size:220% 220%;
+  animation:splash-bg-drift 11s ease-in-out infinite;
+}
+
+.splash-content{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:2px;text-align:center;padding:0 24px;}
+
+/* SUB-TASK "Splash Timing Polish" — sequential reveal timeline.
+   Every element below now waits for the previous one to fully finish
+   before it starts (delay of element N == end time of element N-1),
+   using an ease-in-out curve throughout. No property, color, size, or
+   ordering was changed — only animation-duration/-delay/-timing.
+   Reveal order (unchanged): logo/ring (0.00s→0.60s) → title
+   (0.60s→1.05s) → subtitle (1.05s→1.50s) → version/edition line
+   (1.50s→1.95s) → contact line (1.95s→2.40s, see below) → footer
+   (2.40s→2.90s, see below). js/modules/firstrun.js then holds the
+   fully-revealed splash on screen briefly before starting the fade-out
+   transition defined on .splash-screen above. */
+.splash-logo{
+  position:relative;
+  width:104px;height:104px;margin-bottom:18px;
+  opacity:0;transform:scale(.82);
+  animation:splash-logo-in .6s cubic-bezier(0.4,0,0.2,1) forwards;
+}
+.splash-logo svg{
+  width:100%;height:100%;display:block;position:relative;z-index:1;
+  filter:drop-shadow(0 10px 22px rgba(13,27,42,0.16));
+}
+.splash-logo::before{
+  content:'';position:absolute;inset:-16px;border-radius:50%;
+  background:radial-gradient(circle,rgba(201,168,76,0.38) 0%,rgba(201,168,76,0) 70%);
+  filter:blur(7px);opacity:0;z-index:0;
+  animation:splash-glow-in .5s ease-in-out forwards .1s;
+}
+.splash-logo-ring{opacity:0;animation:splash-fade .55s ease-in-out forwards .05s;}
+
+.splash-title{
+  font-size:26px;font-weight:900;color:#0D1B2A;letter-spacing:.5px;
+  opacity:0;transform:translateY(6px);
+  animation:splash-rise .45s cubic-bezier(0.4,0,0.2,1) forwards .6s;
+}
+.splash-subtitle{
+  font-size:13.5px;color:var(--muted);margin-top:4px;
+  opacity:0;transform:translateY(6px);
+  animation:splash-rise .45s cubic-bezier(0.4,0,0.2,1) forwards 1.05s;
+}
+.splash-version{
+  margin-top:16px;display:flex;align-items:center;gap:8px;justify-content:center;
+  opacity:0;transform:translateY(6px);
+  animation:splash-rise .45s cubic-bezier(0.4,0,0.2,1) forwards 1.5s;
+}
+.splash-version-badge{
+  font-size:10px;font-weight:800;color:var(--gold-dk);letter-spacing:.4px;
+  border:1px solid rgba(201,168,76,0.45);background:rgba(201,168,76,0.08);
+  border-radius:20px;padding:2px 9px;line-height:1.5;
+}
+.splash-version-text{font-size:11px;color:var(--muted);letter-spacing:.3px;}
+.splash-dot{color:var(--gold-dk);}
+.splash-powered{font-weight:700;color:var(--gold-dk);}
+.splash-contact{
+  margin-top:14px;display:flex;flex-direction:column;align-items:center;gap:5px;
+  opacity:0;transform:translateY(6px);
+  animation:splash-rise .45s cubic-bezier(0.4,0,0.2,1) forwards 1.95s;
+}
+.splash-contact-label{font-size:10.5px;color:var(--muted);letter-spacing:.2px;}
+.splash-contact-row{font-size:11.5px;color:var(--muted);display:flex;align-items:center;gap:7px;justify-content:center;}
+.splash-contact-row svg{width:15px;height:15px;color:var(--info);}
+.splash-contact-brand{font-weight:700;color:#0D1B2A;}
+.splash-contact-row a{color:var(--info);font-weight:700;text-decoration:none;}
+.splash-contact-row a:hover{text-decoration:underline;}
+
+.splash-footer{
+  position:absolute;bottom:24px;font-size:10.5px;color:var(--muted);
+  letter-spacing:.4px;opacity:0;z-index:1;
+  animation:splash-fade .5s ease-in-out forwards 2.4s;
+}
+
+@keyframes splash-logo-in{
+  0%{opacity:0;transform:scale(.82);}
+  100%{opacity:1;transform:scale(1);}
+}
+@keyframes splash-glow-in{from{opacity:0;}to{opacity:1;}}
+@keyframes splash-fade{from{opacity:0;}to{opacity:1;}}
+@keyframes splash-rise{
+  from{opacity:0;transform:translateY(6px);}
+  to{opacity:1;transform:translateY(0);}
+}
+@keyframes splash-bg-drift{
+  0%{background-position:0% 50%;}
+  50%{background-position:100% 50%;}
+  100%{background-position:0% 50%;}
+}
+
+/* Respect the user's OS-level motion preference: collapse every
+   staged reveal into a single simple fade, no scale/translate/glow/
+   background drift. */
+@media (prefers-reduced-motion: reduce){
+  .splash-screen{transition:opacity .3s linear;transform:none !important;}
+  .splash-screen.splash-hide{transform:none !important;}
+  .splash-screen::before{animation:none;background:none;}
+  .splash-logo::before{display:none;}
+  .splash-logo svg{filter:none;}
+  .splash-logo,.splash-logo-ring,.splash-title,.splash-subtitle,
+  .splash-version,.splash-contact,.splash-footer{
+    animation:splash-fade .3s linear forwards !important;
+    transform:none !important;
+  }
+}
+
+/* ================================================================
+   FIRST RUN WIZARD — PHASE UX-01. Reuses .modal-overlay/.modal/
+   .modal-body/.modal-footer as a base; these rules only add the
+   wizard-specific hero/privacy-box treatment on top.
+   ================================================================ */
+.firstrun-modal{max-width:520px;}
+.firstrun-hero{padding:26px 22px 16px;text-align:center;border-bottom:1px solid rgba(0,0,0,0.06);}
+.firstrun-badge{width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,var(--gold),var(--gold-dk));display:flex;align-items:center;justify-content:center;font-size:28px;color:#fff;margin:0 auto 10px;box-shadow:0 6px 18px rgba(201,168,76,0.35);}
+.firstrun-title{font-size:19px;font-weight:900;color:#0D1B2A;}
+.firstrun-subtitle{font-size:12px;color:var(--muted);margin-top:3px;}
+.firstrun-welcome{font-size:13px;color:var(--white);line-height:1.8;margin-bottom:16px;}
+.firstrun-privacy-box{background:rgba(41,128,185,0.06);border:1px solid rgba(41,128,185,0.2);border-radius:12px;padding:14px 16px;margin-bottom:18px;}
+.firstrun-privacy-title{font-size:12px;font-weight:700;color:var(--info);margin-bottom:8px;}
+.firstrun-privacy-box ul{padding-right:18px;font-size:12px;color:#3d5266;line-height:1.9;}
+.firstrun-result{font-size:12px;margin-top:9px;min-height:18px;}
+
+/* ================================================================
+   DASHBOARD WELCOME (empty-data first-use state) — PHASE UX-01.
+   Shown instead of the stats/dashboard grids only when there are
+   zero cases yet — toggled in dashboard.js renderDashboard().
+   ================================================================ */
+.dashboard-welcome{background:linear-gradient(135deg,rgba(201,168,76,0.10),rgba(41,128,185,0.05));border:1px solid rgba(201,168,76,0.25);border-radius:16px;padding:46px 26px;text-align:center;margin-bottom:20px;}
+.dashboard-welcome .icon{font-size:48px;margin-bottom:12px;opacity:.85;}
+.dashboard-welcome h2{font-size:19px;font-weight:900;color:#16283F;margin-bottom:8px;}
+.dashboard-welcome p{font-size:13px;color:var(--muted);margin-bottom:20px;max-width:440px;margin-left:auto;margin-right:auto;line-height:1.7;}
+
+/* Non-blocking background sync indicator — never covers the UI, never blocks interaction.
+   PHASE UX-02: extended with .success/.error state colors; base .show/pulsing dot kept
+   for the in-progress ("syncing") state exactly as before. */
+.sync-indicator{display:none;align-items:center;gap:6px;font-size:11px;color:var(--muted);padding:5px 10px;border-radius:20px;background:rgba(201,168,76,0.1);transition:background var(--transition),color var(--transition);}
+.sync-indicator.show{display:inline-flex;}
+/* BUGFIX (sync jitter/overlap) — showSyncIndicator() in settings.js always
+   drives BOTH this transient pill (#syncIndicator) AND the persistent
+   #topbarLastSync widget (.tls-full/.tls-compact/.tls-chip below) for the
+   very same event, so every sync state change used to change TWO elements'
+   text/width in the topbar at once, forcing .topbar-actions to reflow twice
+   and read as shaking/resizing. #topbarLastSync already shows the same
+   "جارٍ المزامنة…" / success / error states persistently, so the older
+   floating pill is redundant. Keeping showSyncIndicator()'s JS untouched
+   (it still safely toggles .show/.success/.error) — only suppressing this
+   pill's own visibility so exactly one sync-status element renders at a
+   time. */
+.sync-indicator.show{display:none;}
+.sync-indicator .sync-dot{width:7px;height:7px;border-radius:50%;background:var(--gold);animation:sync-pulse 1s ease-in-out infinite;}
+.sync-indicator.success{background:rgba(39,174,96,0.12);color:var(--success);}
+.sync-indicator.success .sync-dot{background:var(--success);animation:none;}
+.sync-indicator.error{background:rgba(192,57,43,0.12);color:var(--danger);}
+.sync-indicator.error .sync-dot{background:var(--danger);animation:none;}
+@keyframes sync-pulse{0%,100%{opacity:.3;}50%{opacity:1;}}
+.spinner{width:44px;height:44px;border:4px solid rgba(201,168,76,0.2);border-top-color:var(--gold);border-radius:50%;animation:spin .8s linear infinite;}
+
+/* Topbar meta — PHASE UX-02 item 4: connection status + last sync time (+ optional
+   user name, shown only if a display name exists in the future). Purely additive;
+   does not replace the sidebar's existing #statusDot/#statusText. */
+.topbar-meta{display:flex;align-items:center;gap:12px;font-size:11px;color:var(--muted);min-width:0;}
+.topbar-user{font-weight:700;color:#16283F;}
+.topbar-conn{display:flex;align-items:center;gap:6px;flex-shrink:0;}
+.topbar-conn .dot{width:7px;height:7px;border-radius:50%;background:var(--muted);}
+.topbar-conn .dot.connected{background:var(--success);}.topbar-conn .dot.error{background:var(--danger);}
+/* BUGFIX (Firefox width mismatch / left-side content clipping) — this
+   span's text length changes with sync state (e.g. "🕒 آخر مزامنة منذ
+   لحظات"). Without min-width:0 + text-overflow, some browsers (Firefox in
+   particular) refuse to shrink it below its full text width inside the
+   flex row, growing .topbar wider than the viewport; since the page is
+   dir="rtl" and body has overflow-x:hidden, the excess width is clipped
+   off the LEFT edge with no way to scroll to it — exactly the "important
+   part on the left disappears" symptom. Truncating with an ellipsis keeps
+   the row inside the viewport in every browser instead. */
+.topbar-lastsync{white-space:nowrap;min-width:0;overflow:hidden;text-overflow:ellipsis;}
+
+/* PHASE UX-03 HOTFIX — persistent last-sync status states (#topbarLastSync).
+   Purely additive color/weight rules keyed off the state classes that
+   updateTopbarSyncMeta() (js/modules/settings.js) is the single writer of.
+   No layout impact: same inline element, no extra space reserved. */
+.topbar-lastsync.is-syncing{color:var(--gold-dk);font-weight:600;}
+.topbar-lastsync.is-success{color:var(--success);font-weight:700;}
+.topbar-lastsync.is-error{color:var(--danger);font-weight:700;}
+.topbar-lastsync.is-idle{color:var(--muted);}
+.topbar-lastsync.is-neversynced{color:var(--muted);}
+
+/* ==================================================================
+   PHASE 12.6B §14/§15 — Adaptive sync-status TopBar (Desktop / Tablet /
+   Mobile). Sync status is never hidden at any breakpoint; only its
+   presentation adapts. Three ready-made variants are always rendered by
+   updateTopbarSyncMeta() (js/modules/settings.js) — CSS alone decides
+   which one is visible per breakpoint (see responsive.css for the
+   mobile/tablet media queries that flip these `display` rules).
+   ================================================================== */
+.topbar-lastsync{display:flex;align-items:center;}
+.tls-full,.tls-compact{min-width:0;overflow:hidden;text-overflow:ellipsis;}
+.tls-compact{display:none;}
+.tls-chip{display:none;align-items:center;gap:5px;background:var(--navy-md);border-radius:999px;padding:3px 9px;font-size:10.5px;font-weight:700;color:var(--slate);min-width:0;overflow:hidden;text-overflow:ellipsis;}
+.tls-chip-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;background:var(--muted);}
+.tls-chip-dot.tls-dot-success{background:var(--success);}
+.tls-chip-dot.tls-dot-error{background:var(--danger);}
+.tls-chip-dot.tls-dot-neversynced{background:#B9C2CE;}
+.tls-chip-dot.tls-dot-syncing{animation:tls-chip-spin 1s linear infinite;border:2px solid rgba(155,122,30,0.25);border-top-color:var(--gold-dk);width:9px;height:9px;background:transparent;}
+@keyframes tls-chip-spin{to{transform:rotate(360deg);}}
+@media(prefers-reduced-motion:reduce){.tls-chip-dot.tls-dot-syncing{animation:none;}}
+
+.session-item{padding:13px 15px;border-radius:var(--radius);background:var(--navy);border:1px solid rgba(201,168,76,0.15);margin-bottom:9px;display:flex;gap:13px;align-items:flex-start;transition:all var(--transition);}
+.session-item:hover{border-color:rgba(201,168,76,0.35);background:rgba(201,168,76,0.06);}
+.session-date{min-width:52px;text-align:center;background:rgba(201,168,76,0.12);border-radius:8px;padding:7px 4px;flex-shrink:0;}
+.session-date .day{font-size:20px;font-weight:900;color:var(--gold);line-height:1;}
+.session-date .month{font-size:9px;color:var(--muted);}
+.session-info{flex:1;min-width:0;}.session-title{font-size:14px;font-weight:700;margin-bottom:4px;color:#0D1B2A;}
+.session-meta{font-size:12px;color:var(--muted);display:flex;gap:9px;flex-wrap:wrap;}
+.session-actions{display:flex;flex-direction:column;gap:5px;flex-shrink:0;}
+
+.task-item{padding:11px 14px;border-radius:var(--radius);background:var(--navy);border-right:3px solid var(--muted);margin-bottom:7px;display:flex;align-items:center;gap:11px;}
+.task-item.high{border-right-color:var(--danger);}.task-item.medium{border-right-color:var(--warning);}.task-item.low{border-right-color:var(--success);}
+.task-text{flex:1;font-size:13px;color:var(--white);}.task-text.done{text-decoration:line-through;color:#9AABB8;}
+.task-due{font-size:11px;color:var(--muted);}
+
+.lib-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:14px;}
+.lib-card{background:#FFFFFF;border:1px solid rgba(201,168,76,0.18);border-radius:var(--radius);padding:15px;transition:all var(--transition);position:relative;overflow:hidden;}
+.lib-card:hover{border-color:rgba(201,168,76,0.35);transform:translateY(-2px);}
+.lib-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--gold),transparent);}
+.lib-card-icon{font-size:32px;margin-bottom:8px;display:block;}
+.lib-card-title{font-size:12px;font-weight:700;color:#0D1B2A;margin-bottom:4px;line-height:1.4;}
+.lib-card-meta{font-size:11px;color:var(--muted);}
+.lib-card-type{display:inline-block;padding:2px 7px;border-radius:10px;font-size:10px;font-weight:700;margin-bottom:7px;}
+.lib-card-type.pdf{background:rgba(192,57,43,0.2);color:#e74c3c;}.lib-card-type.word{background:rgba(41,128,185,0.2);color:#3498db;}
+.lib-card-type.folder{background:rgba(201,168,76,0.2);color:var(--gold);}.lib-card-type.other{background:rgba(138,155,176,0.2);color:var(--muted);}
+.lib-card-actions{display:flex;gap:5px;margin-top:9px;}
+
+.section-tabs{display:flex;gap:7px;margin-bottom:18px;flex-wrap:wrap;}
+.tab-btn{padding:7px 14px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;transition:all var(--transition);border:1px solid rgba(0,0,0,0.12);background:transparent;color:var(--muted);font-family:'Cairo',sans-serif;}
+.tab-btn.active{background:var(--gold);color:var(--navy);border-color:var(--gold);}
+.tab-btn:hover:not(.active){border-color:rgba(0,0,0,0.25);color:#0D1B2A;}
+
+.drive-link-bar{display:flex;align-items:center;gap:11px;padding:13px 16px;background:rgba(41,128,185,0.07);border:1px solid rgba(41,128,185,0.2);border-radius:var(--radius);margin-bottom:18px;flex-wrap:wrap;}
+.drive-link-bar .icon{font-size:22px;}.drive-link-bar-info{flex:1;min-width:130px;}.drive-link-bar-info p{font-size:11px;color:var(--muted);}
+
+.alert-bar{background:linear-gradient(135deg,rgba(192,57,43,0.10),rgba(192,57,43,0.05));border:1px solid rgba(192,57,43,0.3);border-radius:var(--radius);padding:10px 16px;margin-bottom:18px;display:flex;align-items:center;gap:10px;font-size:13px;}
+
+/* Case/Client report view (modalView) + print styles */
+#printArea{display:none;}
+.view-body{padding:28px;background:#fff;color:#111;font-family:'Cairo',Arial,sans-serif;direction:rtl;}
+.view-header{border-bottom:3px solid var(--gold);padding-bottom:14px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:flex-start;}
+.view-office{font-size:11px;color:#888;text-align:left;}
+.view-title{font-size:20px;font-weight:900;color:#0D1B2A;}
+.view-subtitle{font-size:13px;color:#555;margin-top:3px;}
+.view-section{margin-bottom:18px;border:1px solid #e8e0d0;border-radius:8px;overflow:hidden;}
+.view-section-title{background:#0D1B2A;color:var(--gold);font-size:12px;font-weight:700;padding:8px 14px;letter-spacing:1px;}
+.view-grid{display:grid;grid-template-columns:1fr 1fr;gap:0;}
+.view-field{padding:9px 14px;border-bottom:1px solid #f0ece4;}
+.view-field:nth-child(odd){border-left:1px solid #f0ece4;}
+.view-field-full{padding:9px 14px;border-bottom:1px solid #f0ece4;grid-column:1/-1;}
+.view-label{font-size:10px;font-weight:700;color:#888;margin-bottom:3px;letter-spacing:.5px;}
+.view-value{font-size:13px;color:#111;font-weight:600;}
+.view-value.empty{color:#bbb;font-weight:400;}
+.session-row{display:grid;grid-template-columns:80px 1fr;gap:0;border-bottom:1px solid #f0ece4;}
+.session-row:last-child{border-bottom:none;}
+.session-num{background:#f5f0e8;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:18px;color:var(--gold);border-left:1px solid #e8e0d0;}
+.session-detail{padding:10px 14px;}
+.session-detail-title{font-size:13px;font-weight:700;color:#0D1B2A;margin-bottom:4px;}
+.session-detail-meta{font-size:11px;color:#888;margin-bottom:4px;display:flex;gap:10px;flex-wrap:wrap;}
+.session-decision{font-size:12px;color:var(--gold);font-weight:700;margin-top:4px;}
+.session-next{font-size:11px;color:#2980B9;margin-top:2px;}
+.badge-v{display:inline-block;padding:1px 8px;border-radius:10px;font-size:10px;font-weight:700;}
+.badge-active-v{background:#d5f5e3;color:#1e8449;}
+.badge-closed-v{background:#eaecee;color:#717d7e;}
+.badge-pending-v{background:#fdebd0;color:#a04000;}
+.badge-urgent-v{background:#fadbd8;color:#922b21;}
+.view-footer{margin-top:18px;padding-top:12px;border-top:2px solid var(--gold);display:flex;justify-content:space-between;font-size:10px;color:#999;}
+@media print {
+  body > *:not(#printArea){display:none!important;}
+  #printArea{
+    display:block!important;
+    position:fixed;inset:0;
+    background:#fff;
+    z-index:9999;
+    overflow:visible;
+    -webkit-print-color-adjust:exact!important;
+    print-color-adjust:exact!important;
+    color-adjust:exact!important;
+  }
+  @page{size:A4;margin:15mm;}
+  .view-section-title{
+    background:#0D1B2A!important;
+    color:var(--gold)!important;
+    -webkit-print-color-adjust:exact!important;
+    print-color-adjust:exact!important;
+  }
+  .session-num{
+    background:#f5f0e8!important;
+    color:var(--gold)!important;
+    -webkit-print-color-adjust:exact!important;
+    print-color-adjust:exact!important;
+  }
+  .badge-active-v{background:#d5f5e3!important;color:#1e8449!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}
+  .badge-closed-v{background:#eaecee!important;color:#717d7e!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}
+  .badge-pending-v{background:#fdebd0!important;color:#a04000!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}
+  .badge-urgent-v{background:#fadbd8!important;color:#922b21!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}
+  .no-print{display:none!important;}
+}
+
+/* ================================================================
+   CLIENT SELECTOR — multi-select picker for "اسم الموكل" (Case form)
+   Added for: client selector feature (cases form). Purely additive;
+   does not change any existing rule above.
+   ================================================================ */
+.client-selector-group{position:relative;}
+.client-selector-box{display:flex;align-items:center;gap:8px;width:100%;min-height:38px;background:var(--navy);border:1px solid rgba(0,0,0,0.13);border-radius:var(--radius);padding:6px 13px;cursor:pointer;transition:border-color var(--transition);}
+.client-selector-box:hover{border-color:rgba(201,168,76,0.5);}
+.client-selector-box.open,.client-selector-box:focus-within{border-color:var(--gold);}
+.client-selector-chips{display:flex;flex-wrap:wrap;gap:6px;flex:1;}
+.client-selector-placeholder{color:#9AABB8;font-size:13px;}
+.client-selector-arrow{color:var(--muted);font-size:12px;flex-shrink:0;}
+.client-chip{display:inline-flex;align-items:center;gap:6px;background:rgba(201,168,76,0.15);color:#0D1B2A;border:1px solid rgba(201,168,76,0.35);border-radius:20px;padding:3px 6px 3px 10px;font-size:12px;font-weight:600;}
+.client-chip-remove{background:transparent;border:none;color:var(--danger);cursor:pointer;font-size:15px;line-height:1;padding:0 2px;border-radius:50%;}
+.client-chip-remove:hover{background:rgba(192,57,43,0.15);}
+.client-selector-panel{display:none;position:absolute;top:calc(100% + 6px);right:0;left:0;background:#FFFFFF;border:1px solid rgba(201,168,76,0.3);border-radius:var(--radius);box-shadow:var(--shadow);padding:10px;z-index:50;max-height:260px;overflow:hidden;flex-direction:column;gap:8px;}
+.client-selector-panel.open{display:flex;}
+.client-selector-search{width:100%;}
+.client-selector-list{overflow-y:auto;max-height:200px;display:flex;flex-direction:column;gap:2px;}
+.client-selector-item{display:flex;align-items:center;gap:9px;padding:7px 8px;border-radius:8px;cursor:pointer;transition:background var(--transition);}
+.client-selector-item:hover{background:rgba(201,168,76,0.1);}
+.client-selector-item input[type="checkbox"]{width:16px;height:16px;flex-shrink:0;accent-color:var(--gold);}
+.client-selector-item-text{display:flex;flex-direction:column;}
+.client-selector-item-name{font-size:13px;font-weight:600;color:var(--white);}
+.client-selector-item-sub{font-size:11px;color:var(--muted);}
+.client-selector-empty{padding:14px;text-align:center;font-size:12px;color:var(--muted);}
+
+/* ================================================================
+   PHASE 12.6 / 12.6A / 12.6B — History Panel (Undo / Redo History)
+   Additive-only block appended to the end of this file. 12.6A
+   superseded the panel-position, tabs, and empty-state rules (right-side
+   RTL slide-in, multi-tab filter row, search box, TopBar badge, per-row
+   entity badge). 12.6B (this phase) restyles the row list into a
+   professional timeline (connector line, colored icon markers,
+   expandable Before/After detail, staggered fade-in) — see the block
+   below starting at .hp-body. hp-badge-* create/update/delete/restore
+   color mapping from 12.6 is UNCHANGED throughout.
+   ================================================================ */
+.history-panel-overlay{position:fixed;inset:0;background:rgba(20,25,40,0.35);z-index:900;opacity:0;pointer-events:none;transition:opacity var(--transition);}
+.history-panel-overlay.open{opacity:1;pointer-events:auto;}
+#historyPanel{position:fixed;top:0;bottom:0;right:0;width:380px;max-width:92vw;background:var(--navy-lt);box-shadow:var(--shadow);z-index:901;transform:translateX(100%);transition:transform var(--transition),opacity var(--transition);opacity:0;display:flex;flex-direction:column;}
+#historyPanel.open{transform:translateX(0);opacity:1;}
+.hp-header{display:flex;align-items:center;justify-content:space-between;padding:16px 18px;border-bottom:1px solid var(--navy-md);flex-shrink:0;}
+.hp-header-title{font-weight:800;font-size:15px;color:var(--steel);display:flex;align-items:center;gap:8px;}
+.hp-close-btn{background:none;border:none;font-size:18px;color:var(--muted);cursor:pointer;line-height:1;padding:4px;border-radius:6px;}
+.hp-close-btn:hover{color:var(--danger);}
+.hp-close-btn:focus-visible{outline:2px solid var(--gold);outline-offset:2px;}
+
+/* TopBar button live-count badge (Phase 12.6A §7) */
+.hp-topbar-btn{position:relative;}
+.hp-topbar-badge{display:inline-flex;align-items:center;justify-content:center;min-width:16px;height:16px;padding:0 4px;margin-inline-start:5px;background:var(--danger);color:#fff;font-size:10px;font-weight:800;border-radius:9px;vertical-align:middle;line-height:1;}
+
+/* Search box (Phase 12.6A §5) */
+.hp-search-wrap{position:relative;padding:10px 18px;border-bottom:1px solid var(--navy-md);flex-shrink:0;}
+.hp-search-icon{position:absolute;inset-inline-start:28px;top:50%;transform:translateY(-50%);font-size:13px;opacity:.55;pointer-events:none;}
+.hp-search-input{width:100%;padding:8px 12px 8px 12px;padding-inline-start:30px;border:1px solid var(--navy-md);border-radius:8px;font-size:12.5px;background:var(--navy);color:var(--offwhite);font-family:inherit;}
+.hp-search-input:focus{outline:none;border-color:var(--gold);box-shadow:0 0 0 2px rgba(201,168,76,0.25);}
+
+.hp-limits{padding:6px 18px;font-size:11px;color:var(--muted);border-bottom:1px solid var(--navy-md);flex-shrink:0;}
+
+/* Tabs — entity filters + Undo/Redo (Phase 12.6A §6) */
+.hp-tabs{display:flex;flex-wrap:wrap;gap:2px;border-bottom:1px solid var(--navy-md);flex-shrink:0;padding:6px 8px;max-height:112px;overflow-y:auto;}
+.hp-tab{text-align:center;padding:6px 9px;font-size:11.5px;font-weight:700;color:var(--muted);cursor:pointer;border-radius:7px;border-bottom:2px solid transparent;white-space:nowrap;}
+.hp-tab:hover{background:var(--navy-md);}
+.hp-tab.active{color:var(--gold-dk);background:var(--navy-md);border-bottom-color:var(--gold);}
+.hp-tab:focus-visible{outline:2px solid var(--gold);outline-offset:1px;}
+.hp-tab-sep{margin-inline-start:8px;border-inline-start:1px solid var(--navy-md);padding-inline-start:9px;}
+.hp-tab-count{display:inline-block;background:var(--navy-md);border-radius:10px;padding:1px 7px;font-size:10.5px;margin-inline-start:4px;}
+.hp-tab.active .hp-tab-count{background:var(--navy-lt);}
+
+.hp-body{flex:1;overflow-y:auto;padding:8px 10px;}
+
+/* ================================================================
+   PHASE 12.6B — Professional Timeline (§5–§10)
+   New palette for the icon marker per §6 (Create/Update/Delete/Restore
+   keep their existing hp-badge-* colors above; Bulk/Undo-list/Redo-list
+   add three more, declared locally here rather than in variables.css,
+   which this phase does not touch).
+   ================================================================ */
+:root{
+  --hp-purple:#6C5CE7;--hp-indigo:#4A5FC1;--hp-teal:#0F9B8E;
+}
+
+.hp-list{display:block;position:relative;padding-inline-start:6px;}
+/* Connector line — one continuous line behind every marker circle,
+   drawn once on the list container rather than per-row, so grouping/
+   filtering never leaves a broken segment. */
+.hp-list:not([data-empty="1"])::before{
+  content:'';position:absolute;top:6px;bottom:6px;inset-inline-start:23px;
+  width:2px;background:var(--navy-md);
+}
+
+.hp-row{display:flex;align-items:flex-start;gap:10px;padding:9px 6px 11px;border-radius:10px;margin-bottom:2px;position:relative;transition:background var(--transition),box-shadow var(--transition),transform var(--transition);}
+.hp-row:hover{background:var(--navy-md);box-shadow:var(--shadow-sm);transform:translateY(-1px);}
+
+/* Staggered fade-in for newly-created rows only (historypanel-ui.js sets
+   --hp-row-delay per row). No bounce — ease-out only, per §10. */
+.hp-row.hp-row-enter{animation:hp-row-fade-in .32s ease-out both;animation-delay:var(--hp-row-delay,0ms);}
+@keyframes hp-row-fade-in{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:translateY(0);}}
+@media(prefers-reduced-motion:reduce){.hp-row.hp-row-enter{animation:none;}}
+
+.hp-row-marker{position:relative;flex-shrink:0;width:34px;display:flex;justify-content:center;padding-top:1px;}
+.hp-marker-dot{position:relative;z-index:1;width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;color:#fff;background:var(--muted);box-shadow:0 0 0 3px var(--navy-lt);}
+.hp-marker-create{background:var(--success);}
+.hp-marker-update{background:var(--info);}
+.hp-marker-delete{background:var(--danger);}
+.hp-marker-restore{background:var(--warning);}
+.hp-marker-bulk{background:var(--hp-purple);}
+
+/* Undo/Redo list accent — a thin inline-start rule on the content
+   column (indigo for pending-undo entries, teal for pending-redo
+   entries), independent of the marker's action-type color above. */
+.hp-row-content{min-width:0;flex:1;border-inline-start:3px solid transparent;padding-inline-start:9px;}
+.hp-list-undo .hp-row-content{border-inline-start-color:var(--hp-indigo);}
+.hp-list-redo .hp-row-content{border-inline-start-color:var(--hp-teal);}
+
+.hp-row-top{display:flex;align-items:center;gap:6px;margin-bottom:3px;}
+.hp-badge{font-size:9px;font-weight:800;letter-spacing:.4px;padding:3px 7px;border-radius:6px;color:#fff;flex-shrink:0;}
+.hp-badge-create{background:var(--success);}
+.hp-badge-update{background:var(--info);}
+.hp-badge-delete{background:var(--danger);}
+.hp-badge-restore{background:var(--warning);}
+.hp-entity-badge{font-size:10px;color:var(--muted);background:var(--navy-md);border-radius:6px;padding:1px 6px;flex-shrink:0;}
+.hp-row-time{font-size:10.5px;color:var(--muted);margin-inline-start:auto;white-space:nowrap;}
+.hp-row-title{font-size:12.5px;font-weight:600;color:var(--white);line-height:1.5;overflow-wrap:anywhere;}
+
+.hp-row-actions{display:flex;align-items:center;gap:8px;margin-top:6px;}
+.hp-expand-btn{background:none;border:none;padding:0;font-size:11px;font-weight:700;color:var(--gold-dk);cursor:pointer;}
+.hp-expand-btn:hover{text-decoration:underline;}
+.hp-expand-btn:focus-visible{outline:2px solid var(--gold);outline-offset:2px;}
+.hp-jump-btn{flex-shrink:0;white-space:nowrap;margin-inline-start:auto;}
+.hp-jump-btn:focus-visible{outline:2px solid var(--gold);outline-offset:2px;}
+
+/* Expandable "عرض التفاصيل" detail panel (§8) — Before -> After / bulk
+   member list. Hidden via the [hidden] attribute (no layout cost while
+   closed); historypanel-ui.js fills it in lazily on first expand. */
+.hp-details{margin-top:8px;padding:10px 11px;background:var(--navy);border-radius:8px;border:1px solid var(--navy-md);font-size:11.5px;}
+.hp-details-inner{display:flex;flex-direction:column;gap:8px;}
+.hp-detail-meta{display:flex;flex-direction:column;gap:3px;}
+.hp-detail-meta-row{display:flex;justify-content:space-between;gap:10px;color:var(--offwhite);}
+.hp-detail-meta-key{color:var(--muted);font-weight:700;}
+.hp-details-section-title{font-weight:800;color:var(--steel);font-size:11px;margin-top:2px;}
+.hp-details-empty-note{color:var(--muted);font-style:italic;}
+.hp-detail-fields{display:flex;flex-direction:column;gap:3px;}
+.hp-detail-field-row{display:flex;justify-content:space-between;gap:10px;}
+.hp-detail-field-key{color:var(--muted);}
+.hp-detail-field-val{color:var(--offwhite);font-weight:600;overflow-wrap:anywhere;text-align:end;}
+.hp-detail-diff{display:flex;flex-direction:column;gap:5px;}
+.hp-diff-row{display:grid;grid-template-columns:auto 1fr auto 1fr;align-items:center;gap:6px;}
+.hp-diff-field{color:var(--muted);font-weight:700;}
+.hp-diff-before{color:var(--danger);text-decoration:line-through;overflow-wrap:anywhere;}
+.hp-diff-arrow{color:var(--muted);}
+.hp-diff-after{color:var(--success);font-weight:700;overflow-wrap:anywhere;}
+.hp-detail-members{display:flex;flex-direction:column;gap:3px;max-height:160px;overflow-y:auto;}
+.hp-detail-member{display:flex;justify-content:space-between;gap:8px;padding:3px 0;border-bottom:1px dashed var(--navy-md);}
+.hp-detail-member-label{color:var(--offwhite);}
+.hp-detail-member-time{color:var(--muted);font-size:10.5px;flex-shrink:0;}
+
+.hp-empty{text-align:center;padding:50px 20px;color:var(--muted);}
+.hp-empty-icon{font-size:34px;margin-bottom:10px;opacity:.5;}
+.hp-empty-illustration{margin-bottom:12px;opacity:.55;color:var(--gold-dk);}
+.hp-empty-title{font-weight:700;color:var(--steel);margin-bottom:4px;font-size:13px;}
+.hp-empty-sub{font-size:11.5px;line-height:1.6;}
+
+/* Search clear (×) button — §12 */
+.hp-search-clear{position:absolute;inset-inline-end:26px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--muted);font-size:12px;cursor:pointer;padding:3px;line-height:1;border-radius:50%;}
+.hp-search-clear:hover{color:var(--danger);background:var(--navy-md);}
+.hp-search-clear:focus-visible{outline:2px solid var(--gold);outline-offset:2px;}
+
+@media (prefers-reduced-motion:reduce){#historyPanel,.history-panel-overlay{transition:none;}.hp-row{transition:none;}}
+@media (max-width:640px){#historyPanel{width:100%;max-width:100%;}.hp-tabs{max-height:88px;}}
