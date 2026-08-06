@@ -114,8 +114,10 @@
         (_allowed('CanCreateUsers')
           ? '<button type="button" class="btn btn-primary" id="hsmAddUserBtn">&#65291; إضافة مستخدم</button>'
           : '') +
-        '<table class="hsm-users-table"><thead><tr><th>الاسم</th><th>اسم المستخدم</th><th>الدور</th><th>الحالة</th><th></th></tr></thead>' +
-        '<tbody>' + (rows || '<tr><td colspan="5" style="color:var(--muted);">لا يوجد مستخدمون بعد.</td></tr>') + '</tbody></table>' +
+        '<div class="hsm-table-scroll">' +
+          '<table class="hsm-users-table"><thead><tr><th>الاسم</th><th>اسم المستخدم</th><th>الدور</th><th>الحالة</th><th></th></tr></thead>' +
+          '<tbody>' + (rows || '<tr><td colspan="5" style="color:var(--muted);">لا يوجد مستخدمون بعد.</td></tr>') + '</tbody></table>' +
+        '</div>' +
       '</div>';
 
     var logoutBtn = document.getElementById('hsmLogoutBtn');
