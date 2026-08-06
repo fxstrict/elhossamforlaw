@@ -1348,10 +1348,11 @@ function quickPrintCase(i) {
 
   var printContent =
     '<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8">' +
+    '<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">' +
     '<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&display=swap" rel="stylesheet">' +
     '<style>' +
     '*{box-sizing:border-box;margin:0;padding:0;}' +
-    'body{font-family:Cairo,Arial,sans-serif;background:#fff;color:#111;direction:rtl;}' +
+    'body{font-family:Cairo,Arial,sans-serif;background:#fff;color:#111;direction:rtl;max-width:100%;overflow-x:hidden;}' +
     '@page{size:A4;margin:15mm;}' +
     '@media print{body{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important;}' +
     '.view-section-title{background:#0D1B2A!important;color:#C9A84C!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}' +
@@ -1388,9 +1389,17 @@ function quickPrintCase(i) {
     '.badge-pending-v{background:#fdebd0;color:#a04000;}' +
     '.badge-urgent-v{background:#fadbd8;color:#922b21;}' +
     '.view-footer{margin-top:18px;padding-top:12px;border-top:2px solid #C9A84C;display:flex;justify-content:space-between;font-size:10px;color:#999;}' +
-    'table{width:100%;border-collapse:collapse;font-size:12px;}' +
+    'table{width:100%;min-width:520px;border-collapse:collapse;font-size:12px;}' +
     'th,td{padding:7px 10px;border:1px solid #e8e0d0;text-align:right;}' +
     'th{background:#f5f0e8;color:#8B6914;font-weight:700;}' +
+    '@media screen and (max-width:640px){' +
+      '.view-body{padding:10px 6px;}' +
+      '.view-header{flex-direction:column;gap:6px;}' +
+      '.view-grid{grid-template-columns:1fr;}' +
+      '.view-field{border-left:none;}' +
+      '.session-row{grid-template-columns:48px 1fr;}' +
+      'table{display:block;overflow-x:auto;white-space:nowrap;-webkit-overflow-scrolling:touch;}' +
+    '}' +
     '</style></head><body>' +
     body +
     '</body></html>';

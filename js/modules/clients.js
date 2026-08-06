@@ -1060,25 +1060,37 @@ function printClientFile(i) {
 
   var printContent =
     '<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8">' +
+    '<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">' +
     '<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&display=swap" rel="stylesheet">' +
     '<style>' +
     '*{box-sizing:border-box;margin:0;padding:0;}' +
-    'body{font-family:Cairo,Arial,sans-serif;background:#fff;color:#111;direction:rtl;}' +
+    'html{-webkit-text-size-adjust:100%;}' +
+    'body{font-family:Cairo,Arial,sans-serif;background:#fff;color:#111;direction:rtl;max-width:100%;overflow-x:hidden;}' +
     '@page{size:A4;margin:15mm;}' +
     '.case-report{padding:10px;}' +
     '.report-header{text-align:center;border-bottom:2px solid #c9a84c;padding-bottom:12px;margin-bottom:16px;}' +
     '.view-section{margin-bottom:16px;border:1px solid #e8e0d0;border-radius:6px;overflow:hidden;}' +
     '.view-section-title{background:#f5f0e8;padding:8px 12px;font-weight:700;font-size:13px;border-bottom:1px solid #e8e0d0;}' +
     '.view-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:0;}' +
-    '.view-field{padding:7px 12px;border-bottom:1px solid #f0ece4;border-left:1px solid #f0ece4;}' +
+    '.view-field{padding:7px 12px;border-bottom:1px solid #f0ece4;border-left:1px solid #f0ece4;min-width:0;}' +
     '.view-field-full{padding:7px 12px;border-bottom:1px solid #f0ece4;}' +
     '.view-label{font-size:10px;color:#888;margin-bottom:2px;}' +
-    '.view-value{font-size:13px;font-weight:600;}' +
+    '.view-value{font-size:13px;font-weight:600;overflow-wrap:anywhere;word-break:break-word;}' +
     '.empty{color:#ccc;}' +
-    'table{width:100%;border-collapse:collapse;font-size:12px;}' +
+    '.hsm-table-scroll{width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;}' +
+    'table{width:100%;min-width:520px;border-collapse:collapse;font-size:12px;}' +
     'th,td{padding:6px 10px;border:1px solid #e8e0d0;text-align:right;}' +
     'th{background:#f5f0e8;font-weight:700;}' +
     '.view-footer{display:flex;justify-content:space-between;border-top:1px solid #e8e0d0;padding-top:8px;margin-top:14px;font-size:10px;color:#999;}' +
+    /* Screen-only (mobile viewing before printing) — @page/@media print above
+       is untouched, so the actual PDF/paper output is unaffected. */
+    '@media screen and (max-width:640px){' +
+      'body{padding:0 4px;}' +
+      '.case-report{padding:10px 6px;}' +
+      '.view-grid{grid-template-columns:1fr;}' +
+      '.view-field{border-left:none;}' +
+      'table{display:block;overflow-x:auto;white-space:nowrap;-webkit-overflow-scrolling:touch;}' +
+    '}' +
     '</style>' +
     '</head><body>' + body + '</body></html>';
 
@@ -1536,24 +1548,29 @@ function printClientsReport() {
 
   var printContent =
     '<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8">' +
+    '<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">' +
     '<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&display=swap" rel="stylesheet">' +
     '<style>' +
     '*{box-sizing:border-box;margin:0;padding:0;}' +
-    'body{font-family:Cairo,Arial,sans-serif;background:#fff;color:#111;direction:rtl;padding:20px;}' +
+    'body{font-family:Cairo,Arial,sans-serif;background:#fff;color:#111;direction:rtl;padding:20px;max-width:100%;overflow-x:hidden;}' +
     '@page{size:A4 landscape;margin:12mm;}' +
     'h1{font-size:16px;text-align:center;color:#1a2744;border-bottom:2px solid #c9a84c;padding-bottom:8px;margin-bottom:14px;}' +
     'p{font-size:11px;color:#888;text-align:center;margin-bottom:12px;}' +
-    'table{width:100%;border-collapse:collapse;font-size:12px;}' +
+    '.hsm-table-scroll{width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;}' +
+    'table{width:100%;min-width:640px;border-collapse:collapse;font-size:12px;}' +
     'th{background:#f5f0e8;padding:8px 10px;border:1px solid #e8e0d0;text-align:right;font-weight:700;}' +
+    '@media screen and (max-width:640px){' +
+      'body{padding:12px 6px;}' +
+    '}' +
     '</style></head><body>' +
     '<h1>مكتب الحسام للمحاماة — سجل الموكلين</h1>' +
     '<p>تاريخ الطباعة: ' + today + ' | عدد الموكلين: ' + data.clients.length + '</p>' +
-    '<table>' +
+    '<div class="hsm-table-scroll"><table>' +
       '<thead><tr>' +
         '<th>#</th><th>الاسم</th><th>النوع</th><th>الهاتف</th><th>الوظيفة</th><th>العنوان</th>' +
       '</tr></thead>' +
       '<tbody>' + rows + '</tbody>' +
-    '</table>' +
+    '</table></div>' +
     '</body></html>';
 
   var w = window.open('', '_blank', 'width=1000,height=700');
@@ -1630,25 +1647,33 @@ function printView() {
  */
 function _buildClientPrintDocument(bodyHtml) {
   return '<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8">' +
+    '<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">' +
     '<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&display=swap" rel="stylesheet">' +
     '<style>' +
     '*{box-sizing:border-box;margin:0;padding:0;}' +
-    'body{font-family:Cairo,Arial,sans-serif;background:#fff;color:#111;direction:rtl;}' +
+    'body{font-family:Cairo,Arial,sans-serif;background:#fff;color:#111;direction:rtl;max-width:100%;overflow-x:hidden;}' +
     '@page{size:A4;margin:15mm;}' +
     '.case-report{padding:10px;}' +
     '.report-header{text-align:center;border-bottom:2px solid #c9a84c;padding-bottom:12px;margin-bottom:16px;}' +
     '.view-section{margin-bottom:16px;border:1px solid #e8e0d0;border-radius:6px;overflow:hidden;}' +
     '.view-section-title{background:#f5f0e8;padding:8px 12px;font-weight:700;font-size:13px;border-bottom:1px solid #e8e0d0;}' +
     '.view-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:0;}' +
-    '.view-field{padding:7px 12px;border-bottom:1px solid #f0ece4;border-left:1px solid #f0ece4;}' +
+    '.view-field{padding:7px 12px;border-bottom:1px solid #f0ece4;border-left:1px solid #f0ece4;min-width:0;}' +
     '.view-field-full{padding:7px 12px;border-bottom:1px solid #f0ece4;}' +
     '.view-label{font-size:10px;color:#888;margin-bottom:2px;}' +
-    '.view-value{font-size:13px;font-weight:600;}' +
+    '.view-value{font-size:13px;font-weight:600;overflow-wrap:anywhere;word-break:break-word;}' +
     '.empty{color:#ccc;}' +
-    'table{width:100%;border-collapse:collapse;font-size:12px;}' +
+    'table{width:100%;min-width:520px;border-collapse:collapse;font-size:12px;}' +
     'th,td{padding:6px 10px;border:1px solid #e8e0d0;text-align:right;}' +
     'th{background:#f5f0e8;font-weight:700;}' +
     '.view-footer{display:flex;justify-content:space-between;border-top:1px solid #e8e0d0;padding-top:8px;margin-top:14px;font-size:10px;color:#999;}' +
+    '@media screen and (max-width:640px){' +
+      'body{padding:0 4px;}' +
+      '.case-report{padding:10px 6px;}' +
+      '.view-grid{grid-template-columns:1fr;}' +
+      '.view-field{border-left:none;}' +
+      'table{display:block;overflow-x:auto;white-space:nowrap;-webkit-overflow-scrolling:touch;}' +
+    '}' +
     '</style>' +
     '</head><body>' + bodyHtml + '</body></html>';
 }
@@ -1661,10 +1686,11 @@ function _buildClientPrintDocument(bodyHtml) {
  */
 function _buildCasePrintDocument(bodyHtml) {
   return '<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8">' +
+    '<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">' +
     '<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&display=swap" rel="stylesheet">' +
     '<style>' +
     '*{box-sizing:border-box;margin:0;padding:0;}' +
-    'body{font-family:Cairo,Arial,sans-serif;background:#fff;color:#111;direction:rtl;}' +
+    'body{font-family:Cairo,Arial,sans-serif;background:#fff;color:#111;direction:rtl;max-width:100%;overflow-x:hidden;}' +
     '@page{size:A4;margin:15mm;}' +
     '@media print{body{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important;}' +
     '.view-section-title{background:#0D1B2A!important;color:#C9A84C!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}' +
@@ -1701,9 +1727,17 @@ function _buildCasePrintDocument(bodyHtml) {
     '.badge-pending-v{background:#fdebd0;color:#a04000;}' +
     '.badge-urgent-v{background:#fadbd8;color:#922b21;}' +
     '.view-footer{margin-top:18px;padding-top:12px;border-top:2px solid #C9A84C;display:flex;justify-content:space-between;font-size:10px;color:#999;}' +
-    'table{width:100%;border-collapse:collapse;font-size:12px;}' +
+    'table{width:100%;min-width:520px;border-collapse:collapse;font-size:12px;}' +
     'th,td{padding:7px 10px;border:1px solid #e8e0d0;text-align:right;}' +
     'th{background:#f5f0e8;color:#8B6914;font-weight:700;}' +
+    '@media screen and (max-width:640px){' +
+      '.view-body{padding:10px 6px;}' +
+      '.view-header{flex-direction:column;gap:6px;}' +
+      '.view-grid{grid-template-columns:1fr;}' +
+      '.view-field{border-left:none;}' +
+      '.session-row{grid-template-columns:48px 1fr;}' +
+      'table{display:block;overflow-x:auto;white-space:nowrap;-webkit-overflow-scrolling:touch;}' +
+    '}' +
     '</style></head><body>' + bodyHtml + '</body></html>';
 }
 
