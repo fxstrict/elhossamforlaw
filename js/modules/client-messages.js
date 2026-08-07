@@ -334,7 +334,7 @@ function renderClientMessagesSection(client) {
   if (!msgs.length) {
     html += '<div style="color:#999;font-size:12px;">لا توجد رسائل أو ملاحظات مسجلة لهذا الموكل بعد.</div>';
   } else {
-    html += '<table style="width:100%;border-collapse:collapse;font-size:12px;">' +
+    html += '<div class="hsm-table-scroll"><table style="width:100%;min-width:640px;border-collapse:collapse;font-size:12px;">' +
       '<tr style="background:#faf6ec;">' +
         '<th style="padding:6px 8px;border:1px solid #e8e0d0;">التاريخ</th>' +
         '<th style="padding:6px 8px;border:1px solid #e8e0d0;">النوع</th>' +
@@ -360,7 +360,7 @@ function renderClientMessagesSection(client) {
         '</td>' +
       '</tr>';
     });
-    html += '</table>';
+    html += '</table></div>';
   }
 
   html += '</div>';

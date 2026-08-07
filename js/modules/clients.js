@@ -961,7 +961,7 @@ function buildClientReport(c) {
   if (!linkedCases.length) {
     html += '<div style="padding:12px;color:#888;font-size:12px;">لا توجد قضايا مسجلة لهذا الموكل</div>';
   } else {
-    html += '<table style="width:100%;font-size:12px;border-collapse:collapse;">' +
+    html += '<div class="hsm-table-scroll"><table style="width:100%;min-width:560px;font-size:12px;border-collapse:collapse;">' +
       '<tr style="background:#f5f0e8;">' +
         '<th style="padding:7px 10px;text-align:right;border:1px solid #e8e0d0;">رقم القضية</th>' +
         '<th style="padding:7px 10px;text-align:right;border:1px solid #e8e0d0;">العنوان</th>' +
@@ -982,7 +982,7 @@ function buildClientReport(c) {
         '</td>' +
       '</tr>';
     });
-    html += '</table>';
+    html += '</table></div>';
   }
   html += '</div>';
 
@@ -991,7 +991,7 @@ function buildClientReport(c) {
   if (!linkedFees.length) {
     html += '<div style="padding:12px;color:#888;font-size:12px;">لا توجد أتعاب مسجلة لهذا الموكل</div>';
   } else {
-    html += '<table style="width:100%;font-size:12px;border-collapse:collapse;">' +
+    html += '<div class="hsm-table-scroll"><table style="width:100%;min-width:560px;font-size:12px;border-collapse:collapse;">' +
       '<tr style="background:#f5f0e8;">' +
         '<th style="padding:7px 10px;text-align:right;border:1px solid #e8e0d0;">رقم القضية</th>' +
         '<th style="padding:7px 10px;text-align:right;border:1px solid #e8e0d0;">النوع</th>' +
@@ -1019,7 +1019,7 @@ function buildClientReport(c) {
       '</td>' +
       '<td colspan="2" style="border:1px solid #e8e0d0;"></td>' +
     '</tr>';
-    html += '</table>';
+    html += '</table></div>';
   }
   html += '</div>';
 
