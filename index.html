@@ -511,6 +511,8 @@ style="color:var(--muted);font-size:12px;margin-top:4px;"> جارٍ تحميل
   <div class="topbar-actions">
     <div class="topbar-meta" id="topbarMeta">
       <span class="topbar-user" id="topbarUserName" style="display:none;"></span>
+      <span class="topbar-user" id="topbarRbacUserName" style="display:none;" title="المستخدم الحالي"></span>
+      <button type="button" class="btn btn-ghost btn-sm" id="topbarLogoutBtn" style="display:none;" title="تسجيل الخروج (لتسجيل الدخول بمستخدم آخر)">&#9211; خروج</button>
       <span class="topbar-conn"><span class="dot" id="topbarConnDot"></span><span id="topbarConnText">محلي</span></span>
       <span class="topbar-lastsync" id="topbarLastSync" role="status" aria-live="polite">
         <span class="tls-full" id="tlsFull"></span>
@@ -1353,6 +1355,11 @@ style="color:var(--muted);font-size:12px;margin-top:4px;"> جارٍ تحميل
 <script src="js/core/rbac/PermissionGroups.js"></script>
 <script src="js/core/rbac/Roles.js"></script>
 <script src="js/core/rbac/PermissionService.js"></script>
+<!-- SESSION PERSISTENCE FIX: optional dependency of SessionContext.js's
+     setCurrentUser()/clear()/restoreSession() (see that file's header) —
+     must load BEFORE SessionContext.js. Self-contained, no dependency of
+     its own. Fixes "every refresh asks for username/password again". -->
+<script src="js/auth/SessionPersistence.js"></script>
 <script src="js/core/rbac/SessionContext.js"></script>
 <script src="js/core/rbac/AuditLog.js"></script>
 <script src="js/repositories/CasesRepository.js"></script>
@@ -1387,6 +1394,13 @@ style="color:var(--muted);font-size:12px;margin-top:4px;"> جارٍ تحميل
 <script src="js/auth/LoginAttempts.js"></script>
 <script src="js/auth/LoginScreen.js"></script>
 <script src="js/auth/UsersAdminPanel.js"></script>
+<!-- SESSION PERSISTENCE FIX: visible topbar "logged in as / logout"
+     control (site-wide, not buried inside Settings -> Users panel),
+     so switching to a different username/permissions no longer
+     requires hunting for UsersAdminPanel.js's own logout button first.
+     Purely presentational — reads window.HossamSession, never touches
+     it beyond clear(). Must load after LoginScreen.js/SessionContext.js. -->
+<script src="js/auth/TopbarSessionBadge.js"></script>
 <!-- PHASE 17.0 — Startup Reliability: per-entity ready-promise timeout
      helper. Must load AFTER core files and BEFORE every entity module
      below, since each module calls RepositoryReadyTimeout.wrap(...) at
@@ -1668,7 +1682,15 @@ window.addEventListener('DOMContentLoaded',function(){
   // reason. UsersAdminPanel.init() just renders the Settings card the
   // same way LicenseManagerPanel.init() renders its own — no gating.
   // See docs/phase32 for the full design.
-  if(window.LoginScreen){LoginScreen.init();}
+  if(window.LoginScreen){
+    // SESSION PERSISTENCE FIX: onSuccess (manual login submit) and the
+    // .then() (silent restoreSession() on this boot, or "no RBAC users
+    // exist yet" — both same-shaped no-ops) both just ask the topbar
+    // badge to re-render; render() itself is the thing that decides
+    // whether there's anything to show. See js/auth/TopbarSessionBadge.js.
+    LoginScreen.init(function(){ if(window.HossamTopbarSessionBadge) HossamTopbarSessionBadge.render(); })
+      .then(function(){ if(window.HossamTopbarSessionBadge) HossamTopbarSessionBadge.render(); });
+  }
   if(window.UsersAdminPanel){UsersAdminPanel.init();}
   // PHASE 16.4 — BOOT SEQUENCE CONSOLIDATION: the first thing this
   // listener does. Guarded exactly like the ApplicationShell/
