@@ -151,7 +151,7 @@
  * function for the residual limitation this does NOT solve.
  * ---------------------------------------------------------------------- */
 
-var SW_VERSION = 'v7'; // PHASE 34 — bumped for the mobile-overflow responsive fixes (auth.css, license.css, clients.js, cases.js, UsersAdminPanel.js)
+var SW_VERSION = 'v8'; // PHASE 35 — bumped: wrapped client-file tables (linked cases, fees, messages) in .hsm-table-scroll
 var SHELL_CACHE = 'ahp-shell-' + SW_VERSION;
 var ICON_CACHE = 'ahp-icons-' + SW_VERSION;
 var IMAGE_CACHE = 'ahp-images-' + SW_VERSION;
