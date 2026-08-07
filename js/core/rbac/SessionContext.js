@@ -36,6 +36,20 @@
  * (script order in index.html), so `_guardPermission()` finds
  * `window.HossamPermissionGuard` already defined by the time any
  * create()/update()/delete()/restore() call happens.
+ *
+ * PHASE — SESSION PERSISTENCE FIX
+ *   Originally `currentUser` was ONLY an in-memory variable — nothing
+ *   survived a page reload, so every refresh/PWA update forced a fresh
+ *   login (reported bug). `setCurrentUser()` now also persists the
+ *   username via `js/auth/SessionPersistence.js` (if loaded — optional
+ *   dependency, fails open exactly like every other integration point
+ *   in this file), and the new `restoreSession()` below re-hydrates
+ *   `currentUser` from that persisted username on boot, re-validating
+ *   against the live `UsersRepository` record first (an account
+ *   suspended/deleted after login must not silently stay "logged in").
+ *   `clear()` (logout) now also clears the persisted entry, so logging
+ *   out and logging back in as a different user works across a reload
+ *   too. See docs/PHASE_SESSION_PERSISTENCE.md for the full report.
  * ================================================================
  */
 
@@ -73,14 +87,71 @@
 
   var currentUser = null;
 
-  function setCurrentUser(user) { currentUser = user || null; }
+  /**
+   * @param {Object|null} user
+   * @param {{persist:boolean}} [opts] persist defaults to true — pass
+   *   {persist:false} for the internal re-hydration path in
+   *   restoreSession() below, which must not reset the sliding TTL that
+   *   touch() already manages for that same read.
+   */
+  function setCurrentUser(user, opts) {
+    currentUser = user || null;
+    var persist = !opts || opts.persist !== false;
+    if (persist && currentUser && root.HossamSessionPersistence) {
+      var username = currentUser.اسم_المستخدم || currentUser.id || null;
+      if (username) root.HossamSessionPersistence.save(username);
+    }
+  }
   function getCurrentUser() { return currentUser; }
-  function clear() { currentUser = null; }
+  function clear() {
+    currentUser = null;
+    if (root.HossamSessionPersistence) root.HossamSessionPersistence.clear();
+  }
+
+  /**
+   * restoreSession() -> Promise<boolean>
+   * Re-hydrates `currentUser` from a persisted, non-expired session
+   * (see SessionPersistence.js) on boot, so a page reload does not force
+   * a fresh login for a user who already authenticated. Always re-reads
+   * the live UsersRepository record rather than trusting the persisted
+   * snapshot — an account whose status changed to something other than
+   * 'نشط' (or that was deleted) after login must NOT be silently
+   * restored. Fails closed (returns false, clears the stale entry) on
+   * any error or on any mismatch; fails open only in the sense that a
+   * missing SessionPersistence/UsersRepository dependency is a no-op,
+   * identical to how every other optional integration in this file
+   * behaves — zero regression for a boot where those files aren't
+   * loaded.
+   */
+  async function restoreSession() {
+    if (currentUser) return true;
+    if (!root.HossamSessionPersistence || !root.UsersRepository) return false;
+    var entry = root.HossamSessionPersistence.read();
+    if (!entry) return false;
+    try {
+      var repo = new root.UsersRepository();
+      await repo.open();
+      var user = repo.get(entry.username);
+      if (!user || user.الحالة !== 'نشط') {
+        root.HossamSessionPersistence.clear();
+        return false;
+      }
+      setCurrentUser(user, { persist: false });
+      root.HossamSessionPersistence.touch();
+      return true;
+    } catch (e) {
+      // Storage/repository error while restoring must never leave the
+      // app stuck: fail closed (no silent session) and let LoginScreen's
+      // normal flow ask for credentials, same as a first-ever boot.
+      return false;
+    }
+  }
 
   var HossamSession = {
     setCurrentUser: setCurrentUser,
     getCurrentUser: getCurrentUser,
-    clear: clear
+    clear: clear,
+    restoreSession: restoreSession
   };
 
   /**
