@@ -172,6 +172,14 @@
   async function shouldShow() {
     if (!window.UsersRepository) return false;
     if (window.HossamSession && window.HossamSession.getCurrentUser()) return false;
+    // SESSION PERSISTENCE FIX: try to silently re-hydrate a still-valid
+    // session (see SessionContext.js's restoreSession() header) before
+    // ever asking for credentials again — this is what stops every
+    // refresh/PWA update from forcing a fresh login for the same user.
+    if (window.HossamSession && window.HossamSession.restoreSession) {
+      var restored = await window.HossamSession.restoreSession();
+      if (restored) return false;
+    }
     try {
       var repo = new window.UsersRepository();
       await repo.open();
