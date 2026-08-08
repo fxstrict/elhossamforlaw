@@ -38,7 +38,19 @@
   }
 
   async function checkNow(force) {
-    if (!window.LicenseCore || !window.ApiService) return { checked: false, reason: 'module_unavailable' };
+    // BUGFIX (false "غير متاحة في هذا الإصدار" / module_unavailable):
+    // js/api/api.js declares `const ApiService = {...}` at top level — a
+    // classic-script const is NOT attached to `window` (confirmed: no
+    // other file in the project reads `window.ApiService`; every other
+    // caller — clients.js, documents.js, client-messages.js, etc. —
+    // uses the bare global identifier `ApiService`). This module was the
+    // only place checking `window.ApiService`, which is always
+    // undefined, so the online check bailed out immediately regardless
+    // of connectivity, license validity, or backend config. Switched to
+    // the same convention the rest of the codebase already relies on.
+    var apiSvc = (typeof window.ApiService !== 'undefined' && window.ApiService)
+      || (typeof ApiService !== 'undefined' ? ApiService : null);
+    if (!window.LicenseCore || !apiSvc) return { checked: false, reason: 'module_unavailable' };
     if (!navigator.onLine) return { checked: false, reason: 'offline' };
     if (!force && !isDue()) return { checked: false, reason: 'not_due' };
 
@@ -48,7 +60,7 @@
     var machineId = await window.MachineFingerprint.getMachineId();
 
     try {
-      var response = await window.ApiService._post({
+      var response = await apiSvc._post({
         action: 'checkLicenseStatus',
         licenseId: meta.licenseId,
         machineId: machineId

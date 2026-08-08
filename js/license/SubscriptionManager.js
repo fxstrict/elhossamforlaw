@@ -23,6 +23,27 @@
   var RECHECK_INTERVAL_MS = 6 * 60 * 60 * 1000; // every 6h is plenty for a day-granularity state machine
   var _timer = null;
 
+  function _reevaluateAndEmit() {
+    if (window.LicenseCore && window.LicenseCore.reevaluate) window.LicenseCore.reevaluate();
+    _emitBanner();
+  }
+
+  // BUGFIX ("الأيام المتبقية لا تقل كل يوم"): the 6-hour setInterval
+  // above is useless on a phone PWA that's mostly opened-then-backgrounded
+  // rather than fully reloaded — mobile browsers/OSes routinely freeze or
+  // fully suspend a backgrounded tab's JS timers, so the interval simply
+  // never fires while the person isn't looking at the screen, and the
+  // days-remaining value stays frozen at whatever it was when the tab was
+  // last actually active. This has nothing to do with LicenseCore's date
+  // math (computeSubscriptionState already recomputes correctly from a
+  // fresh `new Date()` every time it runs) — the bug is that "every time
+  // it runs" was too rare on mobile. Forcing a reevaluate the moment the
+  // tab becomes visible again (foreground/resume/back from bfcache) closes
+  // that gap without touching the state-machine math itself.
+  function _onVisible() {
+    if (document.visibilityState === 'visible') _reevaluateAndEmit();
+  }
+
   /**
    * @param {number|null} daysRemaining  negative once expired
    * @returns {string} Arabic countdown copy per brief §11
@@ -81,11 +102,17 @@
       if (window.LicenseCore) window.LicenseCore.reevaluate ? window.LicenseCore.reevaluate() : null;
       _emitBanner();
     }, RECHECK_INTERVAL_MS);
+    // See _onVisible's comment above for why this is needed alongside
+    // the interval, not instead of it.
+    document.addEventListener('visibilitychange', _onVisible);
+    window.addEventListener('pageshow', _reevaluateAndEmit);
   }
 
   function stop() {
     if (_timer) { window.clearInterval(_timer); _timer = null; }
     window.removeEventListener('license:state', _emitBanner);
+    document.removeEventListener('visibilitychange', _onVisible);
+    window.removeEventListener('pageshow', _reevaluateAndEmit);
   }
 
   var api = {
