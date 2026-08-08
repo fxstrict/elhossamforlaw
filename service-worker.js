@@ -151,18 +151,27 @@
  * function for the residual limitation this does NOT solve.
  * ---------------------------------------------------------------------- */
 
-var SW_VERSION = 'v15'; // BUGFIX — PRECACHE_URLS never included Phase 30 (js/license/*, css/license.css)
-                         // or Phase 31/32 (js/core/rbac/*, js/auth/*, css/auth.css) files. Those 23
-                         // files were silently falling through to the staleWhileRevalidate(RUNTIME_CACHE)
-                         // branch instead of the intended cacheFirstIn(SHELL_CACHE) branch, which (a) is
-                         // slower/less reliable offline for boot-critical license/auth code, and (b) is
-                         // WHY a code fix shipped to a license file did not visibly take effect after a
-                         // version bump: RUNTIME_CACHE serves the cached copy immediately and only
-                         // refreshes it in the background for the *next* load, so seeing a fix requires
-                         // an extra reload cycle even after activation, on top of the already-required
-                         // "تحديث الآن" banner click. List regenerated from index.html's own <script src>/
-                         // <link rel="stylesheet"> tags exactly as this file's header describes — see
-                         // that header for why this is the intended process and not a one-off patch.
+var SW_VERSION = 'v16'; // PHASE PWA-NOTIFICATIONS — added js/core/pwa/NotificationManager.js to
+                         // PRECACHE_URLS (SHELL_CACHE) below and a thin, generic 'notificationclick'
+                         // relay (see that listener further down). No caching strategy, bucket, or
+                         // pre-existing behavior changed otherwise — see NotificationManager.js's own
+                         // header for the full feature contract. Version bumped only because a new
+                         // file was added to PRECACHE_URLS (project's own "Cache Versioning" rule:
+                         // SW_VERSION is the only thing that has to change to ship a new shell version).
+// (v15 note, kept for history) BUGFIX — PRECACHE_URLS never included Phase 30
+// (js/license/*, css/license.css) or Phase 31/32 (js/core/rbac/*, js/auth/*,
+// css/auth.css) files. Those 23 files were silently falling through to the
+// staleWhileRevalidate(RUNTIME_CACHE) branch instead of the intended
+// cacheFirstIn(SHELL_CACHE) branch, which (a) is slower/less reliable
+// offline for boot-critical license/auth code, and (b) is WHY a code fix
+// shipped to a license file did not visibly take effect after a version
+// bump: RUNTIME_CACHE serves the cached copy immediately and only refreshes
+// it in the background for the *next* load, so seeing a fix requires an
+// extra reload cycle even after activation, on top of the already-required
+// "تحديث الآن" banner click. List regenerated from index.html's own
+// <script src>/<link rel="stylesheet"> tags exactly as this file's header
+// describes — see that header for why this is the intended process and not
+// a one-off patch.
 var SHELL_CACHE = 'ahp-shell-' + SW_VERSION;
 var ICON_CACHE = 'ahp-icons-' + SW_VERSION;
 var IMAGE_CACHE = 'ahp-images-' + SW_VERSION;
@@ -324,7 +333,8 @@ var PRECACHE_URLS = [
   'js/core/modal/ModalManager.js',
   'js/core/boot/SafeModeController.js',
   'js/core/pwa/ServiceWorkerRegistrar.js',
-  'js/core/pwa/InstallPromptManager.js'
+  'js/core/pwa/InstallPromptManager.js',
+  'js/core/pwa/NotificationManager.js'
 ];
 
 // 1x1-scale, dependency-free inline placeholder for a same-origin image
@@ -386,6 +396,27 @@ self.addEventListener('sync', function (event) {
       clientList.forEach(function (client) {
         client.postMessage({ type: 'AHP_BACKGROUND_SYNC_TICK' });
       });
+    })
+  );
+});
+
+// PHASE PWA-NOTIFICATIONS — thin, generic relay only (no business logic —
+// see js/core/pwa/NotificationManager.js's header for the "SW is
+// infrastructure" reasoning). Focuses/opens the app and hands the tapped
+// notification's page back to it via postMessage; the client's own already-
+// existing global navigate() does the actual routing (NotificationManager.js
+// listens for this exact message type).
+self.addEventListener('notificationclick', function (event) {
+  event.notification.close();
+  var page = (event.notification.data && event.notification.data.page) || '';
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (clientList) {
+      for (var i = 0; i < clientList.length; i++) {
+        var client = clientList[i];
+        client.postMessage({ type: 'AHP_NOTIFICATION_CLICK', page: page });
+        if ('focus' in client) return client.focus();
+      }
+      if (self.clients.openWindow) return self.clients.openWindow('./');
     })
   );
 });

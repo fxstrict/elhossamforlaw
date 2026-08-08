@@ -892,6 +892,24 @@ style="color:var(--muted);font-size:12px;margin-top:4px;"> جارٍ تحميل
       <div>&#8226; <strong class="u-color-gold">iPhone / Safari:</strong> اضغط زر المشاركة &#8593; ثم "Add to Home Screen"</div>
     </div>
   </div>
+  <!-- PHASE PWA-NOTIFICATIONS — mount-point-only card, same convention as
+       #installAppCard just above: all logic/rendering lives in
+       js/core/pwa/NotificationManager.js. See that file's header for the
+       full feature contract (local-only, system-tray, app-open-time). -->
+  <div class="settings-card" id="notificationsCard">
+    <div class="settings-title">&#128276; الإشعارات الاحترافية على الهاتف</div>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:10px;">عند فتح التطبيق، تصلك تنبيهات حقيقية على شاشة قفل هاتفك وستارة الإشعارات (الجلسات القريبة، المهام المتأخرة، القضايا الناقصة) — تعمل محلياً بالكامل دون أي سيرفر خارجي.</p>
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;">
+        <input type="checkbox" id="notifToggleCheckbox" onchange="handleNotifToggleChange(this)" style="width:18px;height:18px;cursor:pointer;">
+        تفعيل الإشعارات عند فتح التطبيق
+      </label>
+      <button class="btn btn-primary" id="notifEnableBtn" onclick="handleEnableNotificationsClick()" style="display:none;">&#128276; تفعيل إشعارات النظام الآن</button>
+      <button class="btn" id="notifTestBtn" onclick="handleSendTestNotificationClick()">&#128229; إرسال إشعار تجريبي</button>
+    </div>
+    <div id="notifPermissionStatus" style="font-size:12px;color:var(--muted);margin-bottom:6px;">&#9899; جارِ التحقق...</div>
+    <p style="font-size:11px;color:var(--muted);margin:0;">&#128266; نغمة الإشعار يتم تحديدها من إعدادات هاتفك: افتح إعدادات الهاتف &#8592; التطبيقات &#8592; هذا التطبيق &#8592; الإشعارات &#8592; النغمة، واختر أي نغمة من نغمات جهازك.</p>
+  </div>
   <div class="settings-card">
     <div class="settings-title">&#9881; ربط Google Sheets</div>
     <p style="font-size:12px;color:var(--muted);margin-bottom:14px;">أدخل رابط Web App الخاص بـ Code_v4.gs — سيُنشئ جدول البيانات تلقائياً عند أول اتصال</p>
@@ -2045,5 +2063,12 @@ window.addEventListener('DOMContentLoaded',function(){
      js/core/pwa/InstallPromptManager.js for the full contract. Loaded
      last, same reasoning as ServiceWorkerRegistrar.js above. -->
 <script src="js/core/pwa/InstallPromptManager.js"></script>
+<!-- PHASE PWA-NOTIFICATIONS — local, professional system-tray notifications
+     for the app's own alerts (sessions today/soon, overdue tasks, cases
+     missing opponent/documents), shown only at app-open time, no external
+     server. Wires the #notificationsCard markup above; see
+     js/core/pwa/NotificationManager.js for the full contract. Loaded last,
+     same reasoning as ServiceWorkerRegistrar.js/InstallPromptManager.js. -->
+<script src="js/core/pwa/NotificationManager.js"></script>
 </body>
 </html>
