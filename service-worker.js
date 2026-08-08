@@ -151,13 +151,19 @@
  * function for the residual limitation this does NOT solve.
  * ---------------------------------------------------------------------- */
 
-var SW_VERSION = 'v17'; // PHASE PWA-NOTIFICATIONS — added js/core/pwa/NotificationManager.js to
-                         // PRECACHE_URLS (SHELL_CACHE) below and a thin, generic 'notificationclick'
-                         // relay (see that listener further down). No caching strategy, bucket, or
-                         // pre-existing behavior changed otherwise — see NotificationManager.js's own
-                         // header for the full feature contract. Version bumped only because a new
-                         // file was added to PRECACHE_URLS (project's own "Cache Versioning" rule:
-                         // SW_VERSION is the only thing that has to change to ship a new shell version).
+var SW_VERSION = 'v18'; // BUGFIX (PHASE PWA-NOTIFICATIONS-CLOSED-APP) — the 'notificationclick'
+                         // relay further down only postMessage'd the tapped page to an ALREADY-OPEN
+                         // client; when the app was fully closed (clientList empty), it fell straight
+                         // to clients.openWindow('./') with no page info at all, so the freshly
+                         // launched app always landed on the default page instead of the page the
+                         // notification pointed to. Fixed by opening the new window at './#<page>'
+                         // instead of a bare './' — js/core/shell/NavigationManager.js's own init()
+                         // (already shipped, unchanged) already reads location.hash on cold start and
+                         // calls navigate() for any known page, exactly like a bookmarked/shared deep
+                         // link, so this reuses that existing mechanism rather than adding a new one.
+                         // No PRECACHE_URLS change, no other caching strategy/bucket touched. Version
+                         // bumped only per this project's own "Cache Versioning" rule (SW_VERSION is
+                         // the only thing that has to change to ship a new service-worker.js).
 // (v15 note, kept for history) BUGFIX — PRECACHE_URLS never included Phase 30
 // (js/license/*, css/license.css) or Phase 31/32 (js/core/rbac/*, js/auth/*,
 // css/auth.css) files. Those 23 files were silently falling through to the
@@ -403,9 +409,22 @@ self.addEventListener('sync', function (event) {
 // PHASE PWA-NOTIFICATIONS — thin, generic relay only (no business logic —
 // see js/core/pwa/NotificationManager.js's header for the "SW is
 // infrastructure" reasoning). Focuses/opens the app and hands the tapped
-// notification's page back to it via postMessage; the client's own already-
-// existing global navigate() does the actual routing (NotificationManager.js
-// listens for this exact message type).
+// notification's page back to it; the client's own already-existing global
+// navigate() does the actual routing.
+//
+// Two delivery paths for "which page", depending on whether the app is
+// already running:
+//   - APP ALREADY OPEN (a window client exists): postMessage() the page to
+//     it directly — NotificationManager.js's message listener calls
+//     navigate(page) immediately. Unchanged from before this fix.
+//   - APP FULLY CLOSED (BUGFIX, no window client exists): postMessage has
+//     nothing to deliver to, so the page was previously silently lost and
+//     clients.openWindow('./') always landed on the default page. Now the
+//     new window is opened at './#<page>' instead — NavigationManager.js's
+//     own init() (already shipped, unrelated file, unchanged) already reads
+//     location.hash on cold start and calls navigate() for any recognized
+//     page, exactly as it does for a bookmarked/shared deep link, so this
+//     simply reuses that existing, already-tested mechanism.
 self.addEventListener('notificationclick', function (event) {
   event.notification.close();
   var page = (event.notification.data && event.notification.data.page) || '';
@@ -416,7 +435,9 @@ self.addEventListener('notificationclick', function (event) {
         client.postMessage({ type: 'AHP_NOTIFICATION_CLICK', page: page });
         if ('focus' in client) return client.focus();
       }
-      if (self.clients.openWindow) return self.clients.openWindow('./');
+      if (self.clients.openWindow) {
+        return self.clients.openWindow(page ? './#' + page : './');
+      }
     })
   );
 });
