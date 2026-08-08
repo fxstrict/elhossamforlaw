@@ -479,6 +479,13 @@ style="color:var(--muted);font-size:12px;margin-top:4px;"> جارٍ تحميل
   <nav class="sidebar-nav">
     <div class="nav-section-label">الرئيسية</div>
     <div class="nav-item active" tabindex="0" role="link" onclick="navigate('dashboard')"><span class="nav-icon">&#127963;</span> لوحة التحكم</div>
+    <!-- SIDEBAR RELOCATION — moved from the topbar (`.topbar-actions`) into
+         the sidebar per request; no longer rendered in its previous
+         location. Same id="historyPanelBtn"/onclick="toggleHistoryPanel()"/
+         id="hpTopbarBadge", so js/modules/historypanel-ui.js (which only
+         does getElementById lookups, never assumes DOM position) keeps
+         working unchanged. -->
+    <div class="nav-item" tabindex="0" role="link" id="historyPanelBtn" onclick="toggleHistoryPanel()" title="سجل العمليات" aria-haspopup="dialog"><span class="nav-icon">&#128337;</span> السجل<span class="nav-badge hp-topbar-badge" id="hpTopbarBadge" style="display:none;">0</span></div>
     <div class="nav-section-label">إدارة القضايا</div>
     <div class="nav-item" tabindex="0" role="link" onclick="navigate('cases')"><span class="nav-icon">&#9878;</span> القضايا <span class="nav-badge" id="badgeCases">0</span></div>
     <div class="nav-item" tabindex="0" role="link" onclick="navigate('sessions')"><span class="nav-icon">&#128197;</span> الجلسات <span class="nav-badge" id="badgeSessions">0</span></div>
@@ -497,6 +504,15 @@ style="color:var(--muted);font-size:12px;margin-top:4px;"> جارٍ تحميل
     <div class="nav-item" tabindex="0" role="link" onclick="navigate('library')"><span class="nav-icon">&#128218;</span> المكتبة القانونية</div>
     <div class="nav-item" tabindex="0" role="link" onclick="navigate('templates')"><span class="nav-icon">&#128196;</span> صيغ الدعاوى</div>
     <div class="nav-item" tabindex="0" role="link" onclick="navigate('settings')"><span class="nav-icon">&#9881;</span> الإعدادات</div>
+    <!-- SIDEBAR QUICK LOGOUT — additive, third entry point to the exact
+         same HossamSession.clear() + LoginScreen.init() action already
+         wired by js/auth/UsersAdminPanel.js's #hsmLogoutBtn (Settings ->
+         المستخدمون) and js/auth/TopbarSessionBadge.js's #topbarLogoutBtn
+         (topbar). Does not replace or remove either. Hidden by default;
+         js/auth/SidebarSessionBadge.js reveals it only when
+         HossamSession.getCurrentUser() is non-null, same as the topbar
+         badge. See js/auth/SidebarSessionBadge.js. -->
+    <div class="nav-item" tabindex="0" role="link" id="sidebarLogoutBtn" style="display:none;" title="تسجيل الخروج (لتسجيل الدخول بمستخدم آخر)"><span class="nav-icon">&#9211;</span> تسجيل الخروج</div>
   </nav>
   <div class="sidebar-footer">
     <div class="api-status"><div class="status-dot" id="statusDot"></div><span id="statusText">غير متصل بـ Sheets</span></div>
@@ -521,7 +537,6 @@ style="color:var(--muted);font-size:12px;margin-top:4px;"> جارٍ تحميل
       </span>
     </div>
     <span class="sync-indicator" id="syncIndicator"><span class="sync-dot"></span><span id="syncIndicatorText">جارٍ المزامنة…</span></span>
-    <button class="btn btn-ghost btn-sm hp-topbar-btn" id="historyPanelBtn" onclick="toggleHistoryPanel()" title="سجل العمليات" aria-haspopup="dialog">&#128337; السجل<span class="hp-topbar-badge" id="hpTopbarBadge" style="display:none;">0</span></button>
     <button class="btn btn-ghost btn-sm" onclick="refreshAll()">&#8635; تحديث</button>
     <button class="btn btn-primary btn-sm" id="topbarAction" onclick="openAddModal()" style="display:none;">&#65291; إضافة</button>
   </div>
@@ -1401,6 +1416,7 @@ style="color:var(--muted);font-size:12px;margin-top:4px;"> جارٍ تحميل
      Purely presentational — reads window.HossamSession, never touches
      it beyond clear(). Must load after LoginScreen.js/SessionContext.js. -->
 <script src="js/auth/TopbarSessionBadge.js"></script>
+<script src="js/auth/SidebarSessionBadge.js"></script>
 <!-- PHASE 17.0 — Startup Reliability: per-entity ready-promise timeout
      helper. Must load AFTER core files and BEFORE every entity module
      below, since each module calls RepositoryReadyTimeout.wrap(...) at
@@ -1688,8 +1704,8 @@ window.addEventListener('DOMContentLoaded',function(){
     // exist yet" — both same-shaped no-ops) both just ask the topbar
     // badge to re-render; render() itself is the thing that decides
     // whether there's anything to show. See js/auth/TopbarSessionBadge.js.
-    LoginScreen.init(function(){ if(window.HossamTopbarSessionBadge) HossamTopbarSessionBadge.render(); })
-      .then(function(){ if(window.HossamTopbarSessionBadge) HossamTopbarSessionBadge.render(); });
+    LoginScreen.init(function(){ if(window.HossamTopbarSessionBadge) HossamTopbarSessionBadge.render(); if(window.HossamSidebarSessionBadge) HossamSidebarSessionBadge.render(); })
+      .then(function(){ if(window.HossamTopbarSessionBadge) HossamTopbarSessionBadge.render(); if(window.HossamSidebarSessionBadge) HossamSidebarSessionBadge.render(); });
   }
   if(window.UsersAdminPanel){UsersAdminPanel.init();}
   // PHASE 16.4 — BOOT SEQUENCE CONSOLIDATION: the first thing this
