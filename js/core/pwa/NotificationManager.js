@@ -6,10 +6,11 @@
  * WHAT THIS FILE IS
  *   A fully self-contained, additive-only module that shows real OS-level
  *   notifications (Android/desktop notification shade — "ستارة الإشعارات")
- *   for the alerts already computed inside the app (today's/soon sessions,
- *   overdue tasks, cases missing opponent data, cases missing documents —
- *   the exact same four categories js/modules/dashboard.js's
- *   renderAlertsCenterWidget()/renderAlertsWidget() already show inside the
+ *   for the alerts already computed inside the app (sessions today, a
+ *   session within 2 hours, every session in the coming week, overdue
+ *   tasks, cases missing opponent data, cases missing documents — the same
+ *   categories js/modules/dashboard.js's renderAlertsCenterWidget()/
+ *   renderAlertsWidget()/renderStatisticsWidget() already track inside the
  *   page), the moment the app is opened — and ONLY then, never on a
  *   background timer, never from any external server.
  *
@@ -48,14 +49,22 @@
  *   again until the app is closed and reopened — it does not re-fire on
  *   navigate() or on every dashboard re-render.
  *
- * DUPLICATE / STORM PREVENTION (per this project's own Notification
- *   standard — "Avoid duplicate notifications. Prevent notification
- *   storms."): each alert category is only ever notified once per
- *   calendar day (tracked per-category in localStorage — see
- *   LAST_SENT_PREFIX below), so reopening the app five times in the same
- *   afternoon does not resend five copies of the same alert.
- *
- * WHAT THIS FILE DOES NOT DO
+ * PERSISTENT REMINDER — fires on EVERY app open until resolved in-app
+ *   By explicit request, this is a standing reminder, not a once-a-day
+ *   notice: every single category still true in computeAlertSnapshot() is
+ *   re-notified (with sound/vibration — see deliver()'s renotify:true)
+ *   every time the app is opened, for as long as that condition remains
+ *   true. There is no local "already sent today" suppression. A category
+ *   stops appearing automatically, on its own, the moment its underlying
+ *   condition is actually resolved inside the app (task marked done,
+ *   opponent name filled in, a document attached, the session date
+ *   passes) — because computeAlertSnapshot() always recomputes fresh from
+ *   the live `data` global on every app open; there is nothing to
+ *   separately "dismiss" or "cancel". Tapping the notification (or the
+ *   in-app alert chip) simply navigates to the relevant page to fix it.
+ * ==========================================================================*/
+
+/* WHAT THIS FILE DOES NOT DO
  *   - Does not modify js/modules/dashboard.js (its byte-for-byte parity
  *     with its own verify_dashboard_widget_decomposition.js test makes it
  *     unsafe to touch for an unrelated feature). The alert categories below
@@ -86,7 +95,6 @@
   // never synced, never sent anywhere).
   // ------------------------------------------------------------------
   var ENABLED_KEY = 'ahpNotificationsEnabled';       // 'true' | 'false' | absent(=on by default)
-  var LAST_SENT_PREFIX = 'ahpNotifLastSent:';        // + category key -> 'YYYY-MM-DD'
   var NOTIF_ICON = 'assets/icons/icon-192.png';
   var NOTIF_BADGE = 'assets/icons/icon-96.png';
 
@@ -105,20 +113,7 @@
     safely(function () { global.localStorage.setItem(ENABLED_KEY, flag ? 'true' : 'false'); }, undefined);
   }
 
-  function todayStr() {
-    var d = new Date();
-    return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
-  }
   function pad2(n) { return String(n).padStart(2, '0'); }
-
-  function alreadySentToday(categoryKey) {
-    return safely(function () {
-      return global.localStorage.getItem(LAST_SENT_PREFIX + categoryKey) === todayStr();
-    }, false);
-  }
-  function markSentToday(categoryKey) {
-    safely(function () { global.localStorage.setItem(LAST_SENT_PREFIX + categoryKey, todayStr()); }, undefined);
-  }
 
   // ------------------------------------------------------------------
   // Permission
@@ -208,6 +203,34 @@
       });
     }
 
+    // 2b) Full weekly coverage — every session in the coming 7 days, not
+    //     just today (mirrors renderStatisticsWidget()'s weekSess), per
+    //     explicit request ("تكون تامة حتى جميع جلسات الأسبوع"). Listed
+    //     with case titles + dates (capped at 6 lines) so the person sees
+    //     the whole week at a glance from the notification itself.
+    var in7 = new Date(now.getTime() + 7 * 864e5);
+    var weekSessions = (d.sessions || []).filter(function (s) {
+      var sd = safely(function () { return global.parseLocalDate ? global.parseLocalDate(s['التاريخ']) : new Date(s['التاريخ']); }, null);
+      return sd && sd >= now && sd <= in7;
+    }).sort(function (a, b) {
+      var da = safely(function () { return global.parseLocalDate ? global.parseLocalDate(a['التاريخ']) : new Date(a['التاريخ']); }, 0);
+      var db = safely(function () { return global.parseLocalDate ? global.parseLocalDate(b['التاريخ']) : new Date(b['التاريخ']); }, 0);
+      return da - db;
+    });
+    if (weekSessions.length) {
+      var weekLines = weekSessions.slice(0, 6).map(function (s) {
+        return (s['عنوان_القضية'] || 'جلسة') + ' — ' + String(s['التاريخ']).slice(0, 10);
+      });
+      var weekBody = 'لديك ' + weekSessions.length + ' جلسة خلال الأسبوع القادم:\n' + weekLines.join('\n') +
+        (weekSessions.length > 6 ? '\n...والمزيد' : '');
+      alerts.push({
+        key: 'sessions-week',
+        title: '\uD83D\uDCC5 جلسات هذا الأسبوع',
+        body: weekBody,
+        page: 'sessions'
+      });
+    }
+
     // 3) Overdue high-priority tasks (mirrors renderAlertsCenterWidget()'s
     //    overdueTasks).
     var overdueTasks = (d.tasks || []).filter(function (t) {
@@ -270,8 +293,8 @@
       body: alert.body,
       icon: NOTIF_ICON,
       badge: NOTIF_BADGE,
-      tag: 'ahp-' + alert.key,      // replaces any still-visible same-category notification instead of stacking duplicates
-      renotify: false,
+      tag: 'ahp-' + alert.key,      // same tag per category — updates/replaces its own previous tray entry instead of stacking duplicates
+      renotify: true,               // PHASE PWA-NOTIFICATIONS (persistent reminder) — re-alert (sound/vibration) every time this category is delivered again, not just the first time; required for "التذكير الدائم" every app open
       dir: 'rtl',
       lang: 'ar',
       vibrate: [200, 100, 200],
@@ -289,21 +312,21 @@
     }
   }
 
-  /** Public: computes the current snapshot and delivers any category not
-   * already sent today. Safe to call multiple times — already-sent
-   * categories are skipped. */
+  /** Public: computes the current snapshot and delivers EVERY category
+   * still true — every app open, every time, with no daily suppression
+   * (see file header "PERSISTENT REMINDER"). A category simply stops
+   * being included, on its own, once its underlying condition is
+   * resolved inside the app. */
   function checkAndNotify() {
     if (!isEnabled()) return;
     if (permissionState() !== 'granted') return;
     var alerts = safely(computeAlertSnapshot, []) || [];
     alerts.forEach(function (alert) {
-      if (alreadySentToday(alert.key)) return;
       deliver(alert);
-      markSentToday(alert.key);
     });
   }
 
-  /** Public: bypasses the once-per-day guard — used by the Settings
+  /** Public: same delivery path as checkAndNotify(), used by the Settings
    * card's "إرسال إشعار تجريبي" button so the person can confirm sound/
    * appearance immediately. */
   function sendTestNotification() {
