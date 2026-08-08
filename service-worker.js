@@ -151,7 +151,7 @@
  * function for the residual limitation this does NOT solve.
  * ---------------------------------------------------------------------- */
 
-var SW_VERSION = 'v13'; // BUGFIX — PRECACHE_URLS never included Phase 30 (js/license/*, css/license.css)
+var SW_VERSION = 'v14'; // BUGFIX — PRECACHE_URLS never included Phase 30 (js/license/*, css/license.css)
                          // or Phase 31/32 (js/core/rbac/*, js/auth/*, css/auth.css) files. Those 23
                          // files were silently falling through to the staleWhileRevalidate(RUNTIME_CACHE)
                          // branch instead of the intended cacheFirstIn(SHELL_CACHE) branch, which (a) is
