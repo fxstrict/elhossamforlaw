@@ -151,7 +151,7 @@
  * function for the residual limitation this does NOT solve.
  * ---------------------------------------------------------------------- */
 
-var SW_VERSION = 'v9'; // PHASE 35 — bumped: wrapped client-file tables (linked cases, fees, messages) in .hsm-table-scroll
+var SW_VERSION = 'v10'; // PHASE 35 — bumped: wrapped client-file tables (linked cases, fees, messages) in .hsm-table-scroll
 var SHELL_CACHE = 'ahp-shell-' + SW_VERSION;
 var ICON_CACHE = 'ahp-icons-' + SW_VERSION;
 var IMAGE_CACHE = 'ahp-images-' + SW_VERSION;
