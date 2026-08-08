@@ -151,7 +151,18 @@
  * function for the residual limitation this does NOT solve.
  * ---------------------------------------------------------------------- */
 
-var SW_VERSION = 'v11'; // PHASE 35 — bumped: wrapped client-file tables (linked cases, fees, messages) in .hsm-table-scroll
+var SW_VERSION = 'v12'; // BUGFIX — PRECACHE_URLS never included Phase 30 (js/license/*, css/license.css)
+                         // or Phase 31/32 (js/core/rbac/*, js/auth/*, css/auth.css) files. Those 23
+                         // files were silently falling through to the staleWhileRevalidate(RUNTIME_CACHE)
+                         // branch instead of the intended cacheFirstIn(SHELL_CACHE) branch, which (a) is
+                         // slower/less reliable offline for boot-critical license/auth code, and (b) is
+                         // WHY a code fix shipped to a license file did not visibly take effect after a
+                         // version bump: RUNTIME_CACHE serves the cached copy immediately and only
+                         // refreshes it in the background for the *next* load, so seeing a fix requires
+                         // an extra reload cycle even after activation, on top of the already-required
+                         // "تحديث الآن" banner click. List regenerated from index.html's own <script src>/
+                         // <link rel="stylesheet"> tags exactly as this file's header describes — see
+                         // that header for why this is the intended process and not a one-off patch.
 var SHELL_CACHE = 'ahp-shell-' + SW_VERSION;
 var ICON_CACHE = 'ahp-icons-' + SW_VERSION;
 var IMAGE_CACHE = 'ahp-images-' + SW_VERSION;
@@ -175,6 +186,12 @@ var ICON_PRECACHE_URLS = [
 ];
 
 // Generated from index.html's own <link>/<script> tags — see file header.
+// BUGFIX (SW_VERSION v12): re-regenerated from scratch against the current
+// index.html. The previous list stopped tracking new <script>/<link> tags
+// at some point after Phase 30 and was missing 23 files, all now restored
+// below in the exact order they appear in index.html: the full
+// js/license/* set + css/license.css (Phase 30), and js/core/rbac/*,
+// js/auth/*, js/repositories/UsersRepository.js + css/auth.css (Phase 31/32).
 var PRECACHE_URLS = [
   'index.html',
   'manifest.json',
@@ -189,6 +206,8 @@ var PRECACHE_URLS = [
   'css/boot-error.css',
   'css/safe-mode.css',
   'css/dashboard-smart.css',
+  'css/license.css',
+  'css/auth.css',
   'assets/favicon/favicon.ico',
   'assets/favicon/favicon-16.png',
   'assets/favicon/favicon-32.png',
@@ -199,6 +218,15 @@ var PRECACHE_URLS = [
   'assets/icons/maskable/icon-maskable-192.png',
   'assets/icons/maskable/icon-maskable-512.png',
   'js/debug/RuntimeDebugLayer.js',
+  'js/license/license-public-key.js',
+  'js/license/LicenseCrypto.js',
+  'js/license/MachineFingerprint.js',
+  'js/license/LicenseCore.js',
+  'js/license/ReadOnlyGuard.js',
+  'js/license/SubscriptionManager.js',
+  'js/license/ActivationWizard.js',
+  'js/license/LicenseOnlineValidator.js',
+  'js/license/LicenseManagerPanel.js',
   'js/api/api.js',
   'js/core/OfflineQueue.js',
   'js/ui-utils.js',
@@ -219,6 +247,13 @@ var PRECACHE_URLS = [
   'js/core/IndexedDBAdapter.js',
   'js/core/MigrationService.js',
   'js/core/MigrationBootstrap.js',
+  'js/core/rbac/Permissions.js',
+  'js/core/rbac/PermissionGroups.js',
+  'js/core/rbac/Roles.js',
+  'js/core/rbac/PermissionService.js',
+  'js/auth/SessionPersistence.js',
+  'js/core/rbac/SessionContext.js',
+  'js/core/rbac/AuditLog.js',
   'js/repositories/CasesRepository.js',
   'js/repositories/ClientsRepository.js',
   'js/repositories/ClientMessagesRepository.js',
@@ -231,6 +266,12 @@ var PRECACHE_URLS = [
   'js/repositories/TemplatesRepository.js',
   'js/repositories/SettingsRepository.js',
   'js/repositories/SettingsRepositoryWiring.js',
+  'js/repositories/UsersRepository.js',
+  'js/auth/PasswordHasher.js',
+  'js/auth/LoginAttempts.js',
+  'js/auth/LoginScreen.js',
+  'js/auth/UsersAdminPanel.js',
+  'js/auth/TopbarSessionBadge.js',
   'js/core/RepositoryReadyTimeout.js',
   'js/modules/cases.js',
   'js/modules/settings.js',
