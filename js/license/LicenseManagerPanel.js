@@ -114,7 +114,19 @@
         active: 'تم التحقق بنجاح — الترخيص سارٍ.',
         revoked: 'تم التحقق: تبيّن أن الترخيص أُلغي من جهة الإصدار.',
         transferred: 'تم التحقق: تبيّن أن الترخيص نُقل إلى جهاز آخر.',
-        unknown: 'تم الاتصال بالخادم لكن ورد رد غير معروف.'
+        // BUGFIX (misleading "unknown response" wording): 'unknown' is NOT
+        // an error — it's the expected, normal result for the vast
+        // majority of licenses (every license issued by the local CLI
+        // generator and never manually entered into the "التراخيص" sheet
+        // — see Config/09_License.gs apiCheckLicenseStatus(), which
+        // explicitly returns status:'unknown' to mean "no revocation on
+        // record", not "something went wrong"). The old copy
+        // ("تم الاتصال بالخادم لكن ورد رد غير معروف") read as a server
+        // error/malfunction even though the toast was styled green
+        // (result.checked === true), confusing non-technical users into
+        // thinking the check had failed. Reworded to state plainly that
+        // verification succeeded and nothing is flagged.
+        unknown: 'تم التحقق بنجاح — لا توجد أي حالة إلغاء أو نقل مسجّلة لهذا الترخيص لدى الخادم.'
       };
       return STATUS_AR[result.status] || 'تم التحقق بنجاح.';
     }
