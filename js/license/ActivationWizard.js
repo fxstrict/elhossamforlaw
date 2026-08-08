@@ -32,6 +32,7 @@
   };
 
   var _mounted = false;
+  var _dismissible = false; // true only when opened voluntarily via "تحديث / نقل الترخيص" while a license already exists — see show()
   var els = {};
 
   function build() {
@@ -55,6 +56,15 @@
           '</div>' +
         '</div>' +
         '<button type="button" class="lic-btn-primary" id="licActivateBtn">تفعيل</button>' +
+        // BUGFIX (no way back): previously this overlay had only the
+        // "تفعيل" button — someone who opened it via "تحديث / نقل
+        // الترخيص" and changed their mind had no way to close it and
+        // return to the app (it's a full-screen, z-index:99999 overlay).
+        // This Cancel button is hidden by CSS default and only revealed
+        // by show({dismissible:true}) — i.e. never during a mandatory
+        // NOT_ACTIVATED/INVALID activation, where there is nothing to
+        // cancel back to.
+        '<button type="button" class="lic-btn-secondary" id="licCancelBtn" hidden>إلغاء والعودة</button>' +
         '<div class="lic-error" id="licErrorBox"></div>' +
         '<p class="lic-footer-note">النظام يعمل بدون إنترنت بالكامل بعد التفعيل. لا حاجة لاتصال دائم بالشبكة.</p>' +
       '</div>';
@@ -66,6 +76,7 @@
     els.textarea = overlay.querySelector('#licTextarea');
     els.fileInput = overlay.querySelector('#licFileInput');
     els.activateBtn = overlay.querySelector('#licActivateBtn');
+    els.cancelBtn = overlay.querySelector('#licCancelBtn');
     els.errorBox = overlay.querySelector('#licErrorBox');
 
     els.copyBtn.addEventListener('click', function () {
@@ -86,6 +97,10 @@
     });
 
     els.activateBtn.addEventListener('click', onActivateClick);
+    els.cancelBtn.addEventListener('click', function () {
+      if (!_dismissible) return; // defensive: hidden+inert when not dismissible, but never act on it either way
+      hide();
+    });
 
     _mounted = true;
   }
@@ -126,8 +141,21 @@
     els.machineIdText.textContent = id;
   }
 
-  function show() {
+  /**
+   * @param {Object} [options]
+   * @param {boolean} [options.dismissible=false] When true, shows the
+   *   "إلغاء والعودة" Cancel button so the person can close the wizard
+   *   without entering a license (used only for the voluntary "تحديث /
+   *   نقل الترخيص" flow, where a valid license already exists and
+   *   nothing is lost by backing out). Left false — the default — for
+   *   the mandatory NOT_ACTIVATED/INVALID flow driven by
+   *   onLicenseState(), where there is no existing license to return to.
+   */
+  function show(options) {
     if (!_mounted) build();
+    _dismissible = !!(options && options.dismissible);
+    if (els.cancelBtn) els.cancelBtn.hidden = !_dismissible;
+    clearError();
     refreshMachineId();
     els.overlay.removeAttribute('hidden');
   }
@@ -135,6 +163,10 @@
   function hide() {
     if (!_mounted) return;
     els.overlay.setAttribute('hidden', 'hidden');
+    // Reset transient input so a future open (mandatory or voluntary)
+    // never shows stale text/errors left over from a cancelled attempt.
+    if (els.textarea) els.textarea.value = '';
+    clearError();
   }
 
   /** Reacts to license:state events dispatched by LicenseCore. */

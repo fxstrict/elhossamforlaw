@@ -63,19 +63,69 @@
       '</div>';
 
     var updateBtn = document.getElementById('licUpdateLicenseBtn');
-    if (updateBtn) updateBtn.addEventListener('click', function () {
-      if (window.ActivationWizard) window.ActivationWizard.show();
+    if (updateBtn) updateBtn.addEventListener('click', async function () {
+      // BUGFIX (dangerous no-warning transfer): this used to open the
+      // full-screen Activation Wizard immediately, with no warning and
+      // no way back (the wizard had no cancel button — see
+      // ActivationWizard.js). It never actually erased the stored
+      // license (LicenseCore.activate() only overwrites the record
+      // AFTER a new file verifies successfully), but visually it looked
+      // exactly like the person had been logged out, since the overlay
+      // covers the whole app. We now (1) ask for explicit confirmation
+      // first via the project's standard confirmDialog(), and (2) open
+      // the wizard in "dismissible" mode so it renders a Cancel button
+      // the person can use to back out without entering anything.
+      if (window.confirmDialog) {
+        var ok = await window.confirmDialog(
+          'ستنتقل إلى شاشة إدخال ترخيص جديد. ترخيصك الحالي يبقى فعالاً كما هو ولن يُستبدل إلا بعد إدخال ترخيص جديد صالح — ويمكنك إلغاء العملية والعودة دون أي تغيير.',
+          'تحديث / نقل الترخيص'
+        );
+        if (!ok) return;
+      }
+      if (window.ActivationWizard) window.ActivationWizard.show({ dismissible: true });
     });
 
     var recheckBtn = document.getElementById('licRecheckOnlineBtn');
     if (recheckBtn) recheckBtn.addEventListener('click', async function () {
       recheckBtn.disabled = true;
       recheckBtn.textContent = 'جارٍ التحقق...';
-      if (window.LicenseOnlineValidator) await window.LicenseOnlineValidator.checkNow(true);
+      // BUGFIX (silent no-feedback button): the previous version called
+      // checkNow() and threw away its return value, so the button simply
+      // reset itself with zero evidence of what happened — indistinguishable
+      // from a no-op whether the check succeeded, failed, or the device was
+      // offline. We now surface the actual result to the person via the
+      // project's standard toast() helper.
+      var result = window.LicenseOnlineValidator
+        ? await window.LicenseOnlineValidator.checkNow(true)
+        : { checked: false, reason: 'module_unavailable' };
       recheckBtn.disabled = false;
       recheckBtn.textContent = 'تحقق الآن عبر الإنترنت';
+      if (window.toast) window.toast(_recheckResultMessage(result), result.checked ? 'success' : 'error');
       renderPanel();
     });
+  }
+
+  /** Maps a LicenseOnlineValidator.checkNow() result to an Arabic
+   *  message so the "تحقق الآن عبر الإنترنت" button always gives the
+   *  person clear, visible evidence of what happened. */
+  function _recheckResultMessage(result) {
+    if (result && result.checked) {
+      var STATUS_AR = {
+        active: 'تم التحقق بنجاح — الترخيص سارٍ.',
+        revoked: 'تم التحقق: تبيّن أن الترخيص أُلغي من جهة الإصدار.',
+        transferred: 'تم التحقق: تبيّن أن الترخيص نُقل إلى جهاز آخر.',
+        unknown: 'تم الاتصال بالخادم لكن ورد رد غير معروف.'
+      };
+      return STATUS_AR[result.status] || 'تم التحقق بنجاح.';
+    }
+    var REASON_AR = {
+      offline: 'لا يوجد اتصال بالإنترنت حالياً. حاول مرة أخرى عند الاتصال بالشبكة.',
+      not_activated: 'لا يوجد ترخيص مُفعّل على هذا الجهاز للتحقق منه.',
+      module_unavailable: 'خدمة التحقق عبر الإنترنت غير متاحة في هذا الإصدار.',
+      network_error: 'تعذّر الوصول إلى خادم الترخيص. حاول مرة أخرى لاحقاً.',
+      not_due: 'تم التحقق مؤخراً بالفعل.'
+    };
+    return (result && REASON_AR[result.reason]) || 'تعذّر إجراء التحقق. حاول مرة أخرى.';
   }
 
   function _ensureBannerEl() {
