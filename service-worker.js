@@ -151,19 +151,27 @@
  * function for the residual limitation this does NOT solve.
  * ---------------------------------------------------------------------- */
 
-var SW_VERSION = 'v18'; // BUGFIX (PHASE PWA-NOTIFICATIONS-CLOSED-APP) — the 'notificationclick'
-                         // relay further down only postMessage'd the tapped page to an ALREADY-OPEN
-                         // client; when the app was fully closed (clientList empty), it fell straight
-                         // to clients.openWindow('./') with no page info at all, so the freshly
-                         // launched app always landed on the default page instead of the page the
-                         // notification pointed to. Fixed by opening the new window at './#<page>'
-                         // instead of a bare './' — js/core/shell/NavigationManager.js's own init()
-                         // (already shipped, unchanged) already reads location.hash on cold start and
-                         // calls navigate() for any known page, exactly like a bookmarked/shared deep
-                         // link, so this reuses that existing mechanism rather than adding a new one.
-                         // No PRECACHE_URLS change, no other caching strategy/bucket touched. Version
-                         // bumped only per this project's own "Cache Versioning" rule (SW_VERSION is
-                         // the only thing that has to change to ship a new service-worker.js).
+var SW_VERSION = 'v19'; // BUGFIX (PHASE PWA-NOTIFICATIONS-CLOSED-APP, cont'd) — v18 fixed the
+                         // WRONG-PAGE part (see that entry below) but a real installed WebAPK
+                         // (confirmed: appears as its own entry under Settings > Apps, installed via
+                         // Chrome's "تثبيت التطبيق") was still opening the tapped notification in a
+                         // plain Chrome tab instead of the standalone app window. Root cause was in
+                         // manifest.json, not this file: (1) "display_override" explicitly listed
+                         // "browser" as a valid fallback display mode, handing Chrome a manifest-
+                         // sanctioned reason to render the cold, notification-triggered launch as a
+                         // normal tab instead of standalone — removed; (2) "id" was the ABSOLUTE path
+                         // "/", which for a GitHub Pages PROJECT site (scope is a sub-path like
+                         // "/repo-name/", not the domain root) resolves to a different app identity
+                         // than "scope" — changed to the relative "./" so id resolves under the same
+                         // sub-path as scope/start_url, matching this project's actual GitHub Pages
+                         // deployment. manifest.json is precached under SHELL_CACHE (Cache First,
+                         // keyed by SW_VERSION), so SW_VERSION must bump for the corrected
+                         // manifest.json to actually reach the browser instead of serving the stale
+                         // cached copy — same "Cache Versioning" rule as every previous SW_VERSION
+                         // bump in this file. No PRECACHE_URLS list change, no other file touched.
+                         // NOTE: an already-installed WebAPK does not re-read manifest.json
+                         // immediately on its own schedule — see the deployment note accompanying
+                         // this fix for what the person needs to do on their phone to pick it up.
 // (v15 note, kept for history) BUGFIX — PRECACHE_URLS never included Phase 30
 // (js/license/*, css/license.css) or Phase 31/32 (js/core/rbac/*, js/auth/*,
 // css/auth.css) files. Those 23 files were silently falling through to the
