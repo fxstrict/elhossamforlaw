@@ -123,6 +123,8 @@
     var logoutBtn = document.getElementById('hsmLogoutBtn');
     if (logoutBtn) logoutBtn.addEventListener('click', function () {
       if (window.HossamSession) window.HossamSession.clear();
+      if (window.HossamTopbarSessionBadge) window.HossamTopbarSessionBadge.render();
+      if (window.HossamSidebarSessionBadge) window.HossamSidebarSessionBadge.render();
       if (window.LoginScreen) window.LoginScreen.init();
       renderPanel();
     });

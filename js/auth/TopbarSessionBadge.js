@@ -54,7 +54,11 @@
     clone.addEventListener('click', function () {
       if (window.HossamSession) window.HossamSession.clear();
       render();
-      if (window.LoginScreen) LoginScreen.init(function () { render(); });
+      if (window.HossamSidebarSessionBadge) window.HossamSidebarSessionBadge.render();
+      if (window.LoginScreen) LoginScreen.init(function () {
+        render();
+        if (window.HossamSidebarSessionBadge) window.HossamSidebarSessionBadge.render();
+      });
     });
   }
 
