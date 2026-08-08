@@ -151,7 +151,7 @@
  * function for the residual limitation this does NOT solve.
  * ---------------------------------------------------------------------- */
 
-var SW_VERSION = 'v16'; // PHASE PWA-NOTIFICATIONS — added js/core/pwa/NotificationManager.js to
+var SW_VERSION = 'v17'; // PHASE PWA-NOTIFICATIONS — added js/core/pwa/NotificationManager.js to
                          // PRECACHE_URLS (SHELL_CACHE) below and a thin, generic 'notificationclick'
                          // relay (see that listener further down). No caching strategy, bucket, or
                          // pre-existing behavior changed otherwise — see NotificationManager.js's own
