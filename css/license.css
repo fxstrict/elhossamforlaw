@@ -114,3 +114,17 @@
 .lic-badge.GRACE{background:rgba(230,126,34,0.15);color:var(--warning);}
 .lic-badge.READ_ONLY,.lic-badge.INVALID{background:rgba(192,57,43,0.15);color:var(--danger);}
 .lic-badge.NOT_ACTIVATED{background:rgba(90,110,133,0.15);color:var(--muted);}
+
+/* ---- Activation Wizard: Cancel button (BUGFIX — no way back) ----
+   Only rendered visible when the wizard was opened via show({dismissible:true})
+   from the voluntary "تحديث / نقل الترخيص" flow; stays [hidden] (see the
+   attribute set in ActivationWizard.js) for the mandatory
+   NOT_ACTIVATED/INVALID boot-time flow, where there is nothing to cancel
+   back to. New, uniquely-named class — does not alter .lic-btn-primary. */
+.lic-btn-secondary{
+  width:100%;padding:11px;border:1px solid rgba(255,255,255,0.25);border-radius:8px;
+  background:transparent;color:var(--muted);font-weight:600;font-size:13.5px;
+  cursor:pointer;transition:var(--transition);margin-top:8px;
+}
+.lic-btn-secondary:hover{background:rgba(255,255,255,0.06);color:var(--white);}
+.lic-btn-secondary[hidden]{display:none;}
