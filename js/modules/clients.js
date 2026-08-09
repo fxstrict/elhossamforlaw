@@ -927,10 +927,17 @@ function buildClientReport(c) {
   var html = '';
 
   // ---- Report header ----
+  // OFFICE PROFILE: uses the office's own saved data when available
+  // (js/office/OfficeProfileService.js), falling back to the exact same
+  // hardcoded text as before when no profile has been entered yet
+  // (Zero Regression for any install that hasn't touched Settings ->
+  // "بيانات المكتب" / the first-run screen).
+  var _officeReport = (window.OfficeProfileService && OfficeProfileService.getDisplayProfile())
+    || { officeName: 'مكتب الحسام للمحاماة', lawyerName: 'المستشار حسام محمد إبراهيم' };
   html += '<div class="case-report" style="padding:20px;font-family:Cairo,Arial,sans-serif;direction:rtl;">';
   html += '<div class="report-header" style="text-align:center;border-bottom:2px solid #c9a84c;padding-bottom:14px;margin-bottom:18px;">' +
-    '<div style="font-size:20px;font-weight:900;color:#1a2744;">مكتب الحسام للمحاماة</div>' +
-    '<div style="font-size:13px;color:#555;margin-top:4px;">المستشار حسام محمد إبراهيم</div>' +
+    '<div style="font-size:20px;font-weight:900;color:#1a2744;">' + f(_officeReport.officeName) + '</div>' +
+    '<div style="font-size:13px;color:#555;margin-top:4px;">' + f(_officeReport.lawyerName) + '</div>' +
     '<div style="font-size:15px;font-weight:700;color:#c9a84c;margin-top:10px;">&#128100; ملف الموكل</div>' +
   '</div>';
 
@@ -1546,6 +1553,10 @@ function printClientsReport() {
     '</tr>';
   }).join('');
 
+  // OFFICE PROFILE: same fallback pattern as printClientView() above.
+  var _officeListReport = (window.OfficeProfileService && OfficeProfileService.getDisplayProfile())
+    || { officeName: 'مكتب الحسام للمحاماة' };
+
   var printContent =
     '<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8">' +
     '<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">' +
@@ -1563,7 +1574,7 @@ function printClientsReport() {
       'body{padding:12px 6px;}' +
     '}' +
     '</style></head><body>' +
-    '<h1>مكتب الحسام للمحاماة — سجل الموكلين</h1>' +
+    '<h1>' + escapeHtml(_officeListReport.officeName) + ' — سجل الموكلين</h1>' +
     '<p>تاريخ الطباعة: ' + today + ' | عدد الموكلين: ' + data.clients.length + '</p>' +
     '<div class="hsm-table-scroll"><table>' +
       '<thead><tr>' +
