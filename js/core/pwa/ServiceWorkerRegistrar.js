@@ -106,8 +106,62 @@
     });
   }
 
+  // PHASE UX-BUGFIX — SW UPDATE-CHECK TIMING (ROOT CAUSE FIX)
+  // --------------------------------------------------------------------
+  // EVIDENCE: this file's register() call above (and every other file in
+  // the project — confirmed by search) never once calls
+  // `registration.update()`. Without it, the ONLY thing that can ever
+  // trigger the byte-comparison check that makes `updatefound` fire (and
+  // therefore the ONLY thing that can ever make showUpdateBanner() run)
+  // is the browser's own built-in automatic check — which by the Service
+  // Worker spec/every current browser's implementation:
+  //   (a) is throttled to AT MOST once per 24 hours per registration, and
+  //   (b) normally only runs when a fresh navigation to a page in this
+  //       SW's scope actually happens.
+  // This is why the banner is "delayed": deploying a new SW_VERSION does
+  // nothing on its own until the next time a device happens to cross
+  // that 24h window on a real navigation. And it's why some devices never
+  // see it at all: a standalone/installed PWA session that is only ever
+  // resumed from the background (never fully closed and relaunched — the
+  // normal way people actually use an installed office/legal app all
+  // day) may go many days without a single qualifying navigation, so the
+  // automatic check can go long stretches without ever running.
+  //
+  // FIX: explicitly call registration.update() ourselves at every point
+  // that plausibly means "the person is back and could benefit from
+  // seeing a pending update" — this does not change SW_VERSION, the
+  // cache-versioning model, or anything else in service-worker.js; it
+  // only asks the browser to run the SAME existing check sooner / more
+  // often than its own 24h-throttled default:
+  //   1. Right after registration succeeds (covers a fresh load where the
+  //      person may have been on an old, already-registered SW for a
+  //      while before this page load).
+  //   2. Every time the tab/app becomes visible again (`visibilitychange`
+  //      -> 'visible') — the standard, documented mitigation for the
+  //      "resumed from background" gap described above.
+  //   3. On `pageshow` with `event.persisted === true` — a back-forward
+  //      cache (bfcache) restore is not a fresh navigation and would
+  //      otherwise never trigger a check either.
+  //   4. Once an hour (60 min) for as long as the page/app stays open
+  //      continuously without ever backgrounding — the same "recheck
+  //      periodically for a long-lived session" pattern this project
+  //      already uses for license state in
+  //      js/license/SubscriptionManager.js (there: every 6h, for a
+  //      day-granularity concern; an update check is time-sensitive
+  //      enough to warrant a shorter interval).
+  // Every call is guarded/silent-catch, matching this file's existing
+  // "registration issues are never user-visible errors" convention.
+  var UPDATE_CHECK_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
+  var _registration = null;
+
+  function checkForUpdate() {
+    if (!_registration || typeof _registration.update !== 'function') return;
+    try { _registration.update().catch(function () {}); } catch (e) {}
+  }
+
   window.addEventListener('load', function () {
     navigator.serviceWorker.register('./service-worker.js').then(function (reg) {
+      _registration = reg;
       if (reg.waiting && navigator.serviceWorker.controller) {
         showUpdateBanner(reg.waiting);
       }
@@ -115,9 +169,19 @@
       reg.addEventListener('updatefound', function () {
         trackInstallingWorker(reg, reg.installing);
       });
+      checkForUpdate(); // (1) immediate extra check right after registration
+      window.setInterval(checkForUpdate, UPDATE_CHECK_INTERVAL_MS); // (4)
     }).catch(function (err) {
       try { console.warn('[SW] registration skipped (non-fatal):', err && err.message); } catch (e) {}
     });
+  });
+
+  document.addEventListener('visibilitychange', function () { // (2)
+    if (document.visibilityState === 'visible') checkForUpdate();
+  });
+
+  window.addEventListener('pageshow', function (event) { // (3)
+    if (event.persisted) checkForUpdate();
   });
 
   navigator.serviceWorker.addEventListener('controllerchange', function () {
