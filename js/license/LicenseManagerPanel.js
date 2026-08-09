@@ -140,6 +140,42 @@
     return (result && REASON_AR[result.reason]) || 'تعذّر إجراء التحقق. حاول مرة أخرى.';
   }
 
+  // BUGFIX ("العلامة... اريدها متزامنة يوميا ويتغير لونها تدريجيا إلى
+  // الأحمر"): SubscriptionManager.js now supplies a 0..1 `urgency` number
+  // on the ACTIVE-state countdown banner (0 = 7+ days left, 1 = expiry
+  // day) instead of a fixed 'info' color for the whole 2–30 day window.
+  // This file already owns all banner DOM/styling per its own header
+  // convention ("SubscriptionManager.js supplies the copy; this file owns
+  // the DOM for it"), so the actual blue→red interpolation lives here, as
+  // a plain inline-style override applied ONLY on top of the existing
+  // '.lic-banner.info' CSS class (css/license.css, untouched) — never
+  // touching the 'warning'/'danger' GRACE/READ_ONLY colors, which keep
+  // their own fixed, already-correct styling.
+  var _INFO_RGB = [41, 128, 185]; // css/license.css --info
+  var _DANGER_RGB = [192, 57, 43]; // css/license.css --danger
+
+  function _lerp(a, b, t) { return Math.round(a + (b - a) * t); }
+
+  function _applyUrgencyColor(el, urgency) {
+    var t = Math.max(0, Math.min(1, urgency || 0));
+    var r = _lerp(_INFO_RGB[0], _DANGER_RGB[0], t);
+    var g = _lerp(_INFO_RGB[1], _DANGER_RGB[1], t);
+    var b = _lerp(_INFO_RGB[2], _DANGER_RGB[2], t);
+    el.style.color = 'rgb(' + r + ',' + g + ',' + b + ')';
+    el.style.background = 'rgba(' + r + ',' + g + ',' + b + ',0.12)';
+    el.style.borderColor = 'rgba(' + r + ',' + g + ',' + b + ',0.35)';
+  }
+
+  function _clearUrgencyColor(el) {
+    // Reverts to whatever css/license.css's '.lic-banner.<level>' class
+    // already defines (warning/danger/plain info) — must run every time a
+    // non-urgent or non-info banner renders, or a previous urgency color
+    // would otherwise linger as an inline-style override.
+    el.style.color = '';
+    el.style.background = '';
+    el.style.borderColor = '';
+  }
+
   function _ensureBannerEl() {
     var el = document.getElementById('licSubscriptionBanner');
     if (el) return el;
@@ -173,6 +209,11 @@
 
     el.className = 'lic-banner ' + banner.level;
     el.querySelector('#licBannerText').textContent = banner.text;
+    if (banner.level === 'info' && typeof banner.urgency === 'number' && banner.urgency > 0) {
+      _applyUrgencyColor(el, banner.urgency);
+    } else {
+      _clearUrgencyColor(el);
+    }
     el.removeAttribute('hidden');
   }
 

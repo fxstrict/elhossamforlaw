@@ -45,19 +45,60 @@
   }
 
   /**
+   * BUGFIX ("العلامة ثابتة على 30 يوم / غير متزامنة يوميًا"): the copy used
+   * to jump between five fixed snapshot values (30/15/7/3/1) instead of
+   * counting down day by day — so, e.g., every day from day 16 through day
+   * 30 all displayed the identical "باقي 30 يومًا" text, making the badge
+   * look frozen even though LicenseCore.computeSubscriptionState() was
+   * already recomputing info.daysRemaining correctly underneath (the
+   * re-evaluation-on-visibility fix above already ensures that number
+   * itself refreshes daily). Now the exact live daysRemaining is rendered
+   * every time, through correct Arabic day-count grammar (dual "يومان",
+   * plural "أيام" for 3–10, singular-accusative "يومًا" for 11+, exactly
+   * as this brief's existing "يوم واحد" special-case for 1 already did).
+   * @param {number} n  whole days, >= 2 (1, 0 and negative are handled by
+   *   formatRenewalCopy() itself before this is ever called)
+   * @returns {string} correctly-declined Arabic day count, e.g. "3 أيام" / "20 يومًا"
+   */
+  function _arabicDaysPhrase(n) {
+    if (n === 2) return 'يومان';
+    if (n >= 3 && n <= 10) return n + ' أيام';
+    return n + ' يومًا';
+  }
+
+  /**
    * @param {number|null} daysRemaining  negative once expired
    * @returns {string} Arabic countdown copy per brief §11
    */
   function formatRenewalCopy(daysRemaining) {
     if (daysRemaining === null) return 'ترخيص دائم — لا يحتاج تجديدًا.';
     if (daysRemaining > 30) return 'الاشتراك ساري.';
-    if (daysRemaining > 15) return 'باقي 30 يومًا على انتهاء الاشتراك.';
-    if (daysRemaining > 7) return 'باقي 15 يومًا على انتهاء الاشتراك.';
-    if (daysRemaining > 3) return 'باقي 7 أيام على انتهاء الاشتراك.';
-    if (daysRemaining > 1) return 'باقي 3 أيام على انتهاء الاشتراك — يُرجى التجديد.';
-    if (daysRemaining === 1) return 'باقي يوم واحد على انتهاء الاشتراك — يُرجى التجديد فورًا.';
+    if (daysRemaining < 0) return 'انتهى الاشتراك.';
     if (daysRemaining === 0) return 'اليوم آخر يوم في الاشتراك.';
-    return 'انتهى الاشتراك.';
+    if (daysRemaining === 1) return 'باقي يوم واحد على انتهاء الاشتراك — يُرجى التجديد فورًا.';
+    var urgentSuffix = daysRemaining <= 3 ? ' — يُرجى التجديد' : '';
+    return 'باقي ' + _arabicDaysPhrase(daysRemaining) + ' على انتهاء الاشتراك' + urgentSuffix + '.';
+  }
+
+  /**
+   * BUGFIX (same report, color half): the badge stayed the same fixed
+   * blue/"info" color for the entire 2–30 day countdown, only turning
+   * orange/red once the subscription had ALREADY expired into GRACE/
+   * READ_ONLY. Per explicit request, the ACTIVE-state countdown badge now
+   * gets progressively more "danger"-red the closer it gets to expiry,
+   * reaching fully red exactly at 0 days remaining, over the final 7-day
+   * window — 0 for anything above 7 days left (still plain "info" blue).
+   * Pure presentation math, returned as a 0..1 number; LicenseManagerPanel.js
+   * (which already owns all banner DOM/styling per this file's own header
+   * convention) is the one that turns this into an actual color.
+   * @param {number|null} daysRemaining
+   * @returns {number} 0 (7+ days left) .. 1 (0 days left / expired)
+   */
+  function _urgencyFor(daysRemaining) {
+    if (daysRemaining === null) return 0;
+    if (daysRemaining >= 7) return 0;
+    if (daysRemaining <= 0) return 1;
+    return (7 - daysRemaining) / 7;
   }
 
   function formatGraceCopy(daysIntoGrace, graceDays) {
@@ -73,7 +114,11 @@
     var info = status.info;
     if (status.state === window.LicenseCore.States.ACTIVE) {
       if (info.daysRemaining !== null && info.daysRemaining <= 30) {
-        return { level: 'info', text: formatRenewalCopy(info.daysRemaining) };
+        return {
+          level: 'info',
+          text: formatRenewalCopy(info.daysRemaining),
+          urgency: _urgencyFor(info.daysRemaining) // 0..1, see _urgencyFor() above
+        };
       }
       return null;
     }
@@ -119,6 +164,7 @@
     formatRenewalCopy: formatRenewalCopy,
     formatGraceCopy: formatGraceCopy,
     currentBanner: currentBanner,
+    urgencyFor: _urgencyFor,
     start: start,
     stop: stop
   };
