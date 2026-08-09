@@ -548,8 +548,13 @@ style="color:var(--muted);font-size:12px;margin-top:4px;"> جارٍ تحميل
       </g>
     </svg>
   </div>
-    <div class="logo-title">مكتب الحسام للمحاماة</div>
-    <div class="logo-sub">المستشار حسام محمد ابراهيم | v3.0</div>
+    <!-- OFFICE PROFILE — the two spans below start with the same text
+         as before (Zero Regression for any install that hasn't entered
+         its own office data yet). js/office/OfficeProfileService.js
+         fills them at boot / after saving via applyToUI() using these
+         exact ids; "| v3.0" is left untouched (not office data). -->
+    <div class="logo-title" id="sidebarOfficeName">مكتب الحسام للمحاماة</div>
+    <div class="logo-sub"><span id="sidebarLawyerName">المستشار حسام محمد ابراهيم</span> | v3.0</div>
   </div>
   <nav class="sidebar-nav">
     <div class="nav-section-label">الرئيسية</div>
@@ -925,6 +930,16 @@ style="color:var(--muted);font-size:12px;margin-top:4px;"> جارٍ تحميل
 
 <!-- SETTINGS -->
 <div class="page" id="page-settings">
+  <!-- OFFICE PROFILE — same "plain mount point only" convention as
+       licenseManagerCard/usersAdminCard just below: all logic/rendering
+       lives in js/office/OfficeProfilePanel.js. Lets the office edit its
+       own identity data (name, lawyer, address, branches, phones,
+       WhatsApp) at any time — the same data the mandatory first-run
+       screen (js/office/OfficeSetupWizard.js) collects once per install. -->
+  <div class="settings-card" id="officeProfileCard">
+    <div class="settings-title">&#127970; بيانات المكتب</div>
+    <div id="officeProfilePanelMount"></div>
+  </div>
   <!-- PHASE 30 — Enterprise Licensing & Protection Framework. Same
        card convention as the PWA-INSTALL card just below: markup is a
        plain mount point only, all logic/rendering lives in
@@ -1482,6 +1497,17 @@ style="color:var(--muted);font-size:12px;margin-top:4px;"> جارٍ تحميل
 <script src="js/repositories/TemplatesRepository.js"></script>
 <script src="js/repositories/SettingsRepository.js"></script>
 <script src="js/repositories/SettingsRepositoryWiring.js"></script>
+<!-- OFFICE PROFILE — office identity data (office name, lawyer name,
+     address, branches, phones, WhatsApp) that replaces the hardcoded
+     "حسام محمد ابراهيم / مكتب الحسام للمحاماة" text once an office
+     enters its own data. Loaded right after SettingsRepositoryWiring.js
+     (needs its `settingsRepository`/`settingsRepositoryReadyPromise`
+     globals) and after js/api/api.js (needs `ApiService`, already
+     loaded much earlier — see top of file). See js/office/*.js headers
+     for the full design. -->
+<script src="js/office/OfficeProfileService.js"></script>
+<script src="js/office/OfficeSetupWizard.js"></script>
+<script src="js/office/OfficeProfilePanel.js"></script>
 <!-- PHASE 31 — Users Repository. Loaded after the RBAC core files and
      after the other repositories, same DatabaseService/IndexedDBAdapter
      pipeline as every one of them. Originally landed with no UI screen
@@ -1678,7 +1704,7 @@ function navigate(page){
   else if(page==='calendar'){var n=new Date();calYear=n.getFullYear();calMonth=n.getMonth();if(__vcNeedsRender)__vcRunRender('calendar',renderCalendar);}
   else if(page==='library'){if(__vcNeedsRender)__vcRunRender('library',renderLibrary);}
   else if(page==='templates'){if(__vcNeedsRender)__vcRunRender('templates',renderTemplates);}
-  else if(page==='settings'){document.getElementById('apiUrlInput').value=API_URL;document.getElementById('driveUrlInput').value=DRIVE_URL;var db=document.getElementById('driveOpenBtn');if(DRIVE_URL){db.href=DRIVE_URL;db.style.display='';}else db.style.display='none';if(typeof refreshDeveloperDiagnosticsToggle==='function')refreshDeveloperDiagnosticsToggle();}
+  else if(page==='settings'){document.getElementById('apiUrlInput').value=API_URL;document.getElementById('driveUrlInput').value=DRIVE_URL;var db=document.getElementById('driveOpenBtn');if(DRIVE_URL){db.href=DRIVE_URL;db.style.display='';}else db.style.display='none';if(typeof refreshDeveloperDiagnosticsToggle==='function')refreshDeveloperDiagnosticsToggle();if(window.OfficeProfilePanel)OfficeProfilePanel.render();}
   if(__vcNeedsRender&&__vcTrackedPages.indexOf(page)>=0&&window.ViewLifecycle){
     try{ViewLifecycle.recordRendered(page);}catch(__vcErr2){}
   }
@@ -1777,6 +1803,28 @@ window.addEventListener('DOMContentLoaded',function(){
       if(window.SubscriptionManager)SubscriptionManager.start();
       if(window.LicenseManagerPanel)LicenseManagerPanel.init();
       if(window.LicenseOnlineValidator)LicenseOnlineValidator.scheduleAuto();
+      // OFFICE PROFILE — the mandatory "بيانات المكتب" screen only ever
+      // needs to appear once a valid license is confirmed (see
+      // js/office/OfficeSetupWizard.js header), so it is wired here,
+      // right alongside ActivationWizard.init() above. A complete
+      // no-op if js/office/OfficeSetupWizard.js failed to load for any
+      // reason, same guard style as every other line in this block.
+      if(window.OfficeSetupWizard)OfficeSetupWizard.init();
+    });
+  }
+  // OFFICE PROFILE — applies whatever office data is already stored
+  // locally (sidebar name/sub-name) as soon as the settings repository
+  // is ready, independent of the license gate above (so it works
+  // immediately for anyone who already configured it on a prior boot).
+  // Falls back to doing nothing when no profile is stored yet — the
+  // original hardcoded sidebar text (index.html) is left exactly as-is
+  // in that case. Also pulls the office profile from the connected
+  // Google Sheet, if any, so a second device picks up data entered on
+  // the first one (see js/office/OfficeProfileService.js "STORAGE MODEL").
+  if(window.OfficeProfileService && typeof settingsRepositoryReadyPromise!=='undefined'){
+    settingsRepositoryReadyPromise.then(function(){
+      OfficeProfileService.applyToUI();
+      OfficeProfileService.syncPull();
     });
   }
   // PHASE 32 — LOGIN SCREEN, SESSION ACTIVATION & USERS ADMIN PANEL:
@@ -1801,6 +1849,7 @@ window.addEventListener('DOMContentLoaded',function(){
       .then(function(){ if(window.HossamTopbarSessionBadge) HossamTopbarSessionBadge.render(); if(window.HossamSidebarSessionBadge) HossamSidebarSessionBadge.render(); });
   }
   if(window.UsersAdminPanel){UsersAdminPanel.init();}
+  if(window.OfficeProfilePanel){OfficeProfilePanel.init();}
   // PHASE 16.4 — BOOT SEQUENCE CONSOLIDATION: the first thing this
   // listener does. Guarded exactly like the ApplicationShell/
   // ShellNavigationManager lines added in navigate() during Phase
