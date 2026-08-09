@@ -39,6 +39,30 @@
   'use strict';
 
   var SALT_KEY = 'hsm_license_device_salt_v1';
+  // ROOT-CAUSE FIX (license re-prompt / intermittent machine_mismatch):
+  // collectEnvironmentSignals() reads window.screen / navigator LIVE on
+  // every call. screen.width/height/colorDepth can legitimately differ
+  // between one launch and the next of the SAME device/browser profile —
+  // a laptop undocked/redocked from an external monitor, a display mode
+  // change, or simply the OS/webview not having finished settling the
+  // window's display metrics yet on the very first paint after a cold
+  // start (which self-resolves a few seconds later or on refresh, once
+  // the values stabilize). Because formatMachineId() hashes these signals
+  // together with the salt, ANY drift in a single signal completely
+  // changes the resulting Machine ID (SHA-256 avalanche effect), which
+  // then no longer matches payload.machineId captured at activation time
+  // -> verifyLicenseFile() returns 'machine_mismatch' -> LicenseCore
+  // reports INVALID -> ActivationWizard reopens asking for the license
+  // again, exactly the reported symptom (works again after a refresh
+  // because by then screen metrics have stabilized to their original
+  // values). Fix: snapshot collectEnvironmentSignals() ONCE, the same
+  // way the salt itself is snapshotted, and persist it — so every later
+  // call (including across full app/browser restarts) reuses that first
+  // captured string instead of re-reading potentially volatile live
+  // values. This preserves the original design intent ("recognizably
+  // tied to this browser profile") while making the Machine ID as
+  // stable as the salt it's supposed to complement.
+  var SIGNALS_KEY = 'hsm_license_device_signals_v1';
 
   function getOrCreateDeviceSalt() {
     try {
@@ -74,6 +98,21 @@
     ].join('|');
   }
 
+  function getOrCreatePersistedEnvironmentSignals() {
+    try {
+      var existing = window.localStorage.getItem(SIGNALS_KEY);
+      if (existing) return existing;
+      var signals = collectEnvironmentSignals();
+      window.localStorage.setItem(SIGNALS_KEY, signals);
+      return signals;
+    } catch (e) {
+      // localStorage unavailable — same narrow edge case as the salt
+      // fallback above; fall back to live (volatile) signals so the app
+      // still functions.
+      return collectEnvironmentSignals();
+    }
+  }
+
   function formatMachineId(hex) {
     var short = hex.slice(0, 12).toUpperCase();
     return 'HSM-' + short.slice(0, 4) + '-' + short.slice(4, 8) + '-' + short.slice(8, 12);
@@ -89,7 +128,7 @@
 
     _cachedPromise = (async function () {
       var salt = getOrCreateDeviceSalt();
-      var signals = collectEnvironmentSignals();
+      var signals = getOrCreatePersistedEnvironmentSignals();
       var raw = 'hossam-v1|' + salt + '|' + signals;
 
       if (window.LicenseCrypto && window.LicenseCrypto.isAvailable()) {
