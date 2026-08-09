@@ -56,6 +56,77 @@
   });
 })();
 </script>
+<!-- PHASE UX-BUGFIX — DYNAMIC VIEWPORT HEIGHT (ROOT CAUSE FIX)
+     ----------------------------------------------------------------------
+     SYMPTOM REPORTED: intermittent "page reload"/glitch look — parts of
+     the UI (mainly the fixed sidebar and whatever sits behind it) vanish
+     or a previous/background page becomes visible, especially right after
+     the screen is scrolled, and moving the screen up/down again is what
+     makes the missing part "complete" or reappear.
+
+     EVIDENCE (css/layout.css, css/base.css):
+       .sidebar   -> position:fixed; height:100vh
+       .app-shell -> min-height:100vh
+       .main      -> min-height:100vh
+       body       -> min-height:100vh   (css/base.css)
+     All four size themselves with the static `vh` unit. On Android Chrome
+     (and most Chromium-based mobile browsers) `1vh` is computed against the
+     LARGEST possible viewport — i.e. with the address bar hidden — not the
+     currently visible one. While the address bar is showing, every one of
+     these elements is actually taller than the visible screen. Scrolling is
+     exactly what makes Chrome show/hide that bar, resizing the real visible
+     viewport WITHOUT re-running layout for anything sized in `vh` — so a
+     fixed-position element (the sidebar) can end up mispositioned/clipped,
+     letting whatever is behind it show through, until a further
+     resize/scroll forces the browser to finish the address-bar transition
+     and repaint. This matches every part of the reported symptom.
+
+     THE FIX (two halves, both required):
+       1) THIS block sets a `--vh` custom property to 1% of the REAL,
+          currently-visible height (preferring window.visualViewport, which
+          tracks the address-bar animation live; falling back to
+          window.innerHeight), kept in sync on resize/orientationchange.
+          Placed this early, before the CSS <link> tags below, so --vh has
+          a correct value before first paint (no flash of the wrong size).
+       2) css/layout.css (.sidebar/.app-shell/.main) and css/base.css
+          (body) each gain two extra, LATER declarations of the same
+          property — `calc(var(--vh, 1vh) * 100)` then `100dvh` — so a
+          browser that doesn't run this script still falls back to the
+          exact pre-existing `100vh` behavor (zero regression), a browser
+          that runs this script gets the corrected height, and a browser
+          that natively supports the modern `dvh` unit (no JS required)
+          gets the best answer of all, overriding both. This is the same
+          layered `vh` → `dvh` pattern already used once in this codebase
+          for `.modal` (css/components.css) — extended here to the actual
+          full-screen fixed elements, which is where it was missing.
+
+     Purely additive: sets one custom property on <html>, adds four new
+     resize/orientationchange/visualViewport listeners, and does not read,
+     write, or reference anything else in the page. -->
+<script>
+(function () {
+  var root = document.documentElement;
+  function setVh() {
+    try {
+      var h = (window.visualViewport && window.visualViewport.height) || window.innerHeight;
+      root.style.setProperty('--vh', (h * 0.01) + 'px');
+    } catch (e) {}
+  }
+  setVh();
+  var raf = window.requestAnimationFrame || function (fn) { return setTimeout(fn, 66); };
+  var pending = false;
+  function scheduleSetVh() {
+    if (pending) return;
+    pending = true;
+    raf(function () { pending = false; setVh(); });
+  }
+  window.addEventListener('resize', scheduleSetVh);
+  window.addEventListener('orientationchange', scheduleSetVh);
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', scheduleSetVh);
+  }
+})();
+</script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>   مكتب الحسام للمحاماة — المستشار حسام محمد ابراهيم  </title>
 
