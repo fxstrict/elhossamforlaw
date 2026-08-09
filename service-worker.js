@@ -151,7 +151,7 @@
  * function for the residual limitation this does NOT solve.
  * ---------------------------------------------------------------------- */
 
-var SW_VERSION = 'v22'; // BUGFIX (PHASE PWA-NOTIFICATIONS-CLOSED-APP, cont'd) — v18 fixed the
+var SW_VERSION = 'v23'; // BUGFIX (PHASE PWA-NOTIFICATIONS-CLOSED-APP, cont'd) — v18 fixed the
                          // WRONG-PAGE part (see that entry below) but a real installed WebAPK
                          // (confirmed: appears as its own entry under Settings > Apps, installed via
                          // Chrome's "تثبيت التطبيق") was still opening the tapped notification in a
