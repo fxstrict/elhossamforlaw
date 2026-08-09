@@ -151,7 +151,14 @@
  * function for the residual limitation this does NOT solve.
  * ---------------------------------------------------------------------- */
 
-var SW_VERSION = 'v23'; // BUGFIX (PHASE PWA-NOTIFICATIONS-CLOSED-APP, cont'd) — v18 fixed the
+// PHASE 35 — Voice Input (Speech-to-Text): added css/voice-input.css +
+// js/core/VoiceInputController.js to PRECACHE_URLS below (new <link>/
+// <script> tags in index.html). SW_VERSION bumped v23 -> v24 for the same
+// "Cache Versioning" reason as every previous bump in this file (see the
+// PRECACHE_URLS v12 note a few lines down) — otherwise a previously-
+// installed PWA keeps serving its old cached shell and never picks up the
+// two new files. No other entry in this file was changed for Phase 35.
+var SW_VERSION = 'v24'; // BUGFIX (PHASE PWA-NOTIFICATIONS-CLOSED-APP, cont'd) — v18 fixed the
                          // WRONG-PAGE part (see that entry below) but a real installed WebAPK
                          // (confirmed: appears as its own entry under Settings > Apps, installed via
                          // Chrome's "تثبيت التطبيق") was still opening the tapped notification in a
@@ -231,6 +238,7 @@ var PRECACHE_URLS = [
   'css/dashboard-smart.css',
   'css/license.css',
   'css/auth.css',
+  'css/voice-input.css',
   'assets/favicon/favicon.ico',
   'assets/favicon/favicon-16.png',
   'assets/favicon/favicon-32.png',
@@ -348,7 +356,8 @@ var PRECACHE_URLS = [
   'js/core/boot/SafeModeController.js',
   'js/core/pwa/ServiceWorkerRegistrar.js',
   'js/core/pwa/InstallPromptManager.js',
-  'js/core/pwa/NotificationManager.js'
+  'js/core/pwa/NotificationManager.js',
+  'js/core/VoiceInputController.js'
 ];
 
 // 1x1-scale, dependency-free inline placeholder for a same-origin image

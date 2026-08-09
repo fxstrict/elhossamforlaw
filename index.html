@@ -267,6 +267,10 @@
 <link href="css/license.css" rel="stylesheet">
 <!-- PHASE 32 — Login Screen, Session Activation & Users Admin Panel. -->
 <link href="css/auth.css" rel="stylesheet">
+<!-- PHASE 35 — Voice Input (Speech-to-Text): mic button styling for every
+     free-text field. New, standalone file; no other CSS file was touched
+     for this phase. -->
+<link href="css/voice-input.css" rel="stylesheet">
 <!-- ================================================================
      PHASE 17.1 — LOADER OPTIMIZATION (preload + priority hints, additive only)
      WHY THIS BLOCK EXISTS
@@ -2141,5 +2145,13 @@ window.addEventListener('DOMContentLoaded',function(){
      js/core/pwa/NotificationManager.js for the full contract. Loaded last,
      same reasoning as ServiceWorkerRegistrar.js/InstallPromptManager.js. -->
 <script src="js/core/pwa/NotificationManager.js"></script>
+<!-- PHASE 35 — Voice Input (Speech-to-Text): adds a microphone button to
+     every input[type="text"] / textarea field (never to numeric/date/tel/
+     email/url/checkbox/file fields) so users can dictate instead of type.
+     Loaded last so it can scan every field already in the DOM, then a
+     MutationObserver picks up every field rendered afterwards (modals,
+     DomRecycler-managed pages, etc.). 100% additive — see file header in
+     js/core/VoiceInputController.js. -->
+<script src="js/core/VoiceInputController.js"></script>
 </body>
 </html>
