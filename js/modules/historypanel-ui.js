@@ -698,11 +698,13 @@
     if (overlay) overlay.classList.add('open');
     renderHistoryPanel();
     startRelTimeTicker();
-    var searchInput = document.getElementById('hpSearchInput');
-    if (searchInput) {
-      // Defer focus one frame so the slide-in transition isn't jarred.
-      setTimeout(function () { searchInput.focus(); }, 50);
-    }
+    // PHASE UX-BUGFIX (history panel) — auto-focusing the search input on
+    // every open used to force the on-screen keyboard open immediately,
+    // which fires a visualViewport resize on top of the slide-in
+    // transition and made the panel look like it was reloading/cutting
+    // off (see the CSS fix above / index.html <head> for the full --vh
+    // root-cause note). The user now opens the keyboard only by tapping
+    // the search box themselves, same as every other panel in the app.
   }
 
   function closeHistoryPanel() {
