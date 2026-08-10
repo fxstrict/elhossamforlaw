@@ -131,6 +131,7 @@
       return '<option' + (data.capacity === t ? ' selected' : '') + '>' + t + '</option>';
     }).join('');
     var idx = container.children.length + 1;
+    var powerVisible = data.visible === 'نعم';
     var row = document.createElement('div');
     row.className = 'repeat-row';
     row.id = rowId;
@@ -144,6 +145,7 @@
         '<div class="form-group"><label>رقم</label><input type="text" class="cf-power-number" value="' + safeAttr(data.number) + '"></div>' +
         '<div class="form-group full"><label>مكتب التوثيق</label><input type="text" class="cf-power-notary" value="' + safeAttr(data.notaryOffice) + '"></div>' +
         '<div class="form-group full"><label>صفة التوكيل</label><select class="cf-power-capacity">' + capacityOptions + '</select></div>' +
+        '<div class="form-group full"><label>ظاهر للموكل ببوابته؟</label><select class="cf-power-visible"><option value="لا"' + (!powerVisible ? ' selected' : '') + '>لا</option><option value="نعم"' + (powerVisible ? ' selected' : '') + '>نعم</option></select></div>' +
       '</div>' +
       '<div class="repeat-file-row">' +
         '<input type="file" class="cf-power-file" accept=".pdf,.jpg,.jpeg,.png" onchange="ClientFields.uploadRowFile(this,\'' + rowId + '\',\'powers\')">' +
@@ -160,6 +162,7 @@
     var container = document.getElementById('clientDocumentsContainer');
     if (!container) return;
     var rowId = 'docRow_' + uidLocal();
+    var docVisible = data.visible === 'نعم';
     var row = document.createElement('div');
     row.className = 'repeat-row';
     row.id = rowId;
@@ -167,6 +170,7 @@
     row.innerHTML =
       '<div class="repeat-row-title">مستند<button type="button" class="repeat-row-remove" onclick="ClientFields.removeRow(\'' + rowId + '\')" title="حذف">&times;</button></div>' +
       '<div class="form-group full"><label>اسم المستند</label><input type="text" class="cf-doc-name" value="' + safeAttr(data.name) + '" placeholder="بطاقة رقم قومي / عقد..."></div>' +
+      '<div class="form-group full"><label>ظاهر للموكل ببوابته؟</label><select class="cf-doc-visible"><option value="لا"' + (!docVisible ? ' selected' : '') + '>لا</option><option value="نعم"' + (docVisible ? ' selected' : '') + '>نعم</option></select></div>' +
       '<div class="repeat-file-row">' +
         '<input type="file" class="cf-doc-file" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" onchange="ClientFields.uploadRowFile(this,\'' + rowId + '\',\'documents\')">' +
         '<span class="repeat-file-status' + (data.fileUrl ? ' ok' : '') + '">' + (data.fileUrl ? '&#10003; تم رفع الملف — <a href="' + safeAttr(data.fileUrl) + '" target="_blank">فتح</a>' : 'لم يُرفع ملف بعد') + '</span>' +
@@ -354,13 +358,18 @@
         number: (row.querySelector('.cf-power-number') || {}).value || '',
         notaryOffice: (row.querySelector('.cf-power-notary') || {}).value || '',
         capacity: (row.querySelector('.cf-power-capacity') || {}).value || '',
+        visible: (row.querySelector('.cf-power-visible') || {}).value || 'لا',
         fileUrl: row.getAttribute('data-file-url') || ''
       };
-    }).filter(function (p) { return p.number || p.type || p.notaryOffice; });
+    // إصلاح: كان الشرط لا يتضمن fileUrl، فأي توكيل رُفع له ملف فقط بدون
+    // كتابة رقم/نوع/مكتب توثيق كان يُستبعَد بالكامل صامتًا عند الحفظ
+    // (لا الملف ولا أي أثر له يصل لأي مكان). راجع تقرير المحادثة.
+    }).filter(function (p) { return p.number || p.type || p.notaryOffice || p.fileUrl; });
 
     var documents = rowsOf('clientDocumentsContainer').map(function (row) {
       return {
         name: (row.querySelector('.cf-doc-name') || {}).value || '',
+        visible: (row.querySelector('.cf-doc-visible') || {}).value || 'لا',
         fileUrl: row.getAttribute('data-file-url') || ''
       };
     }).filter(function (d) { return d.name || d.fileUrl; });

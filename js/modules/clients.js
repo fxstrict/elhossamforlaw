@@ -1073,14 +1073,17 @@ function buildClientReport(c) {
         '<th style="padding:7px 10px;text-align:right;border:1px solid #e8e0d0;">مكتب التوثيق</th>' +
         '<th style="padding:7px 10px;text-align:right;border:1px solid #e8e0d0;">الصفة</th>' +
         '<th style="padding:7px 10px;text-align:right;border:1px solid #e8e0d0;">الملف</th>' +
+        '<th style="padding:7px 10px;text-align:right;border:1px solid #e8e0d0;">ظاهر للموكل</th>' +
       '</tr>';
     _powers.forEach(function(p) {
+      var _pVisible = p.visible === 'نعم';
       html += '<tr>' +
         '<td style="padding:7px 10px;border:1px solid #e8e0d0;">' + f(p.type) + '</td>' +
         '<td style="padding:7px 10px;border:1px solid #e8e0d0;">' + f([p.number, p.letter, p.year].filter(Boolean).join('/')) + '</td>' +
         '<td style="padding:7px 10px;border:1px solid #e8e0d0;">' + f(p.notaryOffice) + '</td>' +
         '<td style="padding:7px 10px;border:1px solid #e8e0d0;">' + f(p.capacity) + '</td>' +
-        '<td style="padding:7px 10px;border:1px solid #e8e0d0;">' + (p.fileUrl ? '<a href="' + escapeHtml(p.fileUrl) + '" target="_blank">فتح</a>' : '—') + '</td>' +
+        '<td style="padding:7px 10px;border:1px solid #e8e0d0;">' + (p.fileUrl ? '<a href="' + escapeHtml(p.fileUrl) + '" target="_blank">فتح</a>' : '<span class="empty">لم يُرفع بعد</span>') + '</td>' +
+        '<td style="padding:7px 10px;border:1px solid #e8e0d0;">' + (_pVisible ? '<span style="color:#1e8449;font-weight:700;">&#10003; نعم</span>' : '<span style="color:#888;">لا</span>') + '</td>' +
       '</tr>';
     });
     html += '</table></div></div>';
@@ -1092,9 +1095,11 @@ function buildClientReport(c) {
     html += '<div class="view-section"><div class="view-section-title">&#128193; مستندات الموكل (' + _docs.length + ')</div>' +
       '<div class="view-field-full"><div class="view-value">' +
       _docs.map(function(d) {
-        return d.fileUrl
+        var _dVisible = d.visible === 'نعم';
+        var _label = d.fileUrl
           ? '<a href="' + escapeHtml(d.fileUrl) + '" target="_blank">' + f(d.name) + '</a>'
           : f(d.name);
+        return _label + ' <span style="font-size:11px;' + (_dVisible ? 'color:#1e8449;' : 'color:#888;') + '">(' + (_dVisible ? '&#10003; ظاهر للموكل' : 'مخفي عن الموكل') + ')</span>';
       }).join('<br>') +
       '</div></div></div>';
   }
