@@ -158,7 +158,7 @@
 // PRECACHE_URLS v12 note a few lines down) — otherwise a previously-
 // installed PWA keeps serving its old cached shell and never picks up the
 // two new files. No other entry in this file was changed for Phase 35.
-var SW_VERSION = 'v25'; // BUGFIX (PHASE PWA-NOTIFICATIONS-CLOSED-APP, cont'd) — v18 fixed the
+var SW_VERSION = 'v26'; // BUGFIX (PHASE PWA-NOTIFICATIONS-CLOSED-APP, cont'd) — v18 fixed the
                          // WRONG-PAGE part (see that entry below) but a real installed WebAPK
                          // (confirmed: appears as its own entry under Settings > Apps, installed via
                          // Chrome's "تثبيت التطبيق") was still opening the tapped notification in a
