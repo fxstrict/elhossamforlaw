@@ -628,7 +628,7 @@ style="color:var(--muted);font-size:12px;margin-top:4px;"> جارٍ تحميل
        additive container only — renderTodayCenterWidget() in
        dashboard.js is the only thing that writes into it. No existing
        element on this page was moved, edited, or removed. -->
-  <div class="today-center" id="dashTodayCenter" onclick="navigate('calendar')" role="button" tabindex="0" title="عرض التقويم" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();navigate('calendar');}"></div>
+  <div class="today-center" id="dashTodayCenter"></div>
   <!-- PHASE 29.2 — Smart Dashboard, Quick Search section. New,
        additive block only — performDashboardQuickSearch() in
        dashboard.js is the only thing that writes into
@@ -2030,7 +2030,7 @@ window.addEventListener('DOMContentLoaded',function(){
     <input type="text" id="hpSearchInput" class="hp-search-input" placeholder="بحث..." aria-label="بحث فى سجل العمليات" autocomplete="off">
     <button type="button" class="hp-search-clear" id="hpSearchClear" aria-label="مسح البحث" style="display:none;">&#10005;</button>
   </div>
-  <div class="hp-limits" id="hpLimits">السجل — / —</div>
+  <div class="hp-limits" id="hpLimits">جارٍ تحميل عدد العمليات المسجلة...</div>
   <div class="hp-tabs" id="hpTabs" role="tablist" aria-label="تصفية سجل العمليات">
     <div class="hp-tab active" role="tab" aria-selected="true" tabindex="0" data-hp-filter="all">الكل</div>
     <div class="hp-tab" role="tab" aria-selected="false" tabindex="-1" data-hp-filter="cases">القضايا</div>
