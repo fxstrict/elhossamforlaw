@@ -516,6 +516,32 @@
     var fn = this._undoManager[method];
     if (typeof fn !== 'function') return;
     try {
+      // BUGFIX ("سجل العمليات غير مرتبطة بالحسابات"): every record*() call
+      // below is always invoked with the entry's `metadata` object as the
+      // LAST element of `args` (see every _recordUndo() call site further
+      // down this file — recordCreate:[record,meta], recordUpdate:
+      // [before,after,meta], recordDelete:[before,meta], recordRestore:
+      // [before,after,meta]). This stamps WHO performed the action onto
+      // that same metadata object, read-only, from the existing
+      // `window.HossamSession` session façade (js/core/rbac/
+      // SessionContext.js — already the single source of truth the RBAC
+      // permission guard uses elsewhere in this file, e.g.
+      // _guardPermission()). Fails open exactly like every other optional
+      // integration point in this project: if SessionContext.js hasn't
+      // loaded, or no user is currently logged in, the metadata object is
+      // left exactly as every call site already built it — zero behavior
+      // change for those cases. Never mutates the record itself, never
+      // touches `before`/`after`.
+      var metaArg = args && args.length ? args[args.length - 1] : null;
+      if (metaArg && typeof metaArg === 'object') {
+        var sessionApi = (typeof root !== 'undefined') ? root.HossamSession : null;
+        var currentUser = (sessionApi && typeof sessionApi.getCurrentUser === 'function')
+          ? sessionApi.getCurrentUser() : null;
+        if (currentUser) {
+          metaArg.actorName = currentUser.الاسم || currentUser.اسم_المستخدم || currentUser.id || null;
+          metaArg.actorUsername = currentUser.اسم_المستخدم || null;
+        }
+      }
       fn.apply(this._undoManager, args);
     } catch (e) {
       // Intentionally swallowed — see doc comment above.

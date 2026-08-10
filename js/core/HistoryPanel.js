@@ -97,7 +97,18 @@
   }
 
   function labelFor(entity, record) {
-    if (!record) return null;
+    // BUGFIX ("سجل العمليات لا يظهر معلومات دقيقة"): Repository.js's
+    // bulkUpdate()/import()/transaction()/clear() record `before`/`after`
+    // as an ARRAY of records (one whole-repository snapshot), not a
+    // single record — see each call site's own `.map(cloneRecord)`. Doing
+    // `record[entity.idField]` on an array silently returns undefined
+    // (arrays don't have Arabic-keyed properties), which previously made
+    // this function fall through to `return null`, in turn rendering as
+    // an empty "السجل: —" row with no explanation. A single record is the
+    // only shape this function was ever designed to label; an array is
+    // never a mislabeled record, so it is explicitly excluded here rather
+    // than silently mishandled.
+    if (!record || Array.isArray(record)) return null;
     for (var i = 0; i < entity.labelFields.length; i++) {
       var v = record[entity.labelFields[i]];
       if (v !== undefined && v !== null && String(v).trim() !== '') return String(v);
@@ -124,6 +135,15 @@
       var list = (kind === 'redo') ? snap.redo : snap.history;
       (list || []).forEach(function (entry, idx) {
         var record = (entry.type === 'delete') ? entry.before : entry.after;
+        // BUGFIX ("سجل العمليات لا يظهر معلومات دقيقة" / "غير مرتبطة
+        // بالحسابات"): a whole-repository snapshot entry (bulkUpdate()/
+        // import()/transaction()/clear() — see labelFor()'s comment above)
+        // is flagged here so the UI layer can show an honest "تحديث جماعي
+        // لعدد N سجل" summary instead of silently misreading array indices
+        // as record fields. `metadata` (which now carries `actorName`/
+        // `actorUsername` — see Repository.js `_recordUndo()`) is also
+        // surfaced read-only, matching the existing before/after
+        // passthrough pattern from PHASE 12.6B.
         out.push({
           entity: entity,
           idx: idx,
@@ -131,12 +151,14 @@
           type: entry.type,
           timestamp: entry.timestamp,
           record: record,
+          isSnapshotArray: Array.isArray(entry.before) || Array.isArray(entry.after),
           // PHASE 12.6B: both already existed on `entry` (see UndoManager.js
           // buildEntry()) — surfaced here read-only for the UI's expandable
           // "Before / After" detail view. Nothing about jumpTo()/getFeed()'s
           // existing contract changes.
           before: entry.before,
           after: entry.after,
+          metadata: entry.metadata || {},
           label: labelFor(entity, record) || labelFor(entity, entry.before)
         });
       });
