@@ -313,17 +313,22 @@ const ApiService = {
   /**
    * Uploads a file to Google Drive via the Apps Script endpoint.
    *
-   * This is a forward-looking stub: the current GAS backend does not
-   * expose a file-upload action, but the interface is defined here so
-   * all Drive communication lives in one place when it is added.
+   * Wired to Config/06_Api.gs's `action:'uploadFile'` handler (apiUploadFile)
+   * and Config/03_Drive.gs's uploadBase64FileToDrive() (Phase: بيانات الموكل
+   * الموسّعة). Used today by js/modules/client-fields.js to upload client
+   * powers-of-attorney (فولدر "توكيلات المكتب") and client documents
+   * (فولدر "مستندات القضايا") — folderKey selects which default folder is
+   * used server-side when folderId is not explicitly given.
    *
-   * @param {string} fileName   - Desired filename in Drive
-   * @param {string} base64Data - Base64-encoded file content
-   * @param {string} mimeType   - e.g. 'application/pdf'
-   * @param {string} [folderId] - Target Drive folder ID (optional)
+   * @param {string} fileName    - Desired filename in Drive
+   * @param {string} base64Data  - Base64-encoded file content
+   * @param {string} mimeType    - e.g. 'application/pdf'
+   * @param {string} [folderId]  - Target Drive folder ID (optional, takes precedence)
+   * @param {string} [folderKey] - 'powers' → توكيلات المكتب folder;
+   *                               anything else/omitted → مستندات القضايا folder
    * @returns {Promise<{ok: boolean, url?: string, error?: string}>}
    */
-  async uploadFile(fileName, base64Data, mimeType, folderId) {
+  async uploadFile(fileName, base64Data, mimeType, folderId, folderKey) {
     if (!this._url()) return { ok: false, error: 'API_URL not set' };
     try {
       const r = await this._post({
@@ -331,7 +336,8 @@ const ApiService = {
         fileName,
         base64Data,
         mimeType,
-        folderId: folderId || ''
+        folderId: folderId || '',
+        folderKey: folderKey || ''
       });
       const d = await r.json();
       return { ok: d.status === 'ok', url: d.url || '', error: d.error || '' };
