@@ -154,19 +154,28 @@
     var badgeClass = BADGE_CLASS[group.type] || '';
     var verb = window.HistoryPanel.verbFor(group.type, listKind === 'redo');
     var bulkIcon = group.type === 'delete' ? '🗑' : e.icon;
-    var title = isBulk
-      ? (bulkIcon + ' ' + verb + ' جماعي — ' + count + ' ' + e.plural)
+    // BUGFIX ("لا يظهر معلومات دقيقة"): a whole-repository snapshot entry
+    // (bulkUpdate()/import()/transaction()/clear() — see
+    // js/core/HistoryPanel.js `isSnapshotArray`) is a table-wide
+    // operation, not an edit of the single record named by `anchor.label`
+    // (which is null for these anyway). Label it honestly as "جماعي" the
+    // same way `groupBulk()`'s own multi-entry grouping already does,
+    // instead of implying one specific record was touched.
+    var isSnapshot = !!anchor.isSnapshotArray;
+    var title = (isBulk || isSnapshot)
+      ? (bulkIcon + ' ' + verb + ' جماعي — ' + (isBulk ? (count + ' ' + e.plural) : ('كل ' + e.plural)))
       : (e.icon + ' ' + verb + ' ' + e.label + (anchor.label ? (' — ' + anchor.label) : ''));
     var relTime = relativeTime(anchor.timestamp);
     var absTime = absoluteDateText(anchor.timestamp);
-    var sub = isBulk ? (count + ' عنصر • ' + relTime) : relTime;
+    var actor = actorDisplayName(anchor);
+    var sub = (isBulk ? (count + ' عنصر • ' + relTime) : relTime) + (actor ? (' • ' + actor) : '');
     var actionLabel = listKind === 'redo' ? 'إعادة إلى هنا' : 'العودة إلى هنا';
     var typeAr = TYPE_LABEL_AR[group.type] || group.type;
 
     // Everything a user might plausibly type into Search, lower-cased.
     var searchBlob = [
       title, sub, typeAr, e.label, e.plural, actionLabel, relTime, absTime,
-      anchor.label || '', anchor.record ? JSON.stringify(anchor.record) : ''
+      anchor.label || '', actor || '', anchor.record ? JSON.stringify(anchor.record) : ''
     ].join(' ').toLowerCase();
 
     var markerClass = (isBulk ? 'hp-marker-bulk' : (MARKER_CLASS[group.type] || 'hp-marker-update'));
@@ -189,7 +198,17 @@
   // anything from a Repository itself.
   // --------------------------------------------------------------
   function fieldEntries(rec) {
-    if (!rec) return [];
+    // BUGFIX ("لا توجد حقول متغيرة مسجلة" شائعة الظهور خطأ): a whole-
+    // repository snapshot (bulkUpdate()/import()/transaction()/clear() —
+    // see js/core/HistoryPanel.js's `isSnapshotArray`) stores an ARRAY of
+    // records here, not one record. `Object.keys()` on that array returns
+    // numeric indices whose values are themselves full record objects, so
+    // the old `typeof v !== 'object'` filter silently dropped every one of
+    // them, producing an always-empty field list. Detail rendering for
+    // that case is handled separately by detailsHtml()'s new snapshot
+    // branch — this function should never be handed an array in the first
+    // place, but guards regardless.
+    if (!rec || Array.isArray(rec)) return [];
     return Object.keys(rec).filter(function (k) {
       var v = rec[k];
       return v !== undefined && v !== null && String(v).trim() !== '' && typeof v !== 'object';
@@ -197,6 +216,7 @@
   }
 
   function diffFields(before, after) {
+    if (Array.isArray(before) || Array.isArray(after)) return [];
     var keys = {};
     fieldEntries(before).forEach(function (k) { keys[k] = 1; });
     fieldEntries(after).forEach(function (k) { keys[k] = 1; });
@@ -218,14 +238,37 @@
     }).join('') + '</div>';
   }
 
+  function actorDisplayName(anchor) {
+    var meta = anchor && anchor.metadata;
+    if (!meta) return null;
+    return meta.actorName || meta.actorUsername || null;
+  }
+
   function metaBlockHtml(group) {
     var a = group.anchor;
-    return '<div class="hp-detail-meta">' +
-      '<div class="hp-detail-meta-row"><span class="hp-detail-meta-key">السجل</span><span>' + escapeHtml(a.label || '—') + '</span></div>' +
+    // BUGFIX ("السجل: —" / لا يظهر معلومات دقيقة): when no per-record
+    // label could be resolved (see js/core/HistoryPanel.js labelFor()) —
+    // most commonly a whole-repository snapshot entry (bulkUpdate()/
+    // import()/transaction()/clear()) — show an honest, plain-Arabic
+    // fallback instead of a bare dash that looks like missing/broken data.
+    var recordLabel = a.label
+      ? a.label
+      : (a.isSnapshotArray ? 'تحديث لعدة سجلات دفعة واحدة' : 'سجل بدون اسم مسجل');
+    var actor = actorDisplayName(a);
+    var rows =
+      '<div class="hp-detail-meta-row"><span class="hp-detail-meta-key">السجل</span><span>' + escapeHtml(recordLabel) + '</span></div>' +
       '<div class="hp-detail-meta-row"><span class="hp-detail-meta-key">الكيان</span><span>' + escapeHtml(group.entity.label) + '</span></div>' +
       '<div class="hp-detail-meta-row"><span class="hp-detail-meta-key">نوع العملية</span><span>' + escapeHtml(TYPE_LABEL_AR[group.type] || group.type) + '</span></div>' +
-      '<div class="hp-detail-meta-row"><span class="hp-detail-meta-key">التاريخ</span><span>' + escapeHtml(absoluteDateText(a.timestamp)) + '</span></div>' +
-    '</div>';
+      // BUGFIX ("غير مرتبطة بالحسابات وترشيد من قام بذلك"): shows WHO
+      // performed the action when the current session was known at the
+      // time it happened (Repository.js `_recordUndo()` now stamps
+      // actorName/actorUsername from window.HossamSession — see that
+      // file). Entries recorded before this fix, or with no session
+      // registered (fail-open, unchanged), fall back to an honest label
+      // instead of inventing a name.
+      '<div class="hp-detail-meta-row"><span class="hp-detail-meta-key">بواسطة</span><span>' + escapeHtml(actor || 'غير مسجل (لا توجد جلسة دخول مرتبطة)') + '</span></div>' +
+      '<div class="hp-detail-meta-row"><span class="hp-detail-meta-key">التاريخ</span><span>' + escapeHtml(absoluteDateText(a.timestamp)) + '</span></div>';
+    return '<div class="hp-detail-meta">' + rows + '</div>';
   }
 
   function detailsHtml(group) {
@@ -242,7 +285,19 @@
 
     var a = group.anchor;
     var body = '';
-    if (group.type === 'update') {
+    // BUGFIX ("لا يظهر معلومات دقيقة ... تفاصيل كل عملية"): a
+    // whole-repository snapshot entry (see js/core/HistoryPanel.js
+    // `isSnapshotArray`) has array before/after, not single records —
+    // diffFields()/recordFieldsHtml() were never designed to read those
+    // and would previously render a blank/misleading "no changed fields"
+    // note. Show an honest count-based summary instead of guessing.
+    if (a.isSnapshotArray) {
+      var beforeCount = Array.isArray(a.before) ? a.before.length : 0;
+      var afterCount = Array.isArray(a.after) ? a.after.length : 0;
+      body = '<div class="hp-details-empty-note">هذه عملية جماعية على مستوى "' + escapeHtml(group.entity.plural) +
+        '" ككل (عدد السجلات قبل: ' + beforeCount + '، بعد: ' + afterCount + ')، وليست تعديلاً على سجل واحد بعينه — ' +
+        'لذلك لا تُعرض هنا حقول فردية متغيرة.</div>';
+    } else if (group.type === 'update') {
       var changed = diffFields(a.before, a.after);
       body = changed.length
         ? '<div class="hp-details-section-title">الحقول التى تغيرت</div><div class="hp-detail-diff">' +
@@ -450,10 +505,22 @@
 
     var limitsEl = document.getElementById('hpLimits');
     if (limitsEl) {
+      // BUGFIX ("تعرض بأسلوب برمجي لا يفهمه العميل" / "لا يظهر معلومات
+      // دقيقة"): the previous text — "السجل 7 / 450 (لكل نوع سجل مستقل
+      // بحد 50)" — showed an internal implementation detail (9 entity
+      // types × 50 = a meaningless combined "450") with no plain
+      // explanation, and `wired` (which repositories have finished
+      // initializing) can legitimately differ between the very first
+      // render right after the panel opens during app boot and a later
+      // render, making the same real data look like it "changed for no
+      // reason". This now shows one honest, static-per-entity-type number
+      // a non-technical office user can read directly, and never mixes
+      // types together into a single misleading total.
       var wired = feed.limits.filter(function (l) { return l.wired; });
       var totalUsed = wired.reduce(function (s, l) { return s + l.used; }, 0);
-      var totalMax = wired.reduce(function (s, l) { return s + (l.max || 0); }, 0);
-      limitsEl.textContent = 'السجل ' + totalUsed + ' / ' + totalMax + ' (لكل نوع سجل مستقل بحد ' + (wired[0] ? wired[0].max : 50) + ')';
+      var perTypeMax = wired.length ? wired[0].max : 50;
+      limitsEl.textContent = 'عدد العمليات المسجلة حالياً: ' + totalUsed +
+        ' (يحتفظ النظام بآخر ' + perTypeMax + ' عملية لكل قسم — القضايا، الموكلين، الجلسات... إلخ — كل قسم على حدة)';
     }
 
     var allRows = buildRows(feed);
@@ -594,6 +661,32 @@
   // Open / close + accessibility
   // --------------------------------------------------------------
   var lastFocusedEl = null;
+  // BUGFIX ("غير دقيقة في الوقت"): relative labels ("منذ 3 دقائق") were
+  // only ever computed at render time, then left frozen on screen for as
+  // long as the panel stayed open with no new action to trigger a
+  // re-render — a case genuinely left open long enough would keep
+  // reading "منذ 3 دقائق" long after 3 minutes had passed. This ticks a
+  // lightweight re-render (diffRender() patches only the changed text
+  // nodes — see patchRowElement() — so this never rebuilds the list) once
+  // a minute, only while the panel is actually open, and is always
+  // cleared on close so it can never run in the background.
+  var relTimeTickId = null;
+  var REL_TIME_TICK_MS = 60000;
+
+  function startRelTimeTicker() {
+    stopRelTimeTicker();
+    relTimeTickId = setInterval(function () {
+      var panel = document.getElementById('historyPanel');
+      if (panel && panel.classList.contains('open')) renderHistoryPanel();
+    }, REL_TIME_TICK_MS);
+  }
+
+  function stopRelTimeTicker() {
+    if (relTimeTickId !== null) {
+      clearInterval(relTimeTickId);
+      relTimeTickId = null;
+    }
+  }
 
   function openHistoryPanel() {
     var panel = document.getElementById('historyPanel');
@@ -604,6 +697,7 @@
     panel.setAttribute('aria-hidden', 'false');
     if (overlay) overlay.classList.add('open');
     renderHistoryPanel();
+    startRelTimeTicker();
     var searchInput = document.getElementById('hpSearchInput');
     if (searchInput) {
       // Defer focus one frame so the slide-in transition isn't jarred.
@@ -619,6 +713,7 @@
       panel.setAttribute('aria-hidden', 'true');
     }
     if (overlay) overlay.classList.remove('open');
+    stopRelTimeTicker();
     if (lastFocusedEl && typeof lastFocusedEl.focus === 'function') lastFocusedEl.focus();
   }
 
