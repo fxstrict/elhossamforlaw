@@ -241,11 +241,19 @@ function renderTodayCenterWidget(){
     // omitted rather than showing an incorrect approximation.
     hijri='';
   }
+  // PHASE UX — Today Center compaction: same data as before (day,
+  // Gregorian date, Hijri date, time), now laid out as a single-row
+  // bar instead of a tall stacked block. The container itself is the
+  // click target (onclick="navigate('calendar')" set once in
+  // index.html on #dashTodayCenter) — nothing here needs to change to
+  // support that, so the click handler is intentionally not
+  // duplicated per sub-element.
   el.innerHTML=
+    '<span class="today-center-icon" aria-hidden="true">&#128197;</span>'+
     '<div class="today-center-dates">'+
-      '<div class="today-center-day">'+dayName+'</div>'+
-      '<div class="today-center-gregorian">'+gregorian+'</div>'+
-      (hijri?'<div class="today-center-hijri">'+hijri+' هـ</div>':'')+
+      '<span class="today-center-day">'+dayName+'</span>'+
+      '<span class="today-center-gregorian">'+gregorian+'</span>'+
+      (hijri?'<span class="today-center-hijri">'+hijri+' هـ</span>':'')+
     '</div>'+
     '<div class="today-center-time">'+time+'</div>';
 }
