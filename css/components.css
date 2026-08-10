@@ -522,9 +522,26 @@
    below starting at .hp-body. hp-badge-* create/update/delete/restore
    color mapping from 12.6 is UNCHANGED throughout.
    ================================================================ */
-.history-panel-overlay{position:fixed;inset:0;background:rgba(20,25,40,0.35);z-index:900;opacity:0;pointer-events:none;transition:opacity var(--transition);}
+/* PHASE UX-BUGFIX (history panel) — same root cause and same paired fix as
+   .sidebar/.app-shell/.main/body in css/layout.css & css/base.css (see the
+   --vh script + evidence comment in index.html <head>). This panel was
+   sized with top:0;bottom:0 / inset:0, which — unlike an explicit `height`
+   — is resolved against the browser's LARGEST possible viewport (address
+   bar hidden), not the currently-visible one. Any visualViewport change
+   (Chrome's address-bar show/hide, OR the on-screen keyboard opening from
+   the search input) resizes the real viewport without re-running layout
+   for these fixed elements, so the panel/overlay can end up taller than
+   the screen and visually "cut off / flicker / reload" until a further
+   resize completes the transition. Fix: give both an explicit height
+   using the same 100vh -> calc(var(--vh,1vh)*100) -> 100dvh fallback
+   chain as the rest of the app, so they always match the real visible
+   viewport instead of drifting from it. Positioning (top/right, and the
+   left edge on the overlay) is unchanged; only how the height is derived
+   changes. Zero regression on browsers without the --vh script or dvh
+   support (100vh remains the first, always-valid declaration). */
+.history-panel-overlay{position:fixed;top:0;left:0;right:0;height:100vh;height:calc(var(--vh, 1vh) * 100);height:100dvh;background:rgba(20,25,40,0.35);z-index:900;opacity:0;pointer-events:none;transition:opacity var(--transition);}
 .history-panel-overlay.open{opacity:1;pointer-events:auto;}
-#historyPanel{position:fixed;top:0;bottom:0;right:0;width:380px;max-width:92vw;background:var(--navy-lt);box-shadow:var(--shadow);z-index:901;transform:translateX(100%);transition:transform var(--transition),opacity var(--transition);opacity:0;display:flex;flex-direction:column;}
+#historyPanel{position:fixed;top:0;right:0;height:100vh;height:calc(var(--vh, 1vh) * 100);height:100dvh;width:380px;max-width:92vw;background:var(--navy-lt);box-shadow:var(--shadow);z-index:901;transform:translateX(100%);transition:transform var(--transition),opacity var(--transition);opacity:0;display:flex;flex-direction:column;}
 #historyPanel.open{transform:translateX(0);opacity:1;}
 .hp-header{display:flex;align-items:center;justify-content:space-between;padding:16px 18px;border-bottom:1px solid var(--navy-md);flex-shrink:0;}
 .hp-header-title{font-weight:800;font-size:15px;color:var(--steel);display:flex;align-items:center;gap:8px;}
