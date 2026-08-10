@@ -197,6 +197,26 @@
  * @param {*} value
  * @returns {string}
  */
+/**
+ * _cfParseArr — safely parses a JSON-array field written by
+ * js/modules/client-fields.js (أرقام_الهواتف/العناوين/التوكيلات/
+ * المستندات/المديرين). Returns [] for empty/legacy/malformed values so
+ * every caller below stays crash-proof on client records saved before
+ * this phase.
+ * @param {*} raw
+ * @returns {Array}
+ */
+function _cfParseArr(raw) {
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw;
+  try {
+    var parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (e) {
+    return [];
+  }
+}
+
 function escapeHtml(value) {
   if (value === null || value === undefined) return '';
   return String(value)
@@ -654,6 +674,38 @@ async function saveClient() {
 
   var obj = collectForm('clients');
 
+  // === بيانات الموكل الموسّعة (هواتف/عناوين/توكيلات/مستندات/مديرين) ===
+  // إضافة صرفة فوق collectForm العام أعلاه (الذي يتعامل فقط مع حقول
+  // القيمة الواحدة) — تُدمَج هنا بنفس نمط portal_token القائم أسفل هذا
+  // الكود مباشرة. js/modules/client-fields.js وحده مسؤول عن قراءة/بناء
+  // الصفوف المتكررة داخل نافذة الموكل؛ هذا السطر إضافي فقط ولا يمسّ أي
+  // حقل مسطّح كان موجودًا قبل هذا التعديل.
+  if (window.ClientFields && typeof ClientFields.collect === 'function') {
+    var extended = ClientFields.collect();
+    Object.keys(extended).forEach(function (k) { obj[k] = extended[k]; });
+  }
+
+  // === إنشاء حساب بوابة الموكل (اسم مستخدم/كلمة مرور) عند الطلب ===
+  // لا يُعاد توليدهما إن كانا موجودين مسبقًا (نفس فلسفة الحفاظ على
+  // portal_token أدناه) — فقط يُنشآن أول مرة يُفعَّل فيها المفتاح.
+  var wantsAccount = document.getElementById('fClientCreateAccount')
+    ? document.getElementById('fClientCreateAccount').value === 'نعم'
+    : false;
+  var existingForAccount = (editIdx.clients >= 0 && data.clients[editIdx.clients]) ? data.clients[editIdx.clients] : null;
+  if (wantsAccount) {
+    obj['حساب_مفعل'] = 'نعم';
+    obj['اسم_المستخدم'] = (existingForAccount && existingForAccount['اسم_المستخدم'])
+      ? existingForAccount['اسم_المستخدم']
+      : ('client_' + (typeof uid === 'function' ? uid() : Date.now().toString(36)));
+    obj['كلمة_المرور'] = (existingForAccount && existingForAccount['كلمة_المرور'])
+      ? existingForAccount['كلمة_المرور']
+      : Math.random().toString(36).slice(2, 10);
+  } else {
+    obj['حساب_مفعل'] = 'لا';
+    obj['اسم_المستخدم'] = (existingForAccount && existingForAccount['اسم_المستخدم']) || '';
+    obj['كلمة_المرور'] = (existingForAccount && existingForAccount['كلمة_المرور']) || '';
+  }
+
   // Preserve auto-generated fields on update; create them on add.
   // NOTE (audit R-02): ClientsRepository._resolveId() performs this exact
   // same `|| uid()`-equivalent fallback internally when رقم_الموكل is
@@ -708,6 +760,9 @@ async function saveClient() {
   } else {
     toast('تمت إضافة الموكل بنجاح', 'success');
   }
+  if (wantsAccount && !(existingForAccount && existingForAccount['اسم_المستخدم'])) {
+    toast('تم إنشاء حساب بوابة الموكل — المستخدم: ' + obj['اسم_المستخدم'], 'success');
+  }
 
   saveLocal();
   ApiService.syncRow('الموكلين', result.record, idx);
@@ -726,6 +781,12 @@ async function saveClient() {
 function editClient(i) {
   editIdx.clients = i;
   fillForm('clients', data.clients[i]);
+  // === بيانات الموكل الموسّعة — إعادة بناء الصفوف المتكررة وتفعيل
+  // قسم النوع الصحيح (شخص طبيعي/اعتباري) وعرض بيانات حساب البوابة ===
+  if (window.ClientFields && typeof ClientFields.fill === 'function') {
+    ClientFields.fill(data.clients[i]);
+  }
+  if (typeof switchClientFormTab === 'function') switchClientFormTab('basic');
   document.getElementById('modalClientTitle').textContent = 'تعديل بيانات الموكل';
   document.getElementById('modalClient').classList.add('open');
 }
@@ -954,7 +1015,89 @@ function buildClientReport(c) {
     vf('الوظيفة',             f(c['الوظيفة'])) +
     vf('جهة العمل',           f(c['جهة_العمل'])) +
     vf('الحالة الاجتماعية',  f(c['الحالة_الاجتماعية'])) +
+    (c['الجنسية']        ? vf('الجنسية', f(c['الجنسية'])) : '') +
+    (c['رقم_جواز_السفر'] ? vf('رقم جواز السفر', f(c['رقم_جواز_السفر'])) : '') +
+    (c['تاريخ_الميلاد']  ? vf('تاريخ الميلاد', f(c['تاريخ_الميلاد'])) : '') +
+    (c['الجنس']          ? vf('الجنس', f(c['الجنس'])) : '') +
     '</div></div>';
+
+  // ---- بيانات الشركة (شخص اعتباري فقط) ----
+  if ((c['النوع'] || '').trim() === 'شخص اعتباري') {
+    html += '<div class="view-section"><div class="view-section-title">&#127970; بيانات الشركة</div>' +
+      '<div class="view-grid">' +
+      vf('نوع الشركة', f(c['نوع_الشركة'])) +
+      vf('نشاط الشركة', f(c['نشاط_الشركة'])) +
+      vf('القانون التابع له', f(c['القانون_التابع_له'])) +
+      vf('رقم السجل', f(c['رقم_السجل'])) +
+      vf('تاريخ بداية السجل', f(c['تاريخ_بداية_السجل'])) +
+      vf('تاريخ نهاية السجل', f(c['تاريخ_نهاية_السجل'])) +
+      vf('الرقم الموحد', f(c['الرقم_الموحد'])) +
+      vf('الرقم الضريبي', f(c['الرقم_الضريبي'])) +
+      '</div></div>';
+
+    var _mgrs = _cfParseArr(c['المديرين']);
+    if (_mgrs.length) {
+      html += '<div class="view-section"><div class="view-section-title">&#128101; المديرين</div>' +
+        '<div class="view-field-full"><div class="view-value">' +
+        _mgrs.map(function(m) { return escapeHtml(m.name || ''); }).filter(Boolean).join('، ') +
+        '</div></div></div>';
+    }
+  }
+
+  // ---- أرقام هواتف متعددة ----
+  var _phones = _cfParseArr(c['أرقام_الهواتف']);
+  if (_phones.length > 1) {
+    html += '<div class="view-section"><div class="view-section-title">&#128222; أرقام الهواتف</div>' +
+      '<div class="view-field-full"><div class="view-value">' +
+      _phones.map(function(p) { return escapeHtml((p.type || '') + ': ' + (p.number || '')); }).join('<br>') +
+      '</div></div></div>';
+  }
+
+  // ---- عناوين متعددة ----
+  var _addrs = _cfParseArr(c['العناوين']);
+  if (_addrs.length > 1) {
+    html += '<div class="view-section"><div class="view-section-title">&#128205; العناوين</div>' +
+      '<div class="view-field-full"><div class="view-value">' +
+      _addrs.map(function(a) { return escapeHtml((a.type || '') + ': ' + (a.detail || '')); }).join('<br>') +
+      '</div></div></div>';
+  }
+
+  // ---- التوكيلات ----
+  var _powers = _cfParseArr(c['التوكيلات']);
+  if (_powers.length) {
+    html += '<div class="view-section"><div class="view-section-title">&#128196; التوكيلات (' + _powers.length + ')</div>';
+    html += '<div class="hsm-table-scroll"><table style="width:100%;min-width:520px;font-size:12px;border-collapse:collapse;">' +
+      '<tr style="background:#f5f0e8;">' +
+        '<th style="padding:7px 10px;text-align:right;border:1px solid #e8e0d0;">النوع</th>' +
+        '<th style="padding:7px 10px;text-align:right;border:1px solid #e8e0d0;">رقم/حرف/سنة</th>' +
+        '<th style="padding:7px 10px;text-align:right;border:1px solid #e8e0d0;">مكتب التوثيق</th>' +
+        '<th style="padding:7px 10px;text-align:right;border:1px solid #e8e0d0;">الصفة</th>' +
+        '<th style="padding:7px 10px;text-align:right;border:1px solid #e8e0d0;">الملف</th>' +
+      '</tr>';
+    _powers.forEach(function(p) {
+      html += '<tr>' +
+        '<td style="padding:7px 10px;border:1px solid #e8e0d0;">' + f(p.type) + '</td>' +
+        '<td style="padding:7px 10px;border:1px solid #e8e0d0;">' + f([p.number, p.letter, p.year].filter(Boolean).join('/')) + '</td>' +
+        '<td style="padding:7px 10px;border:1px solid #e8e0d0;">' + f(p.notaryOffice) + '</td>' +
+        '<td style="padding:7px 10px;border:1px solid #e8e0d0;">' + f(p.capacity) + '</td>' +
+        '<td style="padding:7px 10px;border:1px solid #e8e0d0;">' + (p.fileUrl ? '<a href="' + escapeHtml(p.fileUrl) + '" target="_blank">فتح</a>' : '—') + '</td>' +
+      '</tr>';
+    });
+    html += '</table></div></div>';
+  }
+
+  // ---- مستندات الموكل ----
+  var _docs = _cfParseArr(c['المستندات']);
+  if (_docs.length) {
+    html += '<div class="view-section"><div class="view-section-title">&#128193; مستندات الموكل (' + _docs.length + ')</div>' +
+      '<div class="view-field-full"><div class="view-value">' +
+      _docs.map(function(d) {
+        return d.fileUrl
+          ? '<a href="' + escapeHtml(d.fileUrl) + '" target="_blank">' + f(d.name) + '</a>'
+          : f(d.name);
+      }).join('<br>') +
+      '</div></div></div>';
+  }
 
   // ---- Notes ----
   if (c['ملاحظات'] && c['ملاحظات'].trim()) {
@@ -1455,6 +1598,21 @@ function _autofillCaseClientDetails() {
     var el = document.getElementById(fieldId);
     if (el) el.value = match[fieldMap[fieldId]] || '';
   });
+
+  // === بيانات الموكل الموسّعة — مزامنة نوع الموكل (شخص طبيعي/اعتباري)
+  // في نموذج القضية مع النوع الفعلي المسجَّل بملف الموكل، بعد إصلاح
+  // معرّف select#fClientType (كان id مكررًا مع نافذة القضية نفسها —
+  // راجع تعليق التعديل في نافذة الموكل بـ index.html). ===
+  var caseTypeEl = document.getElementById('fCaseClientType');
+  if (caseTypeEl && caseTypeEl.options && match['النوع']) {
+    var wantType = match['النوع'].trim();
+    for (var oi = 0; oi < caseTypeEl.options.length; oi++) {
+      if (caseTypeEl.options[oi].value.trim() === wantType || caseTypeEl.options[oi].text.trim() === wantType) {
+        caseTypeEl.selectedIndex = oi;
+        break;
+      }
+    }
+  }
 }
 
 /**
