@@ -388,3 +388,29 @@ const ApiService = {
   }
 
 };
+
+// ================================================================
+// BUGFIX (client-file-upload availability check, Phase: بيانات الموكل
+// الموسّعة): `const ApiService = {...}` above is a top-level `const` in a
+// classic (non-module) <script>. Browsers give top-level `const`/`let` a
+// separate global *lexical* binding — `ApiService` resolves fine as a bare
+// identifier everywhere else in the codebase (clients.js, cases.js,
+// tasks.js, ...) — but that binding is NOT copied onto the `window`
+// object the way a top-level `var` would be. `window.ApiService` was
+// therefore ALWAYS `undefined`, regardless of network/Drive/deployment
+// state.
+//
+// Two existing call sites explicitly gate on the `window`/`global` form
+// and were silently short-circuiting because of this:
+//   - js/modules/client-fields.js#uploadRowFile(): `if (!window.ApiService
+//     || ...)` — this is the exact cause of the "⚠️ خدمة الرفع غير متاحة
+//     حاليًا (اعمل أونلاين)" message appearing on every توكيل/مستند file
+//     upload attempt, even with a fully working Apps Script deployment.
+//   - js/debug/RuntimeDebugLayer.js's API instrumentation pass:
+//     `if (global.ApiService) { ... }` (global === window there) — the
+//     debug layer was silently never installing its ApiService.* timing/
+//     logging wrappers.
+// This one-line addition is purely additive: no existing method, call
+// site using the bare `ApiService` identifier, or business logic is
+// touched or renamed.
+if (typeof window !== 'undefined') { window.ApiService = ApiService; }
