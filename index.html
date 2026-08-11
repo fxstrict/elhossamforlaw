@@ -954,6 +954,23 @@ style="color:var(--muted);font-size:12px;margin-top:4px;"> جارٍ تحميل
 
 <!-- SETTINGS -->
 <div class="page" id="page-settings">
+  <!-- PHASE SETTINGS-TABS — top tab bar splitting the previously long
+       single-scroll Settings page into sections, same pattern/classes
+       (.section-tabs/.tab-btn) already used by #clientFormTabs in
+       modalClient. Purely a navigation/visibility layer: no card below
+       was moved, renamed, or had its id/logic changed — each existing
+       settings-card only gained a new .settings-pane wrapper so
+       switchSettingsTab() (js/modules/settings.js) can show/hide it. -->
+  <div class="section-tabs settings-tabs" id="settingsTabs">
+    <button type="button" class="tab-btn active" data-settings-tab="office" onclick="switchSettingsTab('office')">&#127970; بيانات المكتب</button>
+    <button type="button" class="tab-btn" data-settings-tab="license" onclick="switchSettingsTab('license')">&#128273; الترخيص والمستخدمون</button>
+    <button type="button" class="tab-btn" data-settings-tab="app" onclick="switchSettingsTab('app')">&#128241; التطبيق والإشعارات</button>
+    <button type="button" class="tab-btn" data-settings-tab="sync" onclick="switchSettingsTab('sync')">&#9881; المزامنة والربط</button>
+    <button type="button" class="tab-btn" data-settings-tab="data" onclick="switchSettingsTab('data')">&#128203; البيانات والصيانة</button>
+  </div>
+
+  <!-- ============== تبويب 1: بيانات المكتب ============== -->
+  <div class="settings-pane" id="settingsPane-office">
   <!-- OFFICE PROFILE — same "plain mount point only" convention as
        licenseManagerCard/usersAdminCard just below: all logic/rendering
        lives in js/office/OfficeProfilePanel.js. Lets the office edit its
@@ -964,10 +981,13 @@ style="color:var(--muted);font-size:12px;margin-top:4px;"> جارٍ تحميل
     <div class="settings-title">&#127970; بيانات المكتب</div>
     <div id="officeProfilePanelMount"></div>
   </div>
+  </div>
   <!-- PHASE 30 — Enterprise Licensing & Protection Framework. Same
        card convention as the PWA-INSTALL card just below: markup is a
        plain mount point only, all logic/rendering lives in
        js/license/LicenseManagerPanel.js. See docs/phase30. -->
+  <!-- ============== تبويب 2: الترخيص والمستخدمون ============== -->
+  <div class="settings-pane" id="settingsPane-license" style="display:none;">
   <div class="settings-card" id="licenseManagerCard">
     <div class="settings-title">&#128273; حالة الترخيص</div>
     <div id="licenseManagerPanelMount"></div>
@@ -980,6 +1000,10 @@ style="color:var(--muted);font-size:12px;margin-top:4px;"> جارٍ تحميل
     <div class="settings-title">&#128101; المستخدمون والصلاحيات</div>
     <div id="usersAdminPanelMount"></div>
   </div>
+  </div>
+
+  <!-- ============== تبويب 3: التطبيق والإشعارات ============== -->
+  <div class="settings-pane" id="settingsPane-app" style="display:none;">
   <!-- PHASE PWA-INSTALL — persistent install control. Unlike the browser's
        own install bar/banner (dismissible, can time out, may not reappear
        for a while per the browser's own heuristics), this card always
@@ -1024,6 +1048,10 @@ style="color:var(--muted);font-size:12px;margin-top:4px;"> جارٍ تحميل
     <div id="notifPermissionStatus" style="font-size:12px;color:var(--muted);margin-bottom:6px;">&#9899; جارِ التحقق...</div>
     <p style="font-size:11px;color:var(--muted);margin:0;">&#128266; نغمة الإشعار يتم تحديدها من إعدادات هاتفك: افتح إعدادات الهاتف &#8592; التطبيقات &#8592; هذا التطبيق &#8592; الإشعارات &#8592; النغمة، واختر أي نغمة من نغمات جهازك.</p>
   </div>
+  </div>
+
+  <!-- ============== تبويب 4: المزامنة والربط ============== -->
+  <div class="settings-pane" id="settingsPane-sync" style="display:none;">
   <div class="settings-card">
     <div class="settings-title">&#9881; ربط Google Sheets</div>
     <p style="font-size:12px;color:var(--muted);margin-bottom:14px;">أدخل رابط Web App الخاص بـ Code_v4.gs — سيُنشئ جدول البيانات تلقائياً عند أول اتصال</p>
@@ -1077,6 +1105,10 @@ style="color:var(--muted);font-size:12px;margin-top:4px;"> جارٍ تحميل
     </div>
     <div style="background:rgba(230,126,34,0.1);border:1px solid rgba(230,126,34,0.25);border-radius:8px;padding:11px;font-size:12px;color:#f39c12;margin-top:8px;">&#9888;&#65039; إذا ظهر تحذير "This app isn't verified" &#8592; اضغط <strong>Advanced</strong> ثم <strong>Go to (unsafe)</strong>. هذا طبيعي لأن الكود خاص بك.</div>
   </div>
+  </div>
+
+  <!-- ============== تبويب 5: البيانات والصيانة ============== -->
+  <div class="settings-pane" id="settingsPane-data" style="display:none;">
   <div class="settings-card" id="developerDiagnosticsCard">
     <div class="settings-title" id="developerDiagnosticsTitle" onclick="if(typeof handleDevModeTitleTap==='function')handleDevModeTitleTap()" style="cursor:default;user-select:none;">&#128268; Developer Diagnostics</div>
     <!-- PHASE 17.2 — locked (production default) view: no toggle, no way to
@@ -1103,6 +1135,7 @@ style="color:var(--muted);font-size:12px;margin-top:4px;"> جارٍ تحميل
       <button class="btn btn-danger" onclick="clearAllData()">&#128465; مسح البيانات المحلية</button>
     </div>
     <input type="file" id="importFile" accept=".json" style="display:none;" onchange="handleImport(event)">
+  </div>
   </div>
 </div>
 </div><!-- /main -->
@@ -1880,7 +1913,7 @@ function navigate(page){
   else if(page==='calendar'){var n=new Date();calYear=n.getFullYear();calMonth=n.getMonth();if(__vcNeedsRender)__vcRunRender('calendar',renderCalendar);}
   else if(page==='library'){if(__vcNeedsRender)__vcRunRender('library',renderLibrary);}
   else if(page==='templates'){if(__vcNeedsRender)__vcRunRender('templates',renderTemplates);}
-  else if(page==='settings'){document.getElementById('apiUrlInput').value=API_URL;document.getElementById('driveUrlInput').value=DRIVE_URL;var db=document.getElementById('driveOpenBtn');if(DRIVE_URL){db.href=DRIVE_URL;db.style.display='';}else db.style.display='none';if(typeof refreshDeveloperDiagnosticsToggle==='function')refreshDeveloperDiagnosticsToggle();if(window.OfficeProfilePanel)OfficeProfilePanel.render();}
+  else if(page==='settings'){document.getElementById('apiUrlInput').value=API_URL;document.getElementById('driveUrlInput').value=DRIVE_URL;var db=document.getElementById('driveOpenBtn');if(DRIVE_URL){db.href=DRIVE_URL;db.style.display='';}else db.style.display='none';if(typeof refreshDeveloperDiagnosticsToggle==='function')refreshDeveloperDiagnosticsToggle();if(window.OfficeProfilePanel)OfficeProfilePanel.render();if(typeof switchSettingsTab==='function')switchSettingsTab('office');}
   if(__vcNeedsRender&&__vcTrackedPages.indexOf(page)>=0&&window.ViewLifecycle){
     try{ViewLifecycle.recordRendered(page);}catch(__vcErr2){}
   }
