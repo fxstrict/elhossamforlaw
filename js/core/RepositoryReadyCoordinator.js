@@ -86,7 +86,7 @@
   //    Module Status table, "dashboard/calendar/settings: No (by design)").
   // ================================================================
   var DEFAULT_ENTITY_KEYS = Object.freeze([
-    'cases', 'clients', 'sessions', 'tasks', 'documents',
+    'cases', 'clients', 'opponents', 'sessions', 'tasks', 'documents',
     'fees', 'library', 'templates', 'children', 'clientMessages'
   ]);
 
