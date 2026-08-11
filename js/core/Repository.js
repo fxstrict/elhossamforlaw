@@ -512,6 +512,25 @@
    * @param {Array} args
    */
   Repository.prototype._recordUndo = function (method, args) {
+    // ACTIVITY RECORDER HOOK — real, cross-refresh, cross-device audit
+    // trail (js/core/rbac/ActivityRecorder.js). Placed BEFORE the
+    // UndoManager guards below deliberately: not every repository has an
+    // undo manager wired (e.g. OpponentsRepository/ClientMessagesRepository/
+    // UsersRepository never call setUndoManager()), but every repository
+    // DOES call `this._recordUndo(method, args)` from create()/update()/
+    // delete()/restore() unconditionally (see those methods further down
+    // this file) — so this is the one true universal call site for real
+    // activity logging across all entities, regardless of undo-manager
+    // wiring. Own try/catch, isolated from the undo-manager block below:
+    // a failure here must never affect undo/redo, and vice versa.
+    try {
+      if (root.HossamActivity && typeof root.HossamActivity.recordFromRepository === 'function') {
+        root.HossamActivity.recordFromRepository(this.entityKey, method, args);
+      }
+    } catch (e2) {
+      // Intentionally swallowed — logging must never break a CRUD action.
+    }
+
     if (!this._undoManager) return;
     var fn = this._undoManager[method];
     if (typeof fn !== 'function') return;
