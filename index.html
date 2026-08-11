@@ -575,10 +575,10 @@ style="color:var(--muted);font-size:12px;margin-top:4px;"> جارٍ تحميل
     <div class="nav-item" tabindex="0" role="link" onclick="navigate('sessions')"><span class="nav-icon">&#128197;</span> الجلسات <span class="nav-badge" id="badgeSessions">0</span></div>
     <div class="nav-item" tabindex="0" role="link" onclick="navigate('clients')"><span class="nav-icon">&#128101;</span> الموكلون <span class="nav-badge" id="badgeClients">0</span></div>
     <!-- PHASE 37 — Opponents Module (الخصوم). Same nav-item pattern as
-         الموكلون just above; no badge counter (same convention already
-         used by Calendar/Library/Templates/Settings — no dashboard.js
-         edit needed). -->
-    <div class="nav-item" tabindex="0" role="link" onclick="navigate('opponents')"><span class="nav-icon">&#129333;</span> الخصوم</div>
+         الموكلون just above, including its own live count badge
+         (id="badgeOpponents", wired in js/modules/dashboard.js's
+         updateBadges() next to setBadge('badgeClients', ...)). -->
+    <div class="nav-item" tabindex="0" role="link" onclick="navigate('opponents')"><span class="nav-icon">&#129333;</span> الخصوم <span class="nav-badge" id="badgeOpponents">0</span></div>
     <div class="nav-item" tabindex="0" role="link"
     onclick="navigate('children')"><span class="nav-icon">&#128118;</span> ا
     الاطفال (قسم تجريبي)<span class="nav-badge" id="badgeChildren">0</span></div>
@@ -2123,7 +2123,7 @@ window.addEventListener('DOMContentLoaded',function(){
   // the exact same two already-existing render functions used at the
   // top of this listener, closes that gap with no new timer, no new
   // Promise type, and no change to any entity module.
-  var readyPromiseNames=['casesRepositoryReadyPromise','sessionsRepositoryReadyPromise','clientsRepositoryReadyPromise','childrenRepositoryReadyPromise','documentsRepositoryReadyPromise','tasksRepositoryReadyPromise','feesRepositoryReadyPromise','libraryRepositoryReadyPromise','templatesRepositoryReadyPromise','clientMessagesRepositoryReadyPromise'];
+  var readyPromiseNames=['casesRepositoryReadyPromise','sessionsRepositoryReadyPromise','clientsRepositoryReadyPromise','opponentsRepositoryReadyPromise','childrenRepositoryReadyPromise','documentsRepositoryReadyPromise','tasksRepositoryReadyPromise','feesRepositoryReadyPromise','libraryRepositoryReadyPromise','templatesRepositoryReadyPromise','clientMessagesRepositoryReadyPromise'];
   var readyPromises=readyPromiseNames.map(function(n){return typeof window[n]!=='undefined'?window[n]:Promise.resolve();});
   Promise.all(readyPromises).then(function(){
     // PHASE 16.4 — same guard, same rationale as the first call-site
