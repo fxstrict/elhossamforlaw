@@ -261,6 +261,11 @@
      styles. New, standalone file; no other CSS file was touched for
      this phase. -->
 <link href="css/dashboard-smart.css" rel="stylesheet">
+<!-- OPERATIONS LOG — full-page real activity feed styles (see
+     js/modules/operations.js). New, standalone file; no other CSS file
+     was touched for this addition. Reuses the app's existing color
+     variables (variables.css) only — no new palette. -->
+<link href="css/operations.css" rel="stylesheet">
 <!-- PHASE 30 — Enterprise Licensing & Protection Framework: Activation
      Wizard overlay, subscription banner, License Manager panel styles.
      New, standalone file; no other CSS file was touched for this phase. -->
@@ -563,13 +568,12 @@ style="color:var(--muted);font-size:12px;margin-top:4px;"> جارٍ تحميل
   <nav class="sidebar-nav">
     <div class="nav-section-label">الرئيسية</div>
     <div class="nav-item active" tabindex="0" role="link" onclick="navigate('dashboard')"><span class="nav-icon">&#127963;</span> لوحة التحكم</div>
-    <!-- SIDEBAR RELOCATION — moved from the topbar (`.topbar-actions`) into
-         the sidebar per request; no longer rendered in its previous
-         location. Same id="historyPanelBtn"/onclick="toggleHistoryPanel()"/
-         id="hpTopbarBadge", so js/modules/historypanel-ui.js (which only
-         does getElementById lookups, never assumes DOM position) keeps
-         working unchanged. -->
-    <div class="nav-item" tabindex="0" role="link" id="historyPanelBtn" onclick="toggleHistoryPanel()" title="سجل العمليات" aria-haspopup="dialog"><span class="nav-icon">&#128337;</span> السجل<span class="nav-badge hp-topbar-badge" id="hpTopbarBadge" style="display:none;">0</span></div>
+    <!-- OPERATIONS LOG — converted from a slide-over side panel into a
+         full standalone page (same navigate('<page>') pattern as every
+         other item in this menu), backed by a real, persistent activity
+         feed (js/core/rbac/ActivityRecorder.js) instead of the old
+         in-memory-only undo/redo panel. See js/modules/operations.js. -->
+    <div class="nav-item" tabindex="0" role="link" id="operationsNavBtn" onclick="navigate('operations')" title="سجل العمليات"><span class="nav-icon">&#128337;</span> سجل العمليات<span class="nav-badge" id="badgeOperations" style="display:none;">0</span></div>
     <div class="nav-section-label">إدارة القضايا</div>
     <div class="nav-item" tabindex="0" role="link" onclick="navigate('cases')"><span class="nav-icon">&#9878;</span> القضايا <span class="nav-badge" id="badgeCases">0</span></div>
     <div class="nav-item" tabindex="0" role="link" onclick="navigate('sessions')"><span class="nav-icon">&#128197;</span> الجلسات <span class="nav-badge" id="badgeSessions">0</span></div>
@@ -950,6 +954,57 @@ style="color:var(--muted);font-size:12px;margin-top:4px;"> جارٍ تحميل
   <div class="section-tabs" id="templateTabs"><button class="tab-btn active" onclick="filterTemplates('all')">&#128203; الكل</button></div>
   <div class="lib-grid" id="templatesGrid"></div>
   <div id="templatesEmpty" class="empty-state empty-container" style="display:none;"><div class="icon">&#128196;</div><h3>لا توجد صيغ دعاوى بعد</h3><p>أضف نماذج الصحف والمذكرات الجاهزة لتوفير وقتك عند إعداد قضايا مشابهة مستقبلاً.</p><button class="btn btn-primary" onclick="openAddTemplateModal()">&#65291; إضافة صيغة دعوى</button></div>
+</div>
+
+<!-- OPERATIONS LOG — converted from the old slide-over #historyPanel into
+     a full, regular page (exact same .page/#page-<key> pattern as every
+     page above), rendered by js/modules/operations.js's renderOperations().
+     Content is intentionally left out of __vcTrackedPages (see navigate()
+     above) so it is never served from a stale render-cache — every visit
+     re-reads the real, persisted feed (js/core/rbac/ActivityRecorder.js),
+     matching the requirement that this page always shows current,
+     never-reset content instead of the old panel's in-memory-only feed. -->
+<div class="page" id="page-operations">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:9px;">
+    <div><h2 style="font-size:17px;font-weight:700;">&#128337; سجل العمليات</h2><p class="u-meta-muted-sm" id="opsSubtitle">كل ما يحدث في البرنامج، من كل الحسابات، لحظة بلحظة</p></div>
+    <button class="btn btn-ghost btn-sm" id="opsRefreshBtn" onclick="if(typeof renderOperations==='function')renderOperations();" title="تحديث">&#8635; تحديث</button>
+  </div>
+  <div id="opsDeniedState" class="empty-state empty-container" style="display:none;"><div class="icon">&#128274;</div><h3>لا تملك صلاحية الاطلاع على سجل العمليات</h3><p>هذا السجل مخصص لصاحب المكتب ومن يملك صلاحية "عرض سجل النشاط".</p></div>
+  <div id="opsContent">
+    <div class="section-tabs" id="opsMainTabs">
+      <button type="button" class="tab-btn active" data-ops-tab="activity" onclick="switchOperationsTab('activity')">&#128337; سجل النشاط الحقيقي</button>
+      <button type="button" class="tab-btn" data-ops-tab="undoredo" onclick="switchOperationsTab('undoredo')">&#8635; تراجع / إعادة</button>
+    </div>
+    <div id="opsPaneActivity">
+      <div class="toolbar page-toolbar">
+        <div class="search-wrap"><span class="icon">&#128269;</span><input type="text" id="opsSearchInput" placeholder="بحث في سجل العمليات..." oninput="if(typeof renderOperations==='function')renderOperations();"></div>
+        <select id="opsFilterAction" onchange="if(typeof renderOperations==='function')renderOperations();" style="width:auto;min-width:140px;"><option value="">كل الإجراءات</option></select>
+        <select id="opsFilterModule" onchange="if(typeof renderOperations==='function')renderOperations();" style="width:auto;min-width:130px;"><option value="">كل الأقسام</option></select>
+      </div>
+      <div id="opsList" class="ops-list"></div>
+      <div id="opsEmpty" class="empty-state empty-container" style="display:none;"><div class="icon">&#128337;</div><h3>لا توجد عمليات مسجّلة بعد</h3><p>بمجرد أن يبدأ أي مستخدم استخدام البرنامج (تسجيل دخول، تصفح صفحات، إنشاء أو تعديل قضايا وموكلين...) سيظهر كل ذلك هنا لحظة بلحظة.</p></div>
+    </div>
+    <div id="opsPaneUndoRedo" style="display:none;">
+      <div class="hp-limits" id="opsUrLimits">السجل — / —</div>
+      <div class="hp-tabs" id="opsUrTabs" role="tablist" aria-label="تصفية تراجع/إعادة">
+        <div class="hp-tab active" role="tab" aria-selected="true" tabindex="0" data-hp-filter="all">الكل</div>
+        <div class="hp-tab" role="tab" aria-selected="false" tabindex="-1" data-hp-filter="cases">القضايا</div>
+        <div class="hp-tab" role="tab" aria-selected="false" tabindex="-1" data-hp-filter="clients">الموكلون</div>
+        <div class="hp-tab" role="tab" aria-selected="false" tabindex="-1" data-hp-filter="sessions">الجلسات</div>
+        <div class="hp-tab" role="tab" aria-selected="false" tabindex="-1" data-hp-filter="children">الأطفال</div>
+        <div class="hp-tab" role="tab" aria-selected="false" tabindex="-1" data-hp-filter="fees">الأتعاب</div>
+        <div class="hp-tab" role="tab" aria-selected="false" tabindex="-1" data-hp-filter="tasks">المهام</div>
+        <div class="hp-tab" role="tab" aria-selected="false" tabindex="-1" data-hp-filter="documents">المستندات</div>
+        <div class="hp-tab" role="tab" aria-selected="false" tabindex="-1" data-hp-filter="library">المكتبة</div>
+        <div class="hp-tab" role="tab" aria-selected="false" tabindex="-1" data-hp-filter="templates">الصيغ</div>
+        <div class="hp-tab hp-tab-sep" role="tab" aria-selected="false" tabindex="-1" data-hp-filter="undo">Undo <span class="hp-tab-count" id="opsUndoCount">0</span></div>
+        <div class="hp-tab" role="tab" aria-selected="false" tabindex="-1" data-hp-filter="redo">Redo <span class="hp-tab-count" id="opsRedoCount">0</span></div>
+      </div>
+      <div class="hp-body" style="max-height:none;">
+        <div class="hp-list active" id="opsUrList" aria-live="polite"></div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- SETTINGS -->
@@ -1691,6 +1746,16 @@ style="color:var(--muted);font-size:12px;margin-top:4px;"> جارٍ تحميل
 <script src="js/auth/SessionPersistence.js"></script>
 <script src="js/core/rbac/SessionContext.js"></script>
 <script src="js/core/rbac/AuditLog.js"></script>
+<!-- OPERATIONS LOG — real, persistent, cross-account activity recorder.
+     Must load AFTER AuditLog.js (`HossamAuditLog`/`HossamLoginLog`),
+     SessionContext.js (`HossamSession`) and, for its Google Sheets sync,
+     after js/api/api.js + js/core/OfflineQueue.js (both loaded much
+     earlier — see top of file). Must load BEFORE js/core/Repository.js
+     is ever exercised (script order below), so its
+     `HossamActivity.recordFromRepository()` hook is already registered
+     before any repository create()/update()/delete()/restore() call.
+     See js/core/rbac/ActivityRecorder.js header for the full design. -->
+<script src="js/core/rbac/ActivityRecorder.js"></script>
 <script src="js/repositories/CasesRepository.js"></script>
 <script src="js/repositories/ClientsRepository.js"></script>
 <script src="js/repositories/OpponentsRepository.js"></script>
@@ -1804,7 +1869,7 @@ function toast(msg,type){
 }
 function showLoading(v){document.getElementById('loadingOverlay').classList.toggle('show',v);}
 
-var PAGE_TITLES={dashboard:'لوحة التحكم',cases:'القضايا',sessions:'الجلسات',clients:'الموكلون',opponents:'الخصوم',children:'الأطفال',documents:'المستندات',tasks:'المهام',fees:'الأتعاب',calendar:'التقويم',library:'المكتبة القانونية',templates:'صيغ الدعاوى',settings:'الإعدادات'};
+var PAGE_TITLES={dashboard:'لوحة التحكم',cases:'القضايا',sessions:'الجلسات',clients:'الموكلون',opponents:'الخصوم',children:'الأطفال',documents:'المستندات',tasks:'المهام',fees:'الأتعاب',calendar:'التقويم',library:'المكتبة القانونية',templates:'صيغ الدعاوى',settings:'الإعدادات',operations:'سجل العمليات'};
 var ADDABLE=['cases','sessions','clients','tasks','opponents'];
 
 function navigate(page){
@@ -1913,6 +1978,7 @@ function navigate(page){
   else if(page==='calendar'){var n=new Date();calYear=n.getFullYear();calMonth=n.getMonth();if(__vcNeedsRender)__vcRunRender('calendar',renderCalendar);}
   else if(page==='library'){if(__vcNeedsRender)__vcRunRender('library',renderLibrary);}
   else if(page==='templates'){if(__vcNeedsRender)__vcRunRender('templates',renderTemplates);}
+  else if(page==='operations'){if(typeof renderOperations==='function')renderOperations();}
   else if(page==='settings'){document.getElementById('apiUrlInput').value=API_URL;document.getElementById('driveUrlInput').value=DRIVE_URL;var db=document.getElementById('driveOpenBtn');if(DRIVE_URL){db.href=DRIVE_URL;db.style.display='';}else db.style.display='none';if(typeof refreshDeveloperDiagnosticsToggle==='function')refreshDeveloperDiagnosticsToggle();if(window.OfficeProfilePanel)OfficeProfilePanel.render();if(typeof switchSettingsTab==='function')switchSettingsTab('office');}
   if(__vcNeedsRender&&__vcTrackedPages.indexOf(page)>=0&&window.ViewLifecycle){
     try{ViewLifecycle.recordRendered(page);}catch(__vcErr2){}
@@ -2225,42 +2291,15 @@ window.addEventListener('DOMContentLoaded',function(){
 
 <div id="printArea"></div>
 
-<!-- PHASE 12.6A — History Panel markup (completion pass: search, entity
-     tabs, live badge, right-side RTL slide-in, incremental rendering
-     handled in js/modules/historypanel-ui.js). Still additive-only —
-     the merged-feed aggregation core (js/core/HistoryPanel.js) is not
-     modified by this phase. -->
-<div class="history-panel-overlay" id="historyPanelOverlay"></div>
-<div id="historyPanel" role="dialog" aria-modal="true" aria-labelledby="hpHeaderTitle" aria-hidden="true">
-  <div class="hp-header">
-    <div class="hp-header-title" id="hpHeaderTitle">&#128337; سجل العمليات</div>
-    <button class="hp-close-btn" id="hpCloseBtn" aria-label="إغلاق سجل العمليات">&#10005;</button>
-  </div>
-  <div class="hp-search-wrap">
-    <span class="hp-search-icon" aria-hidden="true">&#128269;</span>
-    <input type="text" id="hpSearchInput" class="hp-search-input" placeholder="بحث..." aria-label="بحث فى سجل العمليات" autocomplete="off">
-    <button type="button" class="hp-search-clear" id="hpSearchClear" aria-label="مسح البحث" style="display:none;">&#10005;</button>
-  </div>
-  <div class="hp-limits" id="hpLimits">السجل — / —</div>
-  <div class="hp-tabs" id="hpTabs" role="tablist" aria-label="تصفية سجل العمليات">
-    <div class="hp-tab active" role="tab" aria-selected="true" tabindex="0" data-hp-filter="all">الكل</div>
-    <div class="hp-tab" role="tab" aria-selected="false" tabindex="-1" data-hp-filter="cases">القضايا</div>
-    <div class="hp-tab" role="tab" aria-selected="false" tabindex="-1" data-hp-filter="clients">الموكلون</div>
-    <div class="hp-tab" role="tab" aria-selected="false" tabindex="-1" data-hp-filter="sessions">الجلسات</div>
-    <div class="hp-tab" role="tab" aria-selected="false" tabindex="-1" data-hp-filter="children">الأطفال</div>
-    <div class="hp-tab" role="tab" aria-selected="false" tabindex="-1" data-hp-filter="fees">الأتعاب</div>
-    <div class="hp-tab" role="tab" aria-selected="false" tabindex="-1" data-hp-filter="tasks">المهام</div>
-    <div class="hp-tab" role="tab" aria-selected="false" tabindex="-1" data-hp-filter="documents">المستندات</div>
-    <div class="hp-tab" role="tab" aria-selected="false" tabindex="-1" data-hp-filter="library">المكتبة</div>
-    <div class="hp-tab" role="tab" aria-selected="false" tabindex="-1" data-hp-filter="templates">الصيغ</div>
-    <div class="hp-tab hp-tab-sep" role="tab" aria-selected="false" tabindex="-1" data-hp-filter="undo">Undo <span class="hp-tab-count" id="hpUndoCount">0</span></div>
-    <div class="hp-tab" role="tab" aria-selected="false" tabindex="-1" data-hp-filter="redo">Redo <span class="hp-tab-count" id="hpRedoCount">0</span></div>
-  </div>
-  <div class="hp-body">
-    <div class="hp-list active" id="hpList" aria-live="polite"></div>
-  </div>
-</div>
-
+<!-- OPERATIONS LOG — the old slide-over #historyPanel/#historyPanelOverlay
+     markup + js/modules/historypanel-ui.js panel-chrome (open/close,
+     overlay, its own scroll-lock, its own tab strip) has been retired:
+     "سجل العمليات" is now the full, regular #page-operations page
+     declared above (same place every other page's markup lives), driven
+     by js/modules/operations.js. js/core/HistoryPanel.js's merged-feed
+     aggregation core is UNCHANGED and still used — only for its
+     Undo/Redo tab inside the new page — so no existing undo/redo
+     capability was removed. -->
 <script src="js/core/HistoryPanel.js"></script>
 <script src="js/modules/clients.js"></script>
 <script src="js/modules/client-fields.js"></script>
@@ -2270,7 +2309,7 @@ window.addEventListener('DOMContentLoaded',function(){
 <script src="js/modules/fees.js"></script>
 <script src="js/modules/library.js"></script>
 <script src="js/modules/templates.js"></script>
-<script src="js/modules/historypanel-ui.js"></script>
+<script src="js/modules/operations.js"></script>
 <!-- PHASE 13.3D — PART 2A: RepositoryReadyCoordinator.js is deliberately
      the LAST <script> tag on the page, not grouped with the other
      js/core/*.js tags above (js/core/Repository.js etc.). It reads each
