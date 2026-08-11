@@ -158,7 +158,16 @@
 // PRECACHE_URLS v12 note a few lines down) — otherwise a previously-
 // installed PWA keeps serving its old cached shell and never picks up the
 // two new files. No other entry in this file was changed for Phase 35.
-var SW_VERSION = 'v33'; // BUGFIX (PHASE PWA-NOTIFICATIONS-CLOSED-APP, cont'd) — v18 fixed the
+// PHASE 37 — Opponents Module (الخصوم): added js/repositories/
+// OpponentsRepository.js, js/modules/opponents.js (both to
+// PRECACHE_URLS above, mirroring their Clients counterparts) plus two
+// new, NOT-precached files loaded via RUNTIME_CACHE the same way
+// js/modules/client-fields.js already is (js/modules/opponent-fields.js).
+// SW_VERSION bumped v33 -> v34 for the same "Cache Versioning" reason
+// as every previous bump in this file — otherwise a previously-
+// installed PWA keeps serving its old cached shell (missing the new
+// opponents page/modal/scripts) and never picks up these additions.
+var SW_VERSION = 'v34'; // BUGFIX (PHASE PWA-NOTIFICATIONS-CLOSED-APP, cont'd) — v18 fixed the
                          // WRONG-PAGE part (see that entry below) but a real installed WebAPK
                          // (confirmed: appears as its own entry under Settings > Apps, installed via
                          // Chrome's "تثبيت التطبيق") was still opening the tapped notification in a
@@ -287,6 +296,7 @@ var PRECACHE_URLS = [
   'js/core/rbac/AuditLog.js',
   'js/repositories/CasesRepository.js',
   'js/repositories/ClientsRepository.js',
+  'js/repositories/OpponentsRepository.js',
   'js/repositories/ClientMessagesRepository.js',
   'js/repositories/ChildrenRepository.js',
   'js/repositories/SessionsRepository.js',
@@ -315,6 +325,7 @@ var PRECACHE_URLS = [
   'js/modules/sessions.js',
   'js/core/HistoryPanel.js',
   'js/modules/clients.js',
+  'js/modules/opponents.js',
   'js/modules/client-messages.js',
   'js/modules/fees.js',
   'js/modules/library.js',

@@ -332,6 +332,7 @@
 <link rel="preload" as="script" href="js/core/MigrationBootstrap.js" fetchpriority="high">
 <link rel="preload" as="script" href="js/repositories/CasesRepository.js" fetchpriority="high">
 <link rel="preload" as="script" href="js/repositories/ClientsRepository.js" fetchpriority="high">
+<link rel="preload" as="script" href="js/repositories/OpponentsRepository.js" fetchpriority="high">
 <link rel="preload" as="script" href="js/repositories/ClientMessagesRepository.js" fetchpriority="high">
 <link rel="preload" as="script" href="js/repositories/ChildrenRepository.js" fetchpriority="high">
 <link rel="preload" as="script" href="js/repositories/SessionsRepository.js" fetchpriority="high">
@@ -355,6 +356,8 @@
 <link rel="preload" as="script" href="js/core/HistoryPanel.js" fetchpriority="high">
 <link rel="preload" as="script" href="js/modules/clients.js" fetchpriority="high">
 <link rel="preload" as="script" href="js/modules/client-fields.js" fetchpriority="high">
+<link rel="preload" as="script" href="js/modules/opponents.js" fetchpriority="high">
+<link rel="preload" as="script" href="js/modules/opponent-fields.js" fetchpriority="high">
 <link rel="preload" as="script" href="js/modules/client-messages.js" fetchpriority="low">
 <link rel="preload" as="script" href="js/modules/fees.js" fetchpriority="low">
 <link rel="preload" as="script" href="js/modules/library.js" fetchpriority="low">
@@ -571,6 +574,11 @@ style="color:var(--muted);font-size:12px;margin-top:4px;"> جارٍ تحميل
     <div class="nav-item" tabindex="0" role="link" onclick="navigate('cases')"><span class="nav-icon">&#9878;</span> القضايا <span class="nav-badge" id="badgeCases">0</span></div>
     <div class="nav-item" tabindex="0" role="link" onclick="navigate('sessions')"><span class="nav-icon">&#128197;</span> الجلسات <span class="nav-badge" id="badgeSessions">0</span></div>
     <div class="nav-item" tabindex="0" role="link" onclick="navigate('clients')"><span class="nav-icon">&#128101;</span> الموكلون <span class="nav-badge" id="badgeClients">0</span></div>
+    <!-- PHASE 37 — Opponents Module (الخصوم). Same nav-item pattern as
+         الموكلون just above; no badge counter (same convention already
+         used by Calendar/Library/Templates/Settings — no dashboard.js
+         edit needed). -->
+    <div class="nav-item" tabindex="0" role="link" onclick="navigate('opponents')"><span class="nav-icon">&#129333;</span> الخصوم</div>
     <div class="nav-item" tabindex="0" role="link"
     onclick="navigate('children')"><span class="nav-icon">&#128118;</span> ا
     الاطفال (قسم تجريبي)<span class="nav-badge" id="badgeChildren">0</span></div>
@@ -787,6 +795,21 @@ style="color:var(--muted);font-size:12px;margin-top:4px;"> جارٍ تحميل
     <div id="clientsEmpty" class="empty-state empty-container" style="display:none;"><div class="icon">&#128101;</div><h3>لا يوجد موكلون بعد</h3><p>أضف بيانات موكلك الأول لتتمكن من ربطه بالقضايا والجلسات والأتعاب.</p><button class="btn btn-primary" onclick="openAddModal()">&#65291; إضافة موكل جديد</button></div>
   </div></div>
   <div class="mobile-card-list list-container" id="clientsMobileList"></div>
+</div>
+
+<!-- OPPONENTS — PHASE 37 — Opponents Module (الخصوم). Byte-for-byte the
+     same page pattern as page-clients just above (toolbar/search,
+     card+table-wrap, empty-state, mobile-card-list) so it looks and
+     behaves exactly like the الموكلون page, per the phase brief. -->
+<div class="page" id="page-opponents">
+  <div class="toolbar page-toolbar"><div class="search-wrap"><span class="icon">&#128269;</span><input type="text" id="searchOpponents" placeholder="البحث عن خصم..." oninput="renderOpponents()"></div>
+    <span class="nav-badge" id="opponentsCount" title="عدد الخصوم" style="position:static;">0</span> <span class="u-meta-muted-sm">عدد الخصوم</span>
+  </div>
+  <div class="card card-section"><div class="card-body u-p-0">
+    <div class="table-wrap table-container"><table><thead><tr><th>الاسم</th><th>النوع</th><th>الهاتف</th><th>الرقم القومي</th><th>الوظيفة</th><th>إجراءات</th></tr></thead><tbody id="opponentsTableBody"></tbody></table></div>
+    <div id="opponentsEmpty" class="empty-state empty-container" style="display:none;"><div class="icon">&#129333;</div><h3>لا يوجد خصوم مضافين حتى الآن</h3><p>اضغط على زر الإضافة لإضافة خصم جديد</p><button class="btn btn-primary" onclick="openAddModal()">&#65291; إضافة</button></div>
+  </div></div>
+  <div class="mobile-card-list list-container" id="opponentsMobileList"></div>
 </div>
 
 <!-- CHILDREN -->
@@ -1143,7 +1166,19 @@ style="color:var(--muted);font-size:12px;margin-top:4px;"> جارٍ تحميل
       <div class="form-group"><label>جهة عمل الموكل</label><input type="text" id="fCaseClientEmployer" placeholder="اختياري"></div>
 
       <div class="section-divider full"><h4>&#128100; بيانات الخصم</h4></div>
-      <div class="form-group"><label>اسم الخصم</label><input type="text" id="fCaseOpponent" placeholder="الاسم الكامل"></div>
+      <div class="form-group full client-selector-group">
+        <label>اسم الخصم (يمكن اختيار أكثر من خصم)</label>
+        <div class="client-selector-box" id="opponentSelectorBox" onclick="toggleOpponentSelector(event)">
+          <div class="client-selector-chips" id="opponentSelectorChips"><span class="client-selector-placeholder">اختر خصماً واحداً أو أكثر من القائمة...</span></div>
+          <span class="client-selector-arrow">&#9662;</span>
+        </div>
+        <div class="client-selector-panel" id="opponentSelectorPanel" onclick="event.stopPropagation()">
+          <input type="text" id="opponentSelectorSearch" class="client-selector-search" placeholder="بحث عن خصم بالاسم..." oninput="renderOpponentSelectorList()">
+          <div class="client-selector-list" id="opponentSelectorList"></div>
+        </div>
+        <input type="hidden" id="fCaseOpponents">
+      </div>
+      <div class="form-group"><label>اسم الخصم (نص حر — يُملأ تلقائياً عند اختيار خصم واحد)</label><input type="text" id="fCaseOpponent" placeholder="الاسم الكامل"></div>
       <div class="form-group"><label>الرقم القومي للخصم</label><input type="text" id="fCaseOpponentNID" placeholder="اختياري" maxlength="14"></div>
       <div class="form-group"><label>هاتف الخصم</label><input type="tel" id="fCaseOpponentPhone" placeholder="اختياري"></div>
       <div class="form-group"><label>عنوان الخصم</label><input type="text" id="fCaseOpponentAddr" placeholder="اختياري"></div>
@@ -1329,6 +1364,49 @@ style="color:var(--muted);font-size:12px;margin-top:4px;"> جارٍ تحميل
 
     </div>
     <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal('modalClient')">إلغاء</button><button class="btn btn-primary" onclick="saveClient()">&#128190; حفظ الموكل</button></div>
+  </div>
+</div>
+
+<!-- OPPONENTS — PHASE 37 — Opponents Module (الخصوم). Fields match the
+     actual "إضافة خصم جديد" form exactly (معلومات الخصم / الهواتف /
+     العناوين) — reuses the existing repeat-card/form-grid/form-group
+     component classes already used by modalClient just above, so no
+     new CSS is required. -->
+<div class="modal-overlay" id="modalOpponent">
+  <div class="modal modal-lg">
+    <div class="modal-header"><div class="modal-title"><span class="icon">&#129333;</span><span id="modalOpponentTitle">إضافة خصم جديد</span></div><button class="modal-close" onclick="closeModal('modalOpponent')">&#10005;</button></div>
+    <div class="modal-body">
+
+      <div class="repeat-card">
+        <div class="repeat-card-header">&#128100; معلومات الخصم</div>
+        <div class="form-grid">
+          <div class="form-group full"><label>اسم الخصم<span class="req">*</span></label><input type="text" id="fOpponentName" placeholder="اسم الخصم"></div>
+          <div class="form-group"><label>نوع الخصم</label>
+            <select id="fOpponentType">
+              <option value="شخص طبيعي">شخص طبيعي</option>
+              <option value="شخص اعتباري">شخص اعتباري</option>
+            </select>
+          </div>
+          <div class="form-group"><label>الرقم القومي</label><input type="text" id="fOpponentNID" placeholder="الرقم القومي" maxlength="14"></div>
+          <div class="form-group"><label>الجنسية</label><input type="text" id="fOpponentNationality" placeholder="الجنسية"></div>
+          <div class="form-group"><label>رقم جواز السفر</label><input type="text" id="fOpponentPassport" placeholder="رقم جواز السفر"></div>
+          <div class="form-group"><label>الوظيفة</label><input type="text" id="fOpponentJob" placeholder="الوظيفة"></div>
+          <div class="form-group"><label>جهة العمل</label><input type="text" id="fOpponentEmployer" placeholder="جهة العمل"></div>
+        </div>
+      </div>
+
+      <div class="repeat-card u-mt-12">
+        <div class="repeat-card-header">&#128222; الهواتف <button type="button" class="btn btn-ghost btn-sm" onclick="OpponentFields.addPhoneRow()">&#65291; إضافة هاتف</button></div>
+        <div id="opponentPhonesContainer"></div>
+      </div>
+
+      <div class="repeat-card u-mt-12">
+        <div class="repeat-card-header">&#128205; العناوين <button type="button" class="btn btn-ghost btn-sm" onclick="OpponentFields.addAddressRow()">&#65291; إضافة عنوان</button></div>
+        <div id="opponentAddressesContainer"></div>
+      </div>
+
+    </div>
+    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal('modalOpponent')">إلغاء</button><button class="btn btn-primary" onclick="saveOpponent()">&#128190; حفظ الخصم</button></div>
   </div>
 </div>
 
@@ -1582,6 +1660,7 @@ style="color:var(--muted);font-size:12px;margin-top:4px;"> جارٍ تحميل
 <script src="js/core/rbac/AuditLog.js"></script>
 <script src="js/repositories/CasesRepository.js"></script>
 <script src="js/repositories/ClientsRepository.js"></script>
+<script src="js/repositories/OpponentsRepository.js"></script>
 <script src="js/repositories/ClientMessagesRepository.js"></script>
 <script src="js/repositories/ChildrenRepository.js"></script>
 <script src="js/repositories/SessionsRepository.js"></script>
@@ -1646,6 +1725,7 @@ var data={
   cases:JSON.parse(localStorage.getItem('cases')||'[]'),
   sessions:JSON.parse(localStorage.getItem('sessions')||'[]'),
   clients:JSON.parse(localStorage.getItem('clients')||'[]'),
+  opponents:JSON.parse(localStorage.getItem('opponents')||'[]'),
   children:JSON.parse(localStorage.getItem('children')||'[]'),
   documents:JSON.parse(localStorage.getItem('documents')||'[]'),
   tasks:JSON.parse(localStorage.getItem('tasks')||'[]'),
@@ -1691,8 +1771,8 @@ function toast(msg,type){
 }
 function showLoading(v){document.getElementById('loadingOverlay').classList.toggle('show',v);}
 
-var PAGE_TITLES={dashboard:'لوحة التحكم',cases:'القضايا',sessions:'الجلسات',clients:'الموكلون',children:'الأطفال',documents:'المستندات',tasks:'المهام',fees:'الأتعاب',calendar:'التقويم',library:'المكتبة القانونية',templates:'صيغ الدعاوى',settings:'الإعدادات'};
-var ADDABLE=['cases','sessions','clients','tasks'];
+var PAGE_TITLES={dashboard:'لوحة التحكم',cases:'القضايا',sessions:'الجلسات',clients:'الموكلون',opponents:'الخصوم',children:'الأطفال',documents:'المستندات',tasks:'المهام',fees:'الأتعاب',calendar:'التقويم',library:'المكتبة القانونية',templates:'صيغ الدعاوى',settings:'الإعدادات'};
+var ADDABLE=['cases','sessions','clients','tasks','opponents'];
 
 function navigate(page){
   // PHASE 16.1 — APPLICATION SHELL FOUNDATION: the only change made to
@@ -1732,7 +1812,7 @@ function navigate(page){
   // and the calendar branch's calYear/calMonth reset still runs
   // unconditionally, same as before — only its renderCalendar() call is
   // now guarded, same as every other render call.
-  var __vcTrackedPages=['dashboard','cases','sessions','clients','children','documents','tasks','fees','calendar','library','templates'];
+  var __vcTrackedPages=['dashboard','cases','sessions','clients','opponents','children','documents','tasks','fees','calendar','library','templates'];
   var __vcNeedsRender=true;
   if(__vcTrackedPages.indexOf(page)>=0&&window.ApplicationShell&&typeof ApplicationShell.isDirty==='function'){
     try{__vcNeedsRender=ApplicationShell.isDirty(page);}catch(__vcErr){__vcNeedsRender=true;}
@@ -1792,6 +1872,7 @@ function navigate(page){
   else if(page==='cases'){if(__vcNeedsRender)__vcRunRender('cases',renderCases);}
   else if(page==='sessions'){if(__vcNeedsRender)__vcRunRender('sessions',renderSessions);}
   else if(page==='clients'){if(__vcNeedsRender)__vcRunRender('clients',renderClients);}
+  else if(page==='opponents'){if(__vcNeedsRender)__vcRunRender('opponents',renderOpponents);}
   else if(page==='children'){if(__vcNeedsRender)__vcRunRender('children',renderChildren);}
   else if(page==='documents'){if(__vcNeedsRender)__vcRunRender('documents',renderDocuments);}
   else if(page==='tasks'){if(__vcNeedsRender)__vcRunRender('tasks',renderTasks);}
@@ -1806,7 +1887,7 @@ function navigate(page){
   if(window.innerWidth<=768){document.getElementById('sidebar').classList.remove('open');document.getElementById('sidebarOverlay').classList.remove('open');}
 }
 function toggleSidebar(){document.getElementById('sidebar').classList.toggle('open');document.getElementById('sidebarOverlay').classList.toggle('open');}
-function openAddModal(){var m={cases:'Case',sessions:'Session',clients:'Client',tasks:'Task'};var k=m[currentPage];if(!k){toast('اختر قسماً أولاً','info');return;}editIdx[currentPage]=-1;resetForm(currentPage);var titles={cases:'إضافة قضية جديدة',sessions:'إضافة جلسة',clients:'إضافة موكل',tasks:'إضافة مهمة'};document.getElementById('modal'+k+'Title').textContent=titles[currentPage];document.getElementById('modal'+k).classList.add('open');if(currentPage==='sessions')populateCaseDropdown('fSessionCaseNum');if(currentPage==='clients'&&window.ClientFields){ClientFields.reset();switchClientFormTab('basic');}}
+function openAddModal(){var m={cases:'Case',sessions:'Session',clients:'Client',tasks:'Task',opponents:'Opponent'};var k=m[currentPage];if(!k){toast('اختر قسماً أولاً','info');return;}editIdx[currentPage]=-1;resetForm(currentPage);var titles={cases:'إضافة قضية جديدة',sessions:'إضافة جلسة',clients:'إضافة موكل',tasks:'إضافة مهمة',opponents:'إضافة خصم جديد'};document.getElementById('modal'+k+'Title').textContent=titles[currentPage];document.getElementById('modal'+k).classList.add('open');if(currentPage==='sessions')populateCaseDropdown('fSessionCaseNum');if(currentPage==='clients'&&window.ClientFields){ClientFields.reset();switchClientFormTab('basic');}if(currentPage==='opponents'&&window.OpponentFields){OpponentFields.reset();}}
 function openAddDocModal(){editIdx.documents=-1;resetForm('documents');document.getElementById('modalDocTitle').textContent='إضافة مستند';document.getElementById('modalDocument').classList.add('open');populateCaseDropdown('fDocCaseNum');}
 function openAddFeeModal(){editIdx.fees=-1;resetForm('fees');document.getElementById('modalFeeTitle').textContent='تسجيل أتعاب';document.getElementById('modalFee').classList.add('open');populateCaseDropdown('fFeeCaseNum');}
 function openAddLibModal(){editIdx.library=-1;resetForm('library');document.getElementById('modalLibTitle').textContent='إضافة كتاب';document.getElementById('modalLibrary').classList.add('open');}
@@ -1858,9 +1939,10 @@ function confirmDialog(message, title){
 }
 
 var FIELDS={
-  cases:['fCaseNum','fCaseCircuit','fCaseRoom','fCaseDocketNum','fCaseType','fCaseCourt','fCaseTitle','fCaseClientType','fCaseClient','fCaseClientNID','fCaseClientPhone','fCaseClientAddr','fCaseClientJob','fCaseClientEmployer','fCaseOpponent','fCaseOpponentNID','fCaseOpponentPhone','fCaseOpponentAddr','fCaseOpponentJob','fCaseOpponentEmployer','fCaseStatus','fCaseDate','fCaseNextSession','fCaseFees','fCaseMarriageDate','fCaseMarriageDoc','fCaseNotaryOffice','fCaseHasInventory','fCaseHasChildren','fCaseDemands','fCaseDefenses','fCaseProcedures','fCaseDecisions','fCaseJudgmentDate','fCaseEnforcement','fCaseEnforcementDetails','fCaseNotes'],
+  cases:['fCaseNum','fCaseCircuit','fCaseRoom','fCaseDocketNum','fCaseType','fCaseCourt','fCaseTitle','fCaseClientType','fCaseClient','fCaseClientNID','fCaseClientPhone','fCaseClientAddr','fCaseClientJob','fCaseClientEmployer','fCaseOpponents','fCaseOpponent','fCaseOpponentNID','fCaseOpponentPhone','fCaseOpponentAddr','fCaseOpponentJob','fCaseOpponentEmployer','fCaseStatus','fCaseDate','fCaseNextSession','fCaseFees','fCaseMarriageDate','fCaseMarriageDoc','fCaseNotaryOffice','fCaseHasInventory','fCaseHasChildren','fCaseDemands','fCaseDefenses','fCaseProcedures','fCaseDecisions','fCaseJudgmentDate','fCaseEnforcement','fCaseEnforcementDetails','fCaseNotes'],
   sessions:['fSessionCaseNum','fSessionCaseTitle','fSessionCaseType','fSessionCourt','fSessionCircuit','fSessionRoom','fSessionDate','fSessionTime','fSessionJudge','fSessionStatus','fSessionWhat','fSessionDecision','fSessionNextDate','fSessionNotes'],
   clients:['fClientName','fClientType','fClientNID','fClientPower','fClientPhone','fClientEmail','fClientAddress','fClientJob','fClientEmployer','fClientMarital','fClientNotes','fClientNationality','fClientPassport','fClientBirthDate','fClientGender','fClientCompanyType','fClientCompanyActivity','fClientGoverningLaw','fClientRegNumber','fClientRegDateFrom','fClientRegDateTo','fClientUnifiedNumber','fClientTaxNumber','fClientCreateAccount'],
+  opponents:['fOpponentName','fOpponentType','fOpponentNID','fOpponentNationality','fOpponentPassport','fOpponentJob','fOpponentEmployer'],
   children:['fChildCaseNum','fChildName','fChildBirth','fChildAge','fChildSchool','fChildAddress','fChildCustody','fChildAlimony','fChildNotes'],
   documents:['fDocCaseNum','fDocName','fDocType','fDocDate','fDocDriveUrl','fDocPortalVisible','fDocNotes'],
   tasks:['fTaskTitle','fTaskCaseNum','fTaskPriority','fTaskDue','fTaskStatus','fTaskPortalVisible','fTaskNotes','fTaskCompletionReason','fTaskReopenReason'],
@@ -1870,9 +1952,10 @@ var FIELDS={
   clientMessages:['fMsgClientId','fMsgCaseNum','fMsgType','fMsgText','fMsgAttachUrl','fMsgAttachName','fMsgPortalVisible']
 };
 var MAP={
-  cases:{fCaseNum:'رقم_القضية',fCaseCircuit:'رقم_الدائرة',fCaseRoom:'رقم_القاعة',fCaseDocketNum:'رقم_الدعوى',fCaseType:'نوع_الدعوى',fCaseCourt:'المحكمة',fCaseTitle:'عنوان_القضية',fCaseClientType:'نوع_الموكل',fCaseClient:'اسم_الموكل',fCaseClientNID:'رقم_قومي_الموكل',fCaseClientPhone:'هاتف_الموكل',fCaseClientAddr:'عنوان_الموكل',fCaseClientJob:'عمل_الموكل',fCaseClientEmployer:'جهة_عمل_الموكل',fCaseOpponent:'اسم_الخصم',fCaseOpponentNID:'رقم_قومي_الخصم',fCaseOpponentPhone:'هاتف_الخصم',fCaseOpponentAddr:'عنوان_الخصم',fCaseOpponentJob:'عمل_الخصم',fCaseOpponentEmployer:'جهة_عمل_الخصم',fCaseStatus:'الحالة',fCaseDate:'تاريخ_القيد',fCaseNextSession:'تاريخ_الجلسة_القادمة',fCaseFees:'أتعاب_المحاماة',fCaseMarriageDate:'تاريخ_عقد_الزواج',fCaseMarriageDoc:'رقم_وثيقة_الزواج',fCaseNotaryOffice:'مكتب_التوثيق',fCaseHasInventory:'وجود_قائمة_منقولات',fCaseHasChildren:'وجود_أطفال',fCaseDemands:'الطلبات_القانونية',fCaseDefenses:'الدفوع_القانونية',fCaseProcedures:'إجراءات_الدعوى',fCaseDecisions:'قرارات_المحكمة',fCaseJudgmentDate:'تاريخ_الحكم',fCaseEnforcement:'رقم_التنفيذ',fCaseEnforcementDetails:'إجراءات_التنفيذ',fCaseNotes:'الملاحظات'},
+  cases:{fCaseNum:'رقم_القضية',fCaseCircuit:'رقم_الدائرة',fCaseRoom:'رقم_القاعة',fCaseDocketNum:'رقم_الدعوى',fCaseType:'نوع_الدعوى',fCaseCourt:'المحكمة',fCaseTitle:'عنوان_القضية',fCaseClientType:'نوع_الموكل',fCaseClient:'اسم_الموكل',fCaseClientNID:'رقم_قومي_الموكل',fCaseClientPhone:'هاتف_الموكل',fCaseClientAddr:'عنوان_الموكل',fCaseClientJob:'عمل_الموكل',fCaseClientEmployer:'جهة_عمل_الموكل',fCaseOpponents:'رقم_الخصوم',fCaseOpponent:'اسم_الخصم',fCaseOpponentNID:'رقم_قومي_الخصم',fCaseOpponentPhone:'هاتف_الخصم',fCaseOpponentAddr:'عنوان_الخصم',fCaseOpponentJob:'عمل_الخصم',fCaseOpponentEmployer:'جهة_عمل_الخصم',fCaseStatus:'الحالة',fCaseDate:'تاريخ_القيد',fCaseNextSession:'تاريخ_الجلسة_القادمة',fCaseFees:'أتعاب_المحاماة',fCaseMarriageDate:'تاريخ_عقد_الزواج',fCaseMarriageDoc:'رقم_وثيقة_الزواج',fCaseNotaryOffice:'مكتب_التوثيق',fCaseHasInventory:'وجود_قائمة_منقولات',fCaseHasChildren:'وجود_أطفال',fCaseDemands:'الطلبات_القانونية',fCaseDefenses:'الدفوع_القانونية',fCaseProcedures:'إجراءات_الدعوى',fCaseDecisions:'قرارات_المحكمة',fCaseJudgmentDate:'تاريخ_الحكم',fCaseEnforcement:'رقم_التنفيذ',fCaseEnforcementDetails:'إجراءات_التنفيذ',fCaseNotes:'الملاحظات'},
   sessions:{fSessionCaseNum:'رقم_القضية',fSessionCaseTitle:'عنوان_القضية',fSessionCaseType:'نوع_الدعوى',fSessionCourt:'المحكمة',fSessionCircuit:'رقم_الدائرة',fSessionRoom:'رقم_القاعة',fSessionDate:'التاريخ',fSessionTime:'الوقت',fSessionJudge:'القاضي',fSessionStatus:'الحالة',fSessionWhat:'ما_تم_في_الجلسة',fSessionDecision:'القرار',fSessionNextDate:'التأجيل_إلى',fSessionNotes:'الملاحظات'},
   clients:{fClientName:'الاسم',fClientType:'النوع',fClientNID:'الرقم_القومي',fClientPower:'رقم_التوكيل',fClientPhone:'الهاتف',fClientEmail:'البريد',fClientAddress:'العنوان',fClientJob:'الوظيفة',fClientEmployer:'جهة_العمل',fClientMarital:'الحالة_الاجتماعية',fClientNotes:'ملاحظات',fClientNationality:'الجنسية',fClientPassport:'رقم_جواز_السفر',fClientBirthDate:'تاريخ_الميلاد',fClientGender:'الجنس',fClientCompanyType:'نوع_الشركة',fClientCompanyActivity:'نشاط_الشركة',fClientGoverningLaw:'القانون_التابع_له',fClientRegNumber:'رقم_السجل',fClientRegDateFrom:'تاريخ_بداية_السجل',fClientRegDateTo:'تاريخ_نهاية_السجل',fClientUnifiedNumber:'الرقم_الموحد',fClientTaxNumber:'الرقم_الضريبي',fClientCreateAccount:'حساب_مفعل'},
+  opponents:{fOpponentName:'الاسم',fOpponentType:'النوع',fOpponentNID:'الرقم_القومي',fOpponentNationality:'الجنسية',fOpponentPassport:'رقم_جواز_السفر',fOpponentJob:'الوظيفة',fOpponentEmployer:'جهة_العمل'},
   children:{fChildCaseNum:'رقم_القضية',fChildName:'الاسم',fChildBirth:'تاريخ_الميلاد',fChildAge:'السن',fChildSchool:'المدرسة',fChildAddress:'محل_الإقامة',fChildCustody:'الحضانة_الحالية',fChildAlimony:'النفقة_الحالية',fChildNotes:'ملاحظات'},
   documents:{fDocCaseNum:'رقم_القضية',fDocName:'اسم_المستند',fDocType:'نوع_المستند',fDocDate:'تاريخ_الإيداع',fDocDriveUrl:'رابط_Drive',fDocPortalVisible:'ظاهر_للموكل',fDocNotes:'الملاحظات'},
   tasks:{fTaskTitle:'العنوان',fTaskCaseNum:'رقم_القضية',fTaskPriority:'الأولوية',fTaskDue:'الموعد_النهائي',fTaskStatus:'الحالة',fTaskPortalVisible:'ظاهر_للموكل',fTaskNotes:'الملاحظات',fTaskCompletionReason:'سبب_الإنجاز',fTaskReopenReason:'سبب_إعادة_الفتح'},
@@ -2148,6 +2231,8 @@ window.addEventListener('DOMContentLoaded',function(){
 <script src="js/core/HistoryPanel.js"></script>
 <script src="js/modules/clients.js"></script>
 <script src="js/modules/client-fields.js"></script>
+<script src="js/modules/opponents.js"></script>
+<script src="js/modules/opponent-fields.js"></script>
 <script src="js/modules/client-messages.js"></script>
 <script src="js/modules/fees.js"></script>
 <script src="js/modules/library.js"></script>
