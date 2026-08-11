@@ -44,12 +44,13 @@ function newEngine(extra) {
 (async function main() {
 
   // ---- 1. Schema sanity ----
-  await check('Schema declares all 15 required stores', () => {
+  await check('Schema declares all 16 required stores', () => {
     // PHASE 31 (RBAC): +3 stores ('users', 'auditLog', 'loginLog'),
     // 12 -> 15. See IndexedDBSchema.js's own PHASE 31 comment.
+    // PHASE 37 (Opponents Module): +1 store ('opponents'), 15 -> 16.
     const expected = ['cases', 'clients', 'sessions', 'documents', 'tasks',
       'children', 'fees', 'library', 'templates', 'settings', 'metadata',
-      'clientMessages', 'users', 'auditLog', 'loginLog'];
+      'clientMessages', 'users', 'auditLog', 'loginLog', 'opponents'];
     const actual = SchemaNS.getStoreNames();
     expected.forEach(name => assert.ok(actual.indexOf(name) !== -1, 'missing store ' + name));
     assert.strictEqual(actual.length, expected.length);
@@ -81,24 +82,28 @@ function newEngine(extra) {
       // still shares this same schema/engine).
       users: 'اسم_المستخدم',
       auditLog: 'id',
-      loginLog: 'id'
+      loginLog: 'id',
+      // PHASE 37 (Opponents Module): 'opponents' keyPath matches
+      // OpponentsRepository's idField (رقم_الخصم).
+      opponents: 'رقم_الخصم'
     };
     SchemaNS.STORE_DEFINITIONS.forEach(def => {
       assert.strictEqual(def.keyPath, expectedKeyPaths[def.name], def.name);
     });
   });
 
-  await check('DB_NAME is "HossamLawOffice" and DB_VERSION is 3', () => {
+  await check('DB_NAME is "HossamLawOffice" and DB_VERSION is 4', () => {
     // PHASE 31 (RBAC): DB_VERSION bumped 2 -> 3.
+    // PHASE 37 (Opponents Module): DB_VERSION bumped 3 -> 4.
     assert.strictEqual(SchemaNS.DB_NAME, 'HossamLawOffice');
-    assert.strictEqual(SchemaNS.DB_VERSION, 3);
+    assert.strictEqual(SchemaNS.DB_VERSION, 4);
   });
 
   // ---- 2. Database opens correctly ----
   await check('Database opens and reports the expected version', async () => {
     const { engine } = newEngine();
     const db = await engine.open();
-    assert.strictEqual(db.version, 3); // PHASE 31 (RBAC): DB_VERSION 2 -> 3.
+    assert.strictEqual(db.version, 4); // PHASE 31 (RBAC): DB_VERSION 2 -> 3. PHASE 37 (Opponents): 3 -> 4.
     assert.strictEqual(engine.isOpen(), true);
     await engine.close();
   });
@@ -142,7 +147,7 @@ function newEngine(extra) {
     const { engine } = newEngine();
     await engine.open();
     const result = engine.getLastUpgradeResult();
-    assert.deepStrictEqual(result.appliedVersions, [1, 2, 3]); // PHASE 31 (RBAC): version 3 added.
+    assert.deepStrictEqual(result.appliedVersions, [1, 2, 3, 4]); // PHASE 31 (RBAC): version 3 added. PHASE 37 (Opponents): version 4 added.
     assert.strictEqual(result.storesCreated.length, SchemaNS.getStoreNames().length);
     await engine.close();
   });
@@ -156,7 +161,7 @@ function newEngine(extra) {
     // should not re-run onupgradeneeded at all.
     const engine2 = new IndexedDBEngine({ indexedDBImpl: fake });
     const db2 = await engine2.open();
-    assert.strictEqual(db2.version, 3); // PHASE 31 (RBAC): DB_VERSION 2 -> 3.
+    assert.strictEqual(db2.version, 4); // PHASE 31 (RBAC): DB_VERSION 2 -> 3. PHASE 37 (Opponents): 3 -> 4.
     assert.strictEqual(engine2.getLastUpgradeResult(), null, 'no upgrade should have run on reopen');
     await engine2.close();
   });
@@ -246,7 +251,7 @@ function newEngine(extra) {
     const engine2 = new IndexedDBEngine({ indexedDBImpl: fake });
     await engine2.open();
     const result = engine2.getLastUpgradeResult();
-    assert.deepStrictEqual(result.appliedVersions, [1, 2, 3], 'delete should force a fresh upgrade on next open'); // PHASE 31 (RBAC): version 3 added.
+    assert.deepStrictEqual(result.appliedVersions, [1, 2, 3, 4], 'delete should force a fresh upgrade on next open'); // PHASE 31 (RBAC): version 3 added. PHASE 37 (Opponents): version 4 added.
     await engine2.close();
   });
 
@@ -264,11 +269,11 @@ function newEngine(extra) {
     const engine = new IndexedDBEngine({ indexedDBImpl: fake });
     await engine.open();
     const firstUpgradeResult = engine.getLastUpgradeResult();
-    assert.deepStrictEqual(firstUpgradeResult.appliedVersions, [1, 2, 3]); // PHASE 31 (RBAC): version 3 added.
+    assert.deepStrictEqual(firstUpgradeResult.appliedVersions, [1, 2, 3, 4]); // PHASE 31 (RBAC): version 3 added. PHASE 37 (Opponents): version 4 added.
     await engine.close();
 
     const db2 = await engine.open();
-    assert.strictEqual(db2.version, 3); // PHASE 31 (RBAC): DB_VERSION 2 -> 3.
+    assert.strictEqual(db2.version, 4); // PHASE 31 (RBAC): DB_VERSION 2 -> 3. PHASE 37 (Opponents): 3 -> 4.
     // No second upgrade ran, so the recorded result is unchanged from the
     // first (and only) upgrade — a fresh IndexedDBEngine on the same
     // backing store confirms this independently in the prior test.
@@ -343,7 +348,8 @@ function newEngine(extra) {
       const db = await engine.open();
       // PHASE 31 (RBAC): schema DB_VERSION bumped 2 -> 3 (adds the
       // 'users'/'auditLog'/'loginLog' stores — see IndexedDBSchema.js).
-      assert.strictEqual(db.version, 3);
+      // PHASE 37 (Opponents): schema DB_VERSION bumped 3 -> 4.
+      assert.strictEqual(db.version, 4);
       assert.strictEqual(engine.isOpen(), true);
       await engine.close();
       assert.strictEqual(engine.isOpen(), false);
@@ -366,8 +372,9 @@ function newEngine(extra) {
     const finalEngine = new IndexedDBEngine({ indexedDBImpl: fake });
     const db = await finalEngine.open();
     // PHASE 31 (RBAC): schema DB_VERSION bumped 2 -> 3.
-    assert.strictEqual(db.version, 3);
-    assert.deepStrictEqual(finalEngine.getLastUpgradeResult().appliedVersions, [1, 2, 3]);
+    // PHASE 37 (Opponents): schema DB_VERSION bumped 3 -> 4.
+    assert.strictEqual(db.version, 4);
+    assert.deepStrictEqual(finalEngine.getLastUpgradeResult().appliedVersions, [1, 2, 3, 4]);
     await finalEngine.close();
   });
 

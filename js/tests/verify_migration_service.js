@@ -180,7 +180,7 @@ async function main() {
     const report = await svc.migrate();
     assert.strictEqual(report.skipped, false);
     assert.strictEqual(report.totalRecordsMigrated, 0);
-    assert.strictEqual(report.entities.length, 14); // PHASE 31 (RBAC): schema grew 12->15 stores (11->14 excluding metadata).
+    assert.strictEqual(report.entities.length, 15); // PHASE 31 (RBAC): schema grew 12->15 stores (11->14 excluding metadata). PHASE 37 (Opponents): 15->16 stores (14->15 excluding metadata).
     report.entities.forEach(e => assert.strictEqual(e.status, 'migrated'));
   });
 
@@ -198,7 +198,7 @@ async function main() {
     await svc.migrate();
     const status = await svc.getStatus();
     assert.strictEqual(status.status, 'completed');
-    assert.strictEqual(status.completedEntities.length, 14); // PHASE 31 (RBAC): 11 -> 14.
+    assert.strictEqual(status.completedEntities.length, 15); // PHASE 31 (RBAC): 11 -> 14. PHASE 37 (Opponents): 14 -> 15.
     assert.strictEqual(status.remainingEntities.length, 0);
   });
 
@@ -387,7 +387,7 @@ async function main() {
     await svc.migrate();
     const forced = await svc.migrate({ force: true });
     assert.strictEqual(forced.skipped, false);
-    assert.strictEqual(forced.entities.length, 14); // PHASE 31 (RBAC): 11 -> 14.
+    assert.strictEqual(forced.entities.length, 15); // PHASE 31 (RBAC): 11 -> 14. PHASE 37 (Opponents): 14 -> 15.
     const clientsOut = await target.read('clients');
     assert.strictEqual(clientsOut.length, 3);
     assert.strictEqual(uniqueCount(clientsOut, 'رقم_الموكل'), 3);
@@ -524,7 +524,7 @@ async function main() {
     const { source, target } = buildEnv({});
     const svc = new MigrationService({ sourceAdapter: source, targetAdapter: target });
     assert.strictEqual(svc._entityKeys.indexOf('metadata'), -1);
-    assert.strictEqual(svc._entityKeys.length, 14); // PHASE 31 (RBAC): 11 -> 14 (adds 'users', 'auditLog', 'loginLog').
+    assert.strictEqual(svc._entityKeys.length, 15); // PHASE 31 (RBAC): 11 -> 14 (adds 'users', 'auditLog', 'loginLog'). PHASE 37 (Opponents): 14 -> 15 (adds 'opponents').
   });
 
   // ---- Summary ----

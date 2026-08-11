@@ -155,6 +155,16 @@ const REAL_RECORDS = {
     id: 'LOGIN-0001',
     'المستخدم': 'testuser1',
     'الوقت': '2026-07-16T00:00:00.000Z'
+  },
+  // PHASE 37 (Opponents Module): one new store, real Repository idField
+  // is 'رقم_الخصم' — same "keyed by that Repository's real idField"
+  // rule every other fixture above follows.
+  opponents: {
+    'رقم_الخصم': 'OPP-0001',
+    'الاسم': 'Test Opponent',
+    searchText: 'test opponent',
+    createdAt: '2026-07-16T00:00:00.000Z',
+    updatedAt: '2026-07-16T00:00:00.000Z'
   }
 };
 
@@ -200,7 +210,7 @@ const REAL_RECORDS = {
   });
 
   await check('No synthetic "id" was added to any non-id-keyed entity\'s real record', () => {
-    ['cases', 'clients', 'sessions', 'documents', 'tasks', 'children', 'fees'].forEach((name) => {
+    ['cases', 'clients', 'sessions', 'documents', 'tasks', 'children', 'fees', 'opponents'].forEach((name) => {
       assert.strictEqual(
         Object.prototype.hasOwnProperty.call(REAL_RECORDS[name], 'id'),
         false,
