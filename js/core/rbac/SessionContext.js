@@ -86,6 +86,14 @@
   });
 
   var currentUser = null;
+  // ACTIVITY RECORDER HOOK — real logout duration. `sessionStartedAt` is
+  // purely a local timestamp (never persisted, never sent anywhere by
+  // itself) marking when `currentUser` most recently went from null to
+  // non-null, so `clear()` below can report a real "مدة الجلسة" to
+  // js/core/rbac/ActivityRecorder.js. Guarded/optional exactly like
+  // every other integration point in this file — if ActivityRecorder.js
+  // hasn't loaded, this is a complete no-op with zero behavior change.
+  var sessionStartedAt = null;
 
   /**
    * @param {Object|null} user
@@ -95,7 +103,9 @@
    *   touch() already manages for that same read.
    */
   function setCurrentUser(user, opts) {
+    var wasLoggedIn = !!currentUser;
     currentUser = user || null;
+    if (currentUser && !wasLoggedIn) sessionStartedAt = Date.now();
     var persist = !opts || opts.persist !== false;
     if (persist && currentUser && root.HossamSessionPersistence) {
       var username = currentUser.اسم_المستخدم || currentUser.id || null;
@@ -104,6 +114,19 @@
   }
   function getCurrentUser() { return currentUser; }
   function clear() {
+    // ACTIVITY RECORDER HOOK — the single canonical logout point every
+    // logout button (sidebar/topbar/Users panel) already calls
+    // HossamSession.clear() to reach. Recording it HERE, once, covers
+    // all three entry points without touching any of them. Fails open:
+    // any error here never blocks the actual logout below.
+    try {
+      if (currentUser && root.HossamActivity && typeof root.HossamActivity.recordLogout === 'function') {
+        var username = currentUser.اسم_المستخدم || currentUser.id || null;
+        var durationMs = sessionStartedAt ? (Date.now() - sessionStartedAt) : null;
+        root.HossamActivity.recordLogout(username, durationMs);
+      }
+    } catch (e) { /* never block logout */ }
+    sessionStartedAt = null;
     currentUser = null;
     if (root.HossamSessionPersistence) root.HossamSessionPersistence.clear();
   }
