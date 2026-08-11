@@ -116,6 +116,7 @@
         // login-log entry against the attempted username, برief
         // "سجل الدخول" spec ("التاريخ/الوقت/نجاح أو فشل").
         if (window.HossamLoginLog) window.HossamLoginLog.record({ المستخدم: username, نجاح: false, سبب: 'unknown_username' });
+        if (window.HossamActivity) window.HossamActivity.recordLogin(username, false, 'unknown_username');
         showError(GENERIC_ERROR);
         return;
       }
@@ -128,6 +129,7 @@
 
       if (reason) {
         if (window.HossamLoginLog) window.HossamLoginLog.record({ المستخدم: username, نجاح: false, سبب: reason });
+        if (window.HossamActivity) window.HossamActivity.recordLogin(username, false, reason);
         showError(GENERIC_ERROR);
         return;
       }
@@ -143,6 +145,7 @@
           await repo.update(username, failPatch);
         }
         if (window.HossamLoginLog) window.HossamLoginLog.record({ المستخدم: username, نجاح: false, سبب: 'wrong_password' });
+        if (window.HossamActivity) window.HossamActivity.recordLogin(username, false, 'wrong_password');
         showError(GENERIC_ERROR);
         return;
       }
@@ -154,6 +157,7 @@
       await repo.update(username, { آخر_دخول: now.toISOString() });
       if (window.HossamLoginLog) window.HossamLoginLog.record({ المستخدم: username, نجاح: true });
       if (window.HossamSession) window.HossamSession.setCurrentUser(user);
+      if (window.HossamActivity) window.HossamActivity.recordLogin(username, true, null);
 
       els.password.value = '';
       els.overlay.setAttribute('hidden', 'hidden');
