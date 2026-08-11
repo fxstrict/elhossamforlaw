@@ -335,6 +335,12 @@ function updateBadges(){
   setBadge('badgeCases',data.cases.length);
   setBadge('badgeSessions',data.sessions.length);
   setBadge('badgeClients',data.clients.length);
+  // PHASE 37 — Opponents Module (الخصوم): same pattern as badgeClients
+  // just above. data.opponents is guarded with `|| []` because this
+  // function can run before opponentsRepository.open() resolves (same
+  // race every other entity already tolerates here — dashboard.js has
+  // no dependency on load order of any *Repository module).
+  setBadge('badgeOpponents',(data.opponents||[]).length);
   setBadge('badgeChildren',data.children.length);
   setBadge('badgeDocuments',data.documents.length);
   setBadge('badgeTasks',data.tasks.filter(function(t){return t['الحالة']!=='done';}).length);

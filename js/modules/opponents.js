@@ -260,6 +260,7 @@ async function saveOpponent() {
 
   closeModal('modalOpponent');
   renderOpponents();
+  updateBadges();
   if (window.ApplicationShell) { ApplicationShell.markDirty('opponents'); ApplicationShell.markDirty('cases'); }
   if (typeof renderOpponentSelectorList === 'function') renderOpponentSelectorList();
 }
@@ -297,6 +298,7 @@ async function deleteOpponent(i) {
   saveLocal();
   toast('تم حذف الخصم', 'info');
   renderOpponents();
+  updateBadges();
   if (window.ApplicationShell) { ApplicationShell.markDirty('opponents'); ApplicationShell.markDirty('cases'); }
   if (typeof renderOpponentSelectorList === 'function') renderOpponentSelectorList();
 }
@@ -312,6 +314,7 @@ async function restoreOpponent(id) {
   saveLocal();
   toast('تم استرجاع الخصم', 'success');
   renderOpponents();
+  updateBadges();
   if (window.ApplicationShell) { ApplicationShell.markDirty('opponents'); ApplicationShell.markDirty('cases'); }
 }
 
