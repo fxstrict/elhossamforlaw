@@ -101,6 +101,27 @@ function toggleDeveloperDiagnostics(checked){
   setTimeout(function(){ location.reload(); },600);
 }
 
+// ------------------------------------------------------------------
+// PHASE SETTINGS-TABS — top tab navigation for the Settings page.
+// Mirrors switchClientFormTab() (js/modules/client-fields.js) exactly:
+// same .tab-btn active-toggle / plain show-one-hide-rest pattern, just
+// pointed at #settingsTabs/.settings-pane instead of
+// #clientFormTabs/.client-form-pane. No settings-card was touched —
+// this only shows/hides the wrapper each one already sits inside
+// (see index.html #page-settings).
+// ------------------------------------------------------------------
+function switchSettingsTab(tabId){
+  var panes=document.querySelectorAll('.settings-pane');
+  for(var i=0;i<panes.length;i++)panes[i].style.display='none';
+  var pane=document.getElementById('settingsPane-'+tabId);
+  if(pane)pane.style.display='';
+
+  var btns=document.querySelectorAll('#settingsTabs .tab-btn');
+  for(var j=0;j<btns.length;j++){
+    btns[j].classList.toggle('active',btns[j].getAttribute('data-settings-tab')===tabId);
+  }
+}
+
 function saveApiUrl(){API_URL=document.getElementById('apiUrlInput').value.trim();_persistSetting('apiUrl',API_URL);toast('تم حفظ الرابط','success');updateConnectionStatus();}
 function saveDriveUrl(){DRIVE_URL=document.getElementById('driveUrlInput').value.trim();_persistSetting('driveUrl',DRIVE_URL);var b=document.getElementById('driveOpenBtn');if(DRIVE_URL){b.href=DRIVE_URL;b.style.display='';}else b.style.display='none';toast('تم حفظ رابط Drive','success');}
 
