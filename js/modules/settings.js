@@ -275,7 +275,7 @@ function handleImport(evt){
 }
 async function clearAllData(){
   if(!(await confirmDialog('مسح كل البيانات المحلية؟ لا يمكن التراجع!','تأكيد المسح')))return;
-  var keys=['cases','sessions','clients','children','documents','tasks','fees','library','templates','clientMessages'];
+  var keys=['cases','sessions','clients','opponents','children','documents','tasks','fees','library','templates','clientMessages'];
   for(var i=0;i<keys.length;i++){ await _persistEntityViaRepository(keys[i],'clear'); }
   // PHASE 13.8 — CONFIRMED ROOT CAUSE FIX (Bug B, part 1 of 2):
   // saveLocal() has been a no-op since PHASE 13.2 (see its own comment
@@ -291,7 +291,7 @@ async function clearAllData(){
   // other localStorage key (apiUrl/driveUrl/sheetUrl/lastSyncAt/
   // localModeChosen) is touched, and no other function is changed.
   for(var j=0;j<keys.length;j++){ localStorage.removeItem(keys[j]); }
-  data={cases:[],sessions:[],clients:[],children:[],documents:[],tasks:[],fees:[],library:[],templates:[]};
+  data={cases:[],sessions:[],clients:[],opponents:[],children:[],documents:[],tasks:[],fees:[],library:[],templates:[]};
   updateBadges();renderDashboard();
   // PHASE 16.5.1 — DIRTY PROPAGATION (additive only, see phase brief)
   // clearAllData() always wipes all 9 entity keys unconditionally (see
