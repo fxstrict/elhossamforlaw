@@ -43,7 +43,16 @@
   // versions 1-2 are untouched — IndexedDBVersion.js's ensureStore() is
   // existence-guarded, so an already-provisioned database only gains
   // the three new stores on next open.
-  var DB_VERSION = 3;
+  // PHASE 37 — Opponents Module (الخصوم): bumped 3 -> 4 to add the
+  // 'opponents' object store (see SCHEMA_VERSIONS version 4 step
+  // below), mirroring the 'clients' store exactly (same keyPath
+  // strategy: the actual OpponentsRepository idField, not a generic
+  // 'id'). Existing stores/indexes from versions 1-3 are untouched —
+  // IndexedDBVersion.js's ensureStore() is existence-guarded, so an
+  // already-provisioned database only gains the one new store on next
+  // open. No conflict with 'clients'/'cases'/any other store: purely
+  // additive, own store name, own keyPath, own indexes.
+  var DB_VERSION = 4;
 
   // ----------------------------------------------------------------
   // Index definitions per store. Only indexes an existing Repository/
@@ -237,12 +246,33 @@
     }
   ];
 
+  // ----------------------------------------------------------------
+  // V4_STORE_DEFINITIONS — PHASE 37: Opponents Module (الخصوم). One
+  // new store: 'opponents', backing the new 'الخصوم' GAS sheet
+  // (Config/00_Config.gs SHEET_DEFS) and js/repositories/
+  // OpponentsRepository.js. keyPath 'رقم_الخصم' — same "keyPath =
+  // actual Repository idField" rule this file's header documents,
+  // mirroring 'clients' -> 'رقم_الموكل' exactly. Purely additive: does
+  // not touch 'clients', 'cases', or any other store/index.
+  // ----------------------------------------------------------------
+  var V4_STORE_DEFINITIONS = [
+    {
+      name: 'opponents',
+      keyPath: 'رقم_الخصم',
+      autoIncrement: false,
+      indexes: [
+        { name: 'name', keyPath: 'الاسم', unique: false },
+        { name: 'searchText', keyPath: 'searchText', unique: false }
+      ].concat(COMMON_AUDIT_INDEXES)
+    }
+  ];
+
   /**
    * STORE_DEFINITIONS — every store name the CURRENT (latest) schema
    * version defines (version 1 stores + every additive version's new
    * stores). Used by getStoreNames()/getStoreDefinition() below.
    */
-  var STORE_DEFINITIONS = V1_STORE_DEFINITIONS.concat(V2_STORE_DEFINITIONS).concat(V3_STORE_DEFINITIONS);
+  var STORE_DEFINITIONS = V1_STORE_DEFINITIONS.concat(V2_STORE_DEFINITIONS).concat(V3_STORE_DEFINITIONS).concat(V4_STORE_DEFINITIONS);
 
   /**
    * SCHEMA_VERSIONS — ordered upgrade steps. Version 1 was the original
@@ -270,6 +300,11 @@
       version: 3,
       description: 'PHASE 31 — Users, Roles & Permissions Core (RBAC): adds the users, auditLog, and loginLog object stores.',
       stores: V3_STORE_DEFINITIONS
+    },
+    {
+      version: 4,
+      description: 'PHASE 37 — Opponents Module (الخصوم): adds the opponents object store.',
+      stores: V4_STORE_DEFINITIONS
     }
   ];
 
