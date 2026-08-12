@@ -220,8 +220,23 @@
 // corrected copy — same "Cache Versioning" rule as every previous
 // SW_VERSION bump in this file. No Repository/DatabaseService/IndexedDB
 // code touched — see audit report §11.
-var SW_VERSION = 'v44'; // BUGFIX (Forensic Shell/Precache Reconciliation, Phase 2) — the v34/
-                         // v36 comments a few lines below claimed js/modules/client-fields.js,
+// SW_VERSION bumped v44 -> v45 (Forensic Sidebar/Skeleton + Repository
+// Refresh, Phase 3) so already-installed clients pick up the two forensic
+// fixes shipped in this pass: (1) css/skeleton.css gains a desktop-only
+// rule excluding the fixed RTL sidebar from the boot skeleton overlay,
+// and (2) js/core/RepositoryReadyCoordinator.js's ENTITY_RENDER_FN gains
+// the 'opponents' and 'processServerWorks' mappings so those two hash
+// pages get the same existing runtime-refresh mechanism as every other
+// entity. Both files are already in PRECACHE_URLS at ?v=42 like every
+// other shell asset; their query strings are deliberately left at ?v=42,
+// unchanged, because SHELL_CACHE is keyed by SW_VERSION ('ahp-shell-' +
+// SW_VERSION) — bumping SW_VERSION alone already gives every device a
+// brand-new cache namespace, so install() re-fetches all of PRECACHE_URLS
+// (these two included) fresh from the network regardless of query
+// string, and activate() deletes the old v44 cache. No PRECACHE_URLS
+// entries changed.
+var SW_VERSION = 'v45'; // v44's bump was BUGFIX (Forensic Shell/Precache Reconciliation,
+                         // Phase 2) — the v34/v36 comments a few lines below claimed js/modules/client-fields.js,
                          // js/modules/opponent-fields.js and js/modules/process-server-fields.js
                          // were "intentionally NOT precached" / "runtime-cached on first fetch".
                          // Re-verified against actual code, not the comment: index.html loads all
