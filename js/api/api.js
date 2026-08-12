@@ -320,15 +320,28 @@ const ApiService = {
    * (فولدر "مستندات القضايا") — folderKey selects which default folder is
    * used server-side when folderId is not explicitly given.
    *
+   * PHASE 38 — Process Server Works Module (أعمال المحضرين): adds the
+   * optional `clientFolderName` param, forwarded as-is to the backend and
+   * used only when folderKey==='process_server' — Config/03_Drive.gs then
+   * uploads into a subfolder named after that client, inside the existing
+   * "مستندات القضايا" folder (see getOrCreateClientDocsFolder()). Omitted
+   * or irrelevant for every other existing folderKey, so this is a
+   * backward-compatible, additive parameter — no existing call site needs
+   * to change.
+   *
    * @param {string} fileName    - Desired filename in Drive
    * @param {string} base64Data  - Base64-encoded file content
    * @param {string} mimeType    - e.g. 'application/pdf'
    * @param {string} [folderId]  - Target Drive folder ID (optional, takes precedence)
    * @param {string} [folderKey] - 'powers' → توكيلات المكتب folder;
+   *                               'process_server' → a per-client subfolder
+   *                               of مستندات القضايا (requires clientFolderName);
    *                               anything else/omitted → مستندات القضايا folder
+   * @param {string} [clientFolderName] - client name, used only when
+   *                               folderKey === 'process_server'
    * @returns {Promise<{ok: boolean, url?: string, error?: string}>}
    */
-  async uploadFile(fileName, base64Data, mimeType, folderId, folderKey) {
+  async uploadFile(fileName, base64Data, mimeType, folderId, folderKey, clientFolderName) {
     if (!this._url()) return { ok: false, error: 'API_URL not set' };
     try {
       const r = await this._post({
@@ -337,10 +350,11 @@ const ApiService = {
         base64Data,
         mimeType,
         folderId: folderId || '',
-        folderKey: folderKey || ''
+        folderKey: folderKey || '',
+        clientFolderName: clientFolderName || ''
       });
       const d = await r.json();
-      return { ok: d.status === 'ok', url: d.url || '', error: d.error || '' };
+      return { ok: d.status === 'ok', url: d.url || '', id: d.id || '', error: d.error || '' };
     } catch (e) {
       console.warn('[ApiService.uploadFile]', e);
       return { ok: false, error: e.message };
