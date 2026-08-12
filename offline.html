@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<!-- ============================================================================
+     offline.html
+     ----------------------------------------------------------------------------
+     PHASE PWA-OFFLINE-PAGE
+     WHAT THIS IS FOR
+       service-worker.js's networkFirstShell() already falls back to the
+       cached index.html when a navigation fails offline — which is what
+       people see almost every time, since index.html is precached on first
+       successful visit. This page is the one level below that: it only
+       renders in the rare edge case where a navigation fails AND
+       index.html itself is not yet in Cache Storage either (e.g. the very
+       first visit ever happened while offline, before install() had a
+       chance to precache anything, or the cache was manually cleared by
+       the browser under storage pressure). It is a static, self-contained
+       file — no <script src>, no dependency on any other project file —
+       so it can never itself fail to render for the same reason the real
+       app failed to. It is precached by service-worker.js as its own
+       PRECACHE_URLS entry so it is available offline from the very first
+       successful install().
+     WHAT THIS IS NOT
+       Not a replacement for the real app shell, not a new page/route in
+       ApplicationShell's PageRegistry/NavigationRegistry, not linked from
+       anywhere in the app's own navigation. The only way to land here is
+       the exact edge case above.
+     ============================================================================ -->
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="theme-color" content="#0D1B2A">
+<title>غير متصل — نظام الحسام</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html,body{height:100%;}
+  body{
+    min-height:100vh;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:18px;text-align:center;padding:32px 24px;
+    background:radial-gradient(circle at 50% 38%, #0D1B2A 0%, #050A14 70%, #030509 100%);
+    font-family:'Cairo','Segoe UI',Tahoma,Arial,sans-serif;
+    color:#F1EAD9;
+  }
+  .logo{width:104px;height:104px;object-fit:contain;filter:drop-shadow(0 0 22px rgba(212,175,85,0.35));}
+  h1{font-size:19px;font-weight:700;color:#F5D98A;}
+  p{font-size:13.5px;line-height:1.8;color:#C9C2B2;max-width:360px;}
+  .retry{
+    margin-top:6px;padding:11px 28px;border-radius:10px;border:1px solid #C9A84C;
+    background:linear-gradient(180deg,#E8C97A,#C9A84C);color:#1A1406;font-weight:700;font-size:14px;
+    cursor:pointer;
+  }
+  .retry:active{transform:translateY(1px);}
+  .hint{font-size:11px;color:#8A8578;margin-top:10px;}
+</style>
+</head>
+<body>
+  <img class="logo" src="assets/icons/icon-192.png" alt="نظام الحسام لإدارة مكاتب المحاماة" width="104" height="104">
+  <h1>لا يوجد اتصال بالإنترنت</h1>
+  <p>تعذّر تحميل التطبيق لأول مرة بدون اتصال. بمجرد فتحه مرة واحدة وأنت متصل، سيعمل بعدها بالكامل دون إنترنت — القضايا والجلسات والعملاء والإعدادات وكل بياناتك المحلية.</p>
+  <button class="retry" onclick="window.location.reload()">إعادة المحاولة</button>
+  <div class="hint">نظام الحسام لإدارة مكاتب المحاماة</div>
+</body>
+</html>
