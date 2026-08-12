@@ -682,9 +682,34 @@
         if (_alreadyAutoRendered[entityKey]) return; // exactly once, ever
         _alreadyAutoRendered[entityKey] = true;
 
+        // FORENSIC FIX (Repository-Ready / ViewLifecycle race) — a page can
+        // be navigated to before this entity's Repository is ready. When
+        // that happens, render<Entity>() no-ops (isReady() guard) but
+        // navigate() still calls ViewLifecycle.recordRendered() right
+        // after dispatching it, incorrectly marking the page clean. If the
+        // user has since navigated away by the time THIS callback fires,
+        // the block below used to simply return without rendering — and
+        // because the page was already (wrongly) marked clean, returning
+        // to it later would find isDirty()===false and navigate() would
+        // skip rendering it again, leaving it permanently stale/empty
+        // until some unrelated markDirty() call happened to touch it.
+        // Marking the page dirty here, unconditionally, the moment the
+        // Repository becomes ready, closes that gap: if the user is still
+        // on the page, it renders immediately below exactly as before; if
+        // not, the page is simply left correctly marked dirty so the
+        // normal navigate() lifecycle renders it the next time the user
+        // visits (isDirty() will now correctly report true). No new
+        // timer, no new Promise chain, no per-page special-casing — this
+        // reuses the exact same ApplicationShell.markDirty(pageId) API
+        // every entity module's own CRUD paths already call.
+        if (root.ApplicationShell && typeof root.ApplicationShell.markDirty === 'function') {
+          root.ApplicationShell.markDirty(entityKey);
+        }
+
         // Elsewhere on the app right now? navigate()'s own existing
-        // render<Entity>() call already renders correctly once the user
-        // arrives (isReady() is true by then) — nothing to do here.
+        // render<Entity>() call now renders correctly the next time the
+        // user visits, since isDirty() is true by construction of the
+        // markDirty() call above — nothing further to do here.
         var onThisPageNow = (typeof root.currentPage !== 'undefined') && root.currentPage === entityKey;
         if (!onThisPageNow) return;
 
