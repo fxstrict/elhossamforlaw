@@ -220,7 +220,23 @@
 // corrected copy — same "Cache Versioning" rule as every previous
 // SW_VERSION bump in this file. No Repository/DatabaseService/IndexedDB
 // code touched — see audit report §11.
-var SW_VERSION = 'v45'; // FORENSIC FIX (Sidebar Instability) — css/layout.css?v=42 is listed in
+var SW_VERSION = 'v46'; // FORENSIC FIX (Repository-Ready / ViewLifecycle Race) —
+                         // js/core/RepositoryReadyCoordinator.js?v=42 is listed in
+                         // PRECACHE_URLS below and served cacheFirstIn(SHELL_CACHE), which is
+                         // keyed by SW_VERSION (see SHELL_CACHE definition a few lines down), so
+                         // an already-installed client keeps serving its OLD cached copy of
+                         // that file forever until SW_VERSION changes — same "Cache Versioning"
+                         // rule as every previous SW_VERSION bump in this file. That file's PART
+                         // 2C readiness callback was just changed (now calls
+                         // ApplicationShell.markDirty(entityKey) before checking whether the
+                         // user is still on the page — see that file for the full root-cause
+                         // note), so SW_VERSION must bump for the fix to actually reach
+                         // already-installed devices. PRECACHE_URLS itself is unchanged (no
+                         // file added/removed, no path renamed) — this bump only regenerates
+                         // SHELL_CACHE's contents under the new 'ahp-shell-v46' name so it
+                         // re-fetches every listed URL, RepositoryReadyCoordinator.js included.
+                         // No other file/line in this file touched.
+// (v45 note, kept for history) FORENSIC FIX (Sidebar Instability) — css/layout.css?v=42 is listed in
                          // PRECACHE_URLS below and served cacheFirstIn(SHELL_CACHE), which is
                          // keyed by SW_VERSION (see SHELL_CACHE definition a few lines down), so
                          // an already-installed client keeps serving its OLD cached copy of
