@@ -1,0 +1,97 @@
+/* PHASE 12.6B §14 — Tablet tier: compact sync text ("✓ تمت المزامنة"),
+   full desktop text hidden. Deliberately BELOW the mobile breakpoint in
+   the cascade so the mobile rule below still wins under 769px. */
+@media(max-width:1024px) and (min-width:769px){
+  .tls-full{display:none;}
+  .tls-compact{display:inline;}
+}
+
+@media(max-width:768px){
+  .sidebar{transform:translateX(100%);}
+  .sidebar.open{transform:translateX(0);}
+  .sidebar-overlay.open{opacity:1;visibility:visible;pointer-events:auto;}
+  .main{margin-right:0;}.burger{display:flex;}
+  .page{padding:12px;}.topbar{padding:11px 14px;}.topbar-title{font-size:15px;}
+  .topbar-actions .btn-ghost{display:none;}
+  /* PHASE 12.6A: the History Panel trigger must stay reachable on
+     mobile (§13 Responsive) — narrow exception to the rule above,
+     nothing else in .topbar-actions .btn-ghost is affected. */
+  .topbar-actions .btn-ghost.hp-topbar-btn{display:inline-flex;padding:6px 8px;}
+  /* PHASE 12.6B §14 — FIX: this used to hide .topbar-meta ENTIRELY,
+     silently taking #topbarLastSync with it (the exact "آخر مزامنة
+     يختفى على الموبايل" bug this phase closes). Sync status must be
+     visible on every screen size — adapt it, don't hide it. Only the
+     user-name and Sheets-connection-text children are dropped on
+     mobile; the sync chip stays and switches to its compact form. */
+  .topbar-meta{display:flex;align-items:center;gap:6px;}
+  .topbar-user,.topbar-conn{display:none;}
+  .tls-full,.tls-compact{display:none;}
+  .tls-chip{display:inline-flex;}
+  .stats-grid{grid-template-columns:repeat(2,1fr);gap:10px;}
+  .stat-num{font-size:24px;}.stat-icon{font-size:20px;}.stat-card{padding:13px;}
+  .dashboard-grid{grid-template-columns:1fr;}
+  .table-wrap{display:none !important;}.mobile-card-list{display:block !important;}
+  .form-grid{grid-template-columns:1fr;}.form-grid .full{grid-column:1;}
+  .modal{border-radius:12px 12px 0 0;max-height:95vh;}.modal-wide{max-width:100%;}
+  .modal-overlay{align-items:flex-end;padding:0;}
+  .modal-body{padding:14px;}.modal-header{padding:14px;}.modal-footer{padding:11px 14px;}
+  .modal-footer .btn{flex:1;justify-content:center;}
+  .lib-grid{grid-template-columns:repeat(2,1fr);gap:10px;}
+  .toast-container{left:8px;right:8px;bottom:10px;}.toast{min-width:auto;width:100%;}
+  .section-tabs{gap:5px;}.tab-btn{padding:5px 10px;font-size:11px;}
+  .api-input-wrap{flex-direction:column;}.drive-link-bar{flex-direction:column;align-items:flex-start;}
+  .session-actions{flex-direction:row;}
+  /* Portal modal on mobile */
+  #modalPortal .modal{border-radius:16px 16px 0 0;max-height:92vh;}
+  #modalPortal .modal-body{padding:14px;}
+  #qrCodeDiv img{max-width:100%;height:auto;}
+  /* View modal header buttons on mobile */
+  #modalView .modal-header{padding:10px 12px;}
+  #modalView .btn-sm{padding:5px 8px;font-size:10px;}
+  /* Cases mobile card actions */
+  .m-card-actions{flex-wrap:wrap;}
+  /* PHASE UX-05: modern sidebar on small screens */
+  .sidebar{width:280px;}
+  .sidebar-logo{padding:18px 16px 15px;}
+  .sidebar-logo-badge{width:38px;height:38px;}
+  .nav-item{padding:11px 13px;}
+  /* PHASE UX-04A: splash / first-run wizard / dashboard welcome on small screens */
+  .splash-logo{width:82px;height:82px;margin-bottom:14px;}
+  .splash-title{font-size:21px;}
+  .splash-subtitle{font-size:12.5px;}
+  .splash-content{padding:0 18px;}
+  .splash-version{flex-wrap:wrap;gap:6px;}
+  .splash-version-text{font-size:10px;}
+  .splash-contact-label{font-size:10px;}
+  .splash-contact-row{font-size:11px;}
+  .firstrun-modal .modal-footer{flex-direction:column;align-items:stretch;}
+  .firstrun-modal .modal-footer>div{width:100%;}
+  .firstrun-modal .modal-footer .btn{flex:1;justify-content:center;}
+  .dashboard-welcome{padding:32px 18px;}
+  .dashboard-welcome .icon{font-size:38px;}
+  .dashboard-welcome h2{font-size:16px;}
+  /* PHASE 12.6B §13 — History Panel tabs on mobile: single-line
+     horizontal scroll, never wrap/break. Desktop/tablet keep the
+     existing flex-wrap behavior in components.css untouched. */
+  .hp-tabs{flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;max-height:none;-webkit-overflow-scrolling:touch;scrollbar-width:thin;}
+  .hp-tab{flex-shrink:0;}
+  /* PHASE 12.6B §16 — verified down to 320px: row content must keep
+     shrinking rather than push the jump/expand buttons off-panel. */
+  .hp-row-actions{flex-wrap:wrap;}
+  .hp-row-top{flex-wrap:wrap;row-gap:3px;}
+
+/* ================================================================
+   PHASE 14.3 — RESPONSIVE FOUNDATION LAYER
+   Purely ADDITIVE: new media-query rules for the Phase 14.2
+   foundation classes only. Nothing above this block is modified,
+   reordered, or removed — every existing rule (including
+   .page / .table-wrap / .mobile-card-list above) keeps working
+   exactly as before for every page that still uses the old classes.
+   These new rules mirror that exact same behavior so that any page
+   migrated to use the new foundation classes (starting with Clients
+   in this phase) keeps 100% identical responsive behavior.
+   ================================================================ */
+  .page-container{padding:12px;}
+  .table-container{display:none !important;}
+  .list-container{display:block !important;}
+}

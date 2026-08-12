@@ -1,0 +1,77 @@
+/* ============================================================================
+   voice-input.css — Speech-to-Text mic button | نظام الحسام للمحاماة
+   PHASE 35 — VOICE INPUT (SPEECH-TO-TEXT) FOR TEXT FIELDS
+   New, standalone file; no other CSS file was touched for this phase.
+   Styles only the wrapper + button that js/core/VoiceInputController.js
+   injects around input[type="text"] and textarea fields. Uses the existing
+   design tokens from css/variables.css (--gold/--danger/--radius/etc.) so
+   the mic button matches the rest of the UI automatically.
+   ============================================================================ */
+
+.hsm-voice-wrap {
+  position: relative;
+  display: block;
+  width: 100%;
+}
+
+/* Reserve room on the left edge of the field so dictated text never runs
+   under the mic button. Right side (where this RTL app's field icons, if
+   any, already live) is left untouched. */
+.hsm-voice-wrap input.hsm-voice-input,
+.hsm-voice-wrap textarea.hsm-voice-input {
+  padding-left: 34px;
+}
+
+.hsm-voice-mic-btn {
+  position: absolute;
+  left: 6px;
+  top: 9px;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background var(--transition), color var(--transition), box-shadow var(--transition);
+}
+
+/* textarea fields are tall — pin the button to the top-left corner rather
+   than trying to vertically center it against the whole box. */
+.hsm-voice-wrap textarea ~ .hsm-voice-mic-btn,
+.hsm-voice-wrap textarea + .hsm-voice-mic-btn {
+  top: 8px;
+}
+
+.hsm-voice-mic-btn:hover {
+  background: rgba(201, 168, 76, 0.15);
+  color: var(--gold-dk);
+}
+
+.hsm-voice-mic-btn:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 1px;
+}
+
+.hsm-voice-mic-btn.hsm-voice-listening {
+  background: var(--danger);
+  color: #fff;
+  box-shadow: 0 0 0 0 rgba(192, 57, 43, 0.55);
+  animation: hsmVoicePulse 1.4s ease-out infinite;
+}
+
+@keyframes hsmVoicePulse {
+  0%   { box-shadow: 0 0 0 0 rgba(192, 57, 43, 0.55); }
+  70%  { box-shadow: 0 0 0 9px rgba(192, 57, 43, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(192, 57, 43, 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hsm-voice-mic-btn.hsm-voice-listening {
+    animation: none;
+  }
+}
