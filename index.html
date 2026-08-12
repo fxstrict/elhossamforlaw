@@ -2011,13 +2011,37 @@ function navigate(page){
   // here read `this` (confirmed by inspection), so this is not an observed
   // behavior change today — it is only a latent constraint worth knowing
   // about if a render function is ever changed to use `this`.
+  // STABILITY FIX — ROOT-CAUSE REPORT item #1: previously, if a render
+  // function threw (bad/missing data, a JS error introduced by an
+  // unrelated later change, etc.), the exception propagated all the way
+  // up out of navigate() uncaught. The .page container had already been
+  // marked "active" a few lines above, so the user was left staring at a
+  // fully blank content area with zero feedback — no error, no toast,
+  // nothing in the UI. The dispatch logic and every render function below
+  // are completely unchanged; the only addition is this outer try/catch
+  // so a render failure now (a) is visible to the user via a toast and an
+  // inline message inside the page instead of silence, and (b) no longer
+  // aborts the rest of navigate() (sidebar auto-close on mobile, etc.).
   function __vcRunRender(key,fn){
-    if(window.RenderQueue&&window.ApplicationShell&&typeof ApplicationShell.enqueueRender==='function'){
-      var __vcResults;
-      try{__vcResults=ApplicationShell.enqueueRender(key,fn);}catch(__vcQueueErr){fn();return;}
-      if(__vcResults&&__vcResults[0]&&__vcResults[0].error)throw __vcResults[0].error;
-    }else{
-      fn();
+    try{
+      if(window.RenderQueue&&window.ApplicationShell&&typeof ApplicationShell.enqueueRender==='function'){
+        var __vcResults;
+        try{__vcResults=ApplicationShell.enqueueRender(key,fn);}catch(__vcQueueErr){fn();return;}
+        if(__vcResults&&__vcResults[0]&&__vcResults[0].error)throw __vcResults[0].error;
+      }else{
+        fn();
+      }
+    }catch(__vcRenderErr){
+      console.error('[navigate] تعذر عرض الصفحة "'+key+'":',__vcRenderErr);
+      var __vcPageEl=document.getElementById('page-'+key);
+      if(__vcPageEl&&!__vcPageEl.querySelector('.__vcRenderErrorBox')){
+        var __vcBox=document.createElement('div');
+        __vcBox.className='__vcRenderErrorBox';
+        __vcBox.style.cssText='margin:16px 0;padding:16px 18px;border-radius:8px;background:#FCEEEC;border:1px solid #E0B4AC;color:#8A2E22;font-size:14px;line-height:1.7;';
+        __vcBox.textContent='تعذر عرض هذه الصفحة بسبب خطأ غير متوقع. جرّب تحديث الصفحة، وإن تكررت المشكلة يمكن مراجعة تفاصيل الخطأ في وحدة تحكم المتصفح (Console).';
+        __vcPageEl.insertBefore(__vcBox,__vcPageEl.firstChild);
+      }
+      if(typeof toast==='function'){try{toast('حدث خطأ أثناء عرض هذه الصفحة','error');}catch(__vcToastErr){}}
     }
   }
   if(page==='dashboard'){if(__vcNeedsRender)__vcRunRender('dashboard',renderDashboard);}
