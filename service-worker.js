@@ -178,7 +178,28 @@
 // file — otherwise a previously-installed PWA keeps serving its old
 // cached shell (missing the new أعمال المحضرين page/modal/scripts) and
 // never picks up these additions.
-var SW_VERSION = 'v40'; // BUGFIX (PHASE PWA-NOTIFICATIONS-CLOSED-APP, cont'd) — v18 fixed the
+// STABILITY FIX (ROOT-CAUSE REPORT items #1-#3) — index.html and
+// css/{variables,layout,components,skeleton,license}.css were edited
+// (error-boundary in navigate(), centralized z-index tokens, LTR fix for
+// the license textarea) but SW_VERSION was left unbumped in that
+// delivery. Per every SW_VERSION comment in this file, SHELL_CACHE is
+// keyed by SW_VERSION and served Cache First, so an already-installed
+// PWA kept reading the OLD cached copies of those exact files from
+// 'ahp-shell-v39' and never fetched the new ones — this is why uploading
+// the fixed files changed nothing on an already-installed device. Same
+// "Cache Versioning" rule as every previous bump below. No other line in
+// this file, and no file outside the 6 above, was touched.
+// UPLOAD-MISMATCH FIX — the previous v40 bump was deployed together with
+// an OLD/pre-fix copy of one or more of the 7 files (the version string
+// was changed by hand without the matching file content), so any device
+// that already fetched that broken 'v40' shell has it permanently cached
+// under that exact key — Cache First means it will NEVER re-check the
+// server for 'v40' again, no matter what the server now contains. The
+// only way to make every device — including those that already saw the
+// bad v40 — fetch the corrected files is a NEW key. Bumped to v41 for
+// that reason, together with re-verified, correct copies of the same 7
+// files (see the delivery notes). No other line in this file changed.
+var SW_VERSION = 'v41'; // BUGFIX (PHASE PWA-NOTIFICATIONS-CLOSED-APP, cont'd) — v18 fixed the
                          // WRONG-PAGE part (see that entry below) but a real installed WebAPK
                          // (confirmed: appears as its own entry under Settings > Apps, installed via
                          // Chrome's "تثبيت التطبيق") was still opening the tapped notification in a
