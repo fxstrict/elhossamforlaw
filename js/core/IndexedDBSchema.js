@@ -52,7 +52,17 @@
   // already-provisioned database only gains the one new store on next
   // open. No conflict with 'clients'/'cases'/any other store: purely
   // additive, own store name, own keyPath, own indexes.
-  var DB_VERSION = 4;
+  // PHASE 38 — Process Server Works Module (أعمال المحضرين): bumped
+  // 4 -> 5 to add the 'processServerWorks' object store (see
+  // SCHEMA_VERSIONS version 5 step below), mirroring the 'opponents'
+  // store exactly (same keyPath strategy: the actual
+  // ProcessServerWorksRepository idField, not a generic 'id').
+  // Existing stores/indexes from versions 1-4 are untouched —
+  // IndexedDBVersion.js's ensureStore() is existence-guarded, so an
+  // already-provisioned database only gains the one new store on next
+  // open. No conflict with 'clients'/'cases'/'opponents'/any other
+  // store: purely additive, own store name, own keyPath, own indexes.
+  var DB_VERSION = 5;
 
   // ----------------------------------------------------------------
   // Index definitions per store. Only indexes an existing Repository/
@@ -267,12 +277,36 @@
     }
   ];
 
+  // ----------------------------------------------------------------
+  // V5_STORE_DEFINITIONS — PHASE 38: Process Server Works Module
+  // (أعمال المحضرين). One new store: 'processServerWorks', backing the
+  // new 'أعمال_المحضرين' GAS sheet (Config/00_Config.gs SHEET_DEFS) and
+  // js/repositories/ProcessServerWorksRepository.js. keyPath 'رقم_العمل'
+  // — same "keyPath = actual Repository idField" rule this file's
+  // header documents, mirroring 'opponents' -> 'رقم_الخصم' exactly.
+  // Purely additive: does not touch 'clients', 'cases', 'opponents', or
+  // any other store/index.
+  // ----------------------------------------------------------------
+  var V5_STORE_DEFINITIONS = [
+    {
+      name: 'processServerWorks',
+      keyPath: 'رقم_العمل',
+      autoIncrement: false,
+      indexes: [
+        { name: 'clientId', keyPath: 'رقم_الموكل', unique: false },
+        { name: 'caseNum', keyPath: 'رقم_القضية', unique: false },
+        { name: 'status', keyPath: 'الحالة', unique: false },
+        { name: 'searchText', keyPath: 'searchText', unique: false }
+      ].concat(COMMON_AUDIT_INDEXES)
+    }
+  ];
+
   /**
    * STORE_DEFINITIONS — every store name the CURRENT (latest) schema
    * version defines (version 1 stores + every additive version's new
    * stores). Used by getStoreNames()/getStoreDefinition() below.
    */
-  var STORE_DEFINITIONS = V1_STORE_DEFINITIONS.concat(V2_STORE_DEFINITIONS).concat(V3_STORE_DEFINITIONS).concat(V4_STORE_DEFINITIONS);
+  var STORE_DEFINITIONS = V1_STORE_DEFINITIONS.concat(V2_STORE_DEFINITIONS).concat(V3_STORE_DEFINITIONS).concat(V4_STORE_DEFINITIONS).concat(V5_STORE_DEFINITIONS);
 
   /**
    * SCHEMA_VERSIONS — ordered upgrade steps. Version 1 was the original
@@ -305,6 +339,11 @@
       version: 4,
       description: 'PHASE 37 — Opponents Module (الخصوم): adds the opponents object store.',
       stores: V4_STORE_DEFINITIONS
+    },
+    {
+      version: 5,
+      description: 'PHASE 38 — Process Server Works Module (أعمال المحضرين): adds the processServerWorks object store.',
+      stores: V5_STORE_DEFINITIONS
     }
   ];
 
