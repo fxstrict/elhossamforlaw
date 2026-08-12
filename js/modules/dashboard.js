@@ -341,6 +341,9 @@ function updateBadges(){
   // race every other entity already tolerates here — dashboard.js has
   // no dependency on load order of any *Repository module).
   setBadge('badgeOpponents',(data.opponents||[]).length);
+  // PHASE 38 — Process Server Works Module (أعمال المحضرين): same
+  // pattern as badgeOpponents just above.
+  setBadge('badgePsw',(data.processServerWorks||[]).length);
   setBadge('badgeChildren',data.children.length);
   setBadge('badgeDocuments',data.documents.length);
   setBadge('badgeTasks',data.tasks.filter(function(t){return t['الحالة']!=='done';}).length);
