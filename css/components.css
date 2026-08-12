@@ -695,3 +695,18 @@
 .repeat-file-status{font-size:11px;color:var(--muted);}
 .repeat-file-status.ok{color:var(--success);}
 .repeat-file-status.err{color:var(--danger);}
+
+/* ================================================================
+ * PHASE 38 — Process Server Works Module (أعمال المحضرين)
+ * ================================================================
+ * .ps-tab-group / .ps-tab — status filter pills for the "قائمة أعمال
+ * المحضرين" list page (الكل / مستلم / غير مستلم), matching the
+ * screenshots supplied for this phase. Purely additive — does not
+ * modify any existing rule above.
+ */
+.ps-tab-group{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 14px;}
+.ps-tab{display:inline-flex;align-items:center;gap:6px;background:#FFFFFF;border:1px solid rgba(0,0,0,0.12);color:var(--navy,#1a3a5c);border-radius:999px;padding:7px 16px;font-size:13px;font-weight:700;cursor:pointer;transition:background var(--transition,.15s),color var(--transition,.15s),border-color var(--transition,.15s);}
+.ps-tab:hover{border-color:rgba(201,168,76,0.5);}
+.ps-tab-active{background:var(--gold,#c9a84c);border-color:var(--gold,#c9a84c);color:#0D1B2A;}
+.ps-tab .nav-badge{background:rgba(0,0,0,0.12);color:inherit;}
+.ps-tab-active .nav-badge{background:rgba(13,27,42,0.18);color:#0D1B2A;}
