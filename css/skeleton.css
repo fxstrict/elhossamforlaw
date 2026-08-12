@@ -31,7 +31,7 @@
  * ==========================================================================*/
 
 .boot-skeleton{
-  position:fixed;inset:0;z-index:850;
+  position:fixed;inset:0;z-index:var(--z-skeleton,850);
   display:none;
   flex-direction:column;
   gap:16px;

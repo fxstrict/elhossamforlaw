@@ -17,7 +17,7 @@
  * ============================================================================ */
 
 .lic-activation-overlay{
-  position:fixed;inset:0;z-index:99999;
+  position:fixed;inset:0;z-index:var(--z-license-overlay,99999);
   background:linear-gradient(160deg, var(--steel) 0%, var(--slate) 100%);
   display:flex;align-items:center;justify-content:center;padding:20px;
   direction:rtl;
@@ -48,6 +48,14 @@
 .lic-textarea{
   width:100%;min-height:110px;border:1px solid rgba(0,0,0,0.12);border-radius:8px;
   padding:10px;font-family:monospace;font-size:12.5px;resize:vertical;box-sizing:border-box;
+  /* STABILITY FIX — ROOT-CAUSE REPORT item #3: this field inherited
+     direction:rtl from .lic-activation-overlay above, but its content is
+     always LTR license/JSON text (braces, keys, base64 signatures). Under
+     inherited RTL each line was rendered starting from its right edge,
+     producing the garbled/mirrored text seen in the activation screen.
+     Explicit LTR + left alignment here only affects this textarea; no
+     other rule in this file or elsewhere was changed. */
+  direction:ltr;text-align:left;unicode-bidi:plaintext;
 }
 .lic-file-row{display:flex;gap:8px;align-items:center;margin-top:8px;}
 

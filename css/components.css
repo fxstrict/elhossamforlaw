@@ -60,7 +60,7 @@
 .search-wrap .icon{position:absolute;right:11px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:15px;pointer-events:none;}
 .search-wrap input{padding-right:38px;}
 
-.modal-overlay{position:fixed;inset:0;background:rgba(30,52,82,0.6);backdrop-filter:blur(4px);z-index:200;display:flex;align-items:center;justify-content:center;padding:14px;opacity:0;pointer-events:none;transition:opacity .25s;}
+.modal-overlay{position:fixed;inset:0;background:rgba(30,52,82,0.6);backdrop-filter:blur(4px);z-index:var(--z-modal,200);display:flex;align-items:center;justify-content:center;padding:14px;opacity:0;pointer-events:none;transition:opacity .25s;}
 /* PHASE 33 — Modal Engine (js/core/modal/ModalManager.js). Applied only by
    the engine, only to a modal-overlay that is open but NOT the topmost of
    a stack of 2+. Hides the duplicated backdrop/box of every background
@@ -139,13 +139,13 @@
 .cal-day.has-session::after{content:'';width:4px;height:4px;border-radius:50%;background:var(--gold);position:absolute;bottom:2px;left:50%;transform:translateX(-50%);}
 .cal-day.other-month{color:var(--muted);}
 
-.toast-container{position:fixed;bottom:20px;left:20px;z-index:1000;display:flex;flex-direction:column;gap:7px;}
+.toast-container{position:fixed;bottom:20px;left:20px;z-index:var(--z-toast,1000);display:flex;flex-direction:column;gap:7px;}
 .toast{padding:11px 16px;border-radius:var(--radius);font-size:13px;font-weight:600;min-width:200px;max-width:300px;display:flex;align-items:center;gap:9px;animation:slideIn .3s ease;box-shadow:var(--shadow);}
 .toast-success{background:#d5f5e3;border:1px solid #27ae60;color:#1e6e40;}
 .toast-error{background:#fde8e6;border:1px solid #c0392b;color:#922b21;}
 .toast-info{background:#d6eaf8;border:1px solid #2980b9;color:#1a5276;}
 
-.loading-overlay{position:fixed;inset:0;background:rgba(248,245,239,0.9);z-index:500;display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;}
+.loading-overlay{position:fixed;inset:0;background:rgba(248,245,239,0.9);z-index:var(--z-loading-overlay,500);display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;}
 .loading-overlay.show{display:flex;}
 
 /* ================================================================
@@ -160,7 +160,7 @@
    See docs/UX_First_Run_Report.md and docs/UX04A_Premium_Splash_Report.md.
    ================================================================ */
 .splash-screen{
-  position:fixed;inset:0;z-index:900;overflow:hidden;
+  position:fixed;inset:0;z-index:var(--z-splash,900);overflow:hidden;
   background:radial-gradient(circle at 50% 38%,#FFFFFF 0%,var(--navy) 62%,#F1EAD9 100%);
   display:flex;flex-direction:column;align-items:center;justify-content:center;
   /* SUB-TASK "Splash Timing Polish": fade in/out now uses an explicit
@@ -539,9 +539,16 @@
    left edge on the overlay) is unchanged; only how the height is derived
    changes. Zero regression on browsers without the --vh script or dvh
    support (100vh remains the first, always-valid declaration). */
-.history-panel-overlay{position:fixed;top:0;left:0;right:0;height:100vh;height:calc(var(--vh, 1vh) * 100);height:100dvh;background:rgba(20,25,40,0.35);z-index:900;opacity:0;pointer-events:none;transition:opacity var(--transition);}
+/* STABILITY FIX — ROOT-CAUSE REPORT item #2: this overlay/panel previously
+   used z-index:900/901, an exact collision with .splash-screen's z-index:900
+   above (two unrelated full-screen fixed layers claiming the same stacking
+   level). Moved to the dedicated, non-colliding --z-history-panel-overlay /
+   --z-history-panel tokens (920/921) in css/variables.css — still above the
+   splash/skeleton/loading layers as originally intended, just no longer
+   sharing their exact value. No other property changed. */
+.history-panel-overlay{position:fixed;top:0;left:0;right:0;height:100vh;height:calc(var(--vh, 1vh) * 100);height:100dvh;background:rgba(20,25,40,0.35);z-index:var(--z-history-panel-overlay,920);opacity:0;pointer-events:none;transition:opacity var(--transition);}
 .history-panel-overlay.open{opacity:1;pointer-events:auto;}
-#historyPanel{position:fixed;top:0;right:0;height:100vh;height:calc(var(--vh, 1vh) * 100);height:100dvh;width:380px;max-width:92vw;background:var(--navy-lt);box-shadow:var(--shadow);z-index:901;transform:translateX(100%);transition:transform var(--transition),opacity var(--transition);opacity:0;display:flex;flex-direction:column;}
+#historyPanel{position:fixed;top:0;right:0;height:100vh;height:calc(var(--vh, 1vh) * 100);height:100dvh;width:380px;max-width:92vw;background:var(--navy-lt);box-shadow:var(--shadow);z-index:var(--z-history-panel,921);transform:translateX(100%);transition:transform var(--transition),opacity var(--transition);opacity:0;display:flex;flex-direction:column;}
 #historyPanel.open{transform:translateX(0);opacity:1;}
 .hp-header{display:flex;align-items:center;justify-content:space-between;padding:16px 18px;border-bottom:1px solid var(--navy-md);flex-shrink:0;}
 .hp-header-title{font-weight:800;font-size:15px;color:var(--steel);display:flex;align-items:center;gap:8px;}
