@@ -663,6 +663,8 @@
   var ENTITY_RENDER_FN = Object.freeze({
     cases: 'renderCases',
     clients: 'renderClients',
+    opponents: 'renderOpponents',
+    processServerWorks: 'renderProcessServerWorks',
     sessions: 'renderSessions',
     tasks: 'renderTasks',
     documents: 'renderDocuments',
