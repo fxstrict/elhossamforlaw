@@ -42,6 +42,16 @@
 }
 .boot-skeleton.show{display:flex;}
 
+/* FORENSIC FIX — sidebar hidden by boot skeleton (RTL: sidebar is fixed
+   right:0, width:var(--sidebar-width)). Desktop-only: scope the skeleton
+   away from the sidebar's width so it stays visible during boot, same
+   z-index/show-hide behavior otherwise unchanged. Mobile sidebar is an
+   off-canvas overlay (not fixed to the viewport edge at rest), so this
+   is intentionally left untouched below 769px. */
+@media (min-width:769px){
+  .boot-skeleton{right:var(--sidebar-width,268px);}
+}
+
 .boot-skeleton-block{
   border-radius:var(--radius,12px);
   background:linear-gradient(90deg,var(--navy-md,#EDE6D6) 25%,var(--navy-lt,#FFFFFF) 37%,var(--navy-md,#EDE6D6) 63%);
