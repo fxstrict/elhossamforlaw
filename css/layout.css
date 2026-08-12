@@ -18,14 +18,21 @@
      with no single source of truth. Now both read var(--sidebar-width)
      from css/variables.css — same visual value, one place to change it. */
   width:var(--sidebar-width,268px);
-  /* PHASE UX-BUGFIX — see index.html <head> for the paired --vh script and
-     full root-cause evidence. 100vh kept first as the zero-JS fallback. */
-  height:100vh;height:calc(var(--vh, 1vh) * 100);height:100dvh;
+  /* FORENSIC FIX — sidebar instability / element disappearance on Android
+     Chrome. .sidebar is position:fixed, so unlike .app-shell/.main/body
+     (which are normal-flow and merely need a min-height), it does not
+     need any viewport-height unit at all: pinning top:0 + bottom:0
+     against the fixed containing block (the viewport) derives the exact
+     visible height directly, with zero dependency on vh/dvh/--vh and
+     zero exposure to the Chrome address-bar resize timing that caused
+     100dvh to intermittently clip/mislocate this element. See
+     index.html <head> for the original --vh root-cause note (still valid
+     for .app-shell/.main/body, which are unaffected by this change). */
   background:#FAFAFB;
   border-left:1px solid #E7E9ED;
   box-shadow:1px 0 0 rgba(20,30,45,0.02);
   display:flex;flex-direction:column;
-  position:fixed;top:0;right:0;z-index:var(--z-sidebar,100);
+  position:fixed;top:0;right:0;bottom:0;z-index:var(--z-sidebar,100);
   transition:transform .3s cubic-bezier(0.4,0,0.2,1);
   overflow:hidden;
 }
