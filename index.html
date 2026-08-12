@@ -9,7 +9,7 @@
      delete this block + the file js/debug/RuntimeDebugLayer.js once the
      Phase 17.2 investigation is done — no other file was changed to add
      this tool. -->
-<script src="js/debug/RuntimeDebugLayer.js"></script>
+<script src="js/debug/RuntimeDebugLayer.js?v=42"></script>
 <!-- PHASE 30 — ENTERPRISE LICENSING & PROTECTION FRAMEWORK.
      Loaded as early as possible (right after the diagnostic layer, well
      before the repositories/modules block near the end of <body>) so
@@ -23,15 +23,15 @@
      single guarded line in the DOMContentLoaded listener and the one
      new settings-card mount point — see docs/phase30 for the full,
      itemized diff and zero-regression checklist. -->
-<script src="js/license/license-public-key.js"></script>
-<script src="js/license/LicenseCrypto.js"></script>
-<script src="js/license/MachineFingerprint.js"></script>
-<script src="js/license/LicenseCore.js"></script>
-<script src="js/license/ReadOnlyGuard.js"></script>
-<script src="js/license/SubscriptionManager.js"></script>
-<script src="js/license/ActivationWizard.js"></script>
-<script src="js/license/LicenseOnlineValidator.js"></script>
-<script src="js/license/LicenseManagerPanel.js"></script>
+<script src="js/license/license-public-key.js?v=42"></script>
+<script src="js/license/LicenseCrypto.js?v=42"></script>
+<script src="js/license/MachineFingerprint.js?v=42"></script>
+<script src="js/license/LicenseCore.js?v=42"></script>
+<script src="js/license/ReadOnlyGuard.js?v=42"></script>
+<script src="js/license/SubscriptionManager.js?v=42"></script>
+<script src="js/license/ActivationWizard.js?v=42"></script>
+<script src="js/license/LicenseOnlineValidator.js?v=42"></script>
+<script src="js/license/LicenseManagerPanel.js?v=42"></script>
 <!-- PHASE PWA-INSTALL — captured as early as physically possible (right
      after the diagnostic layer, before any other tag) because the browser
      can fire "beforeinstallprompt" at any point after this document starts
@@ -243,34 +243,34 @@
      ================================================================ -->
 
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&display=swap" rel="stylesheet">
-<link href="css/variables.css" rel="stylesheet">
-<link href="css/base.css" rel="stylesheet">
-<link href="css/layout.css" rel="stylesheet">
-<link href="css/components.css" rel="stylesheet">
-<link href="css/responsive.css" rel="stylesheet">
-<link href="css/utilities.css" rel="stylesheet">
-<link href="css/skeleton.css" rel="stylesheet">
+<link href="css/variables.css?v=42" rel="stylesheet">
+<link href="css/base.css?v=42" rel="stylesheet">
+<link href="css/layout.css?v=42" rel="stylesheet">
+<link href="css/components.css?v=42" rel="stylesheet">
+<link href="css/responsive.css?v=42" rel="stylesheet">
+<link href="css/utilities.css?v=42" rel="stylesheet">
+<link href="css/skeleton.css?v=42" rel="stylesheet">
 <!-- PHASE 17.0 — Startup Reliability: boot-failure error screen styles.
      New, standalone file; no other CSS file was touched for this phase. -->
-<link href="css/boot-error.css" rel="stylesheet">
+<link href="css/boot-error.css?v=42" rel="stylesheet">
 <!-- PHASE 17.6 — Safe Mode Boot: nav-item status marker, non-blocking
      banner, and per-page notice styles. New, standalone file; no other
      CSS file was touched for this phase. -->
-<link href="css/safe-mode.css" rel="stylesheet">
+<link href="css/safe-mode.css?v=42" rel="stylesheet">
 <!-- PHASE 29 — Smart Dashboard: Today Center + Alerts Center widget
      styles. New, standalone file; no other CSS file was touched for
      this phase. -->
-<link href="css/dashboard-smart.css" rel="stylesheet">
+<link href="css/dashboard-smart.css?v=42" rel="stylesheet">
 <!-- PHASE 30 — Enterprise Licensing & Protection Framework: Activation
      Wizard overlay, subscription banner, License Manager panel styles.
      New, standalone file; no other CSS file was touched for this phase. -->
-<link href="css/license.css" rel="stylesheet">
+<link href="css/license.css?v=42" rel="stylesheet">
 <!-- PHASE 32 — Login Screen, Session Activation & Users Admin Panel. -->
-<link href="css/auth.css" rel="stylesheet">
+<link href="css/auth.css?v=42" rel="stylesheet">
 <!-- PHASE 35 — Voice Input (Speech-to-Text): mic button styling for every
      free-text field. New, standalone file; no other CSS file was touched
      for this phase. -->
-<link href="css/voice-input.css" rel="stylesheet">
+<link href="css/voice-input.css?v=42" rel="stylesheet">
 <!-- ================================================================
      PHASE 17.1 — LOADER OPTIMIZATION (preload + priority hints, additive only)
      WHY THIS BLOCK EXISTS
@@ -309,100 +309,100 @@
        above stays exactly as green (or as pre-existing-red) as it was before this
        phase. See docs/phase17/PHASE_17_1_LOADER_OPTIMIZATION.md for full details.
      ================================================================ -->
-<link rel="preload" as="script" href="js/debug/RuntimeDebugLayer.js" fetchpriority="high">
-<link rel="preload" as="script" href="js/api/api.js" fetchpriority="high">
-<link rel="preload" as="script" href="js/core/OfflineQueue.js" fetchpriority="high">
-<link rel="preload" as="script" href="js/ui-utils.js" fetchpriority="high">
-<link rel="preload" as="script" href="js/print-utils.js" fetchpriority="high">
-<link rel="preload" as="script" href="js/core/StorageAdapter.js" fetchpriority="high">
-<link rel="preload" as="script" href="js/core/StartupTimeoutManager.js" fetchpriority="high">
-<link rel="preload" as="script" href="js/core/LocalStorageAdapter.js" fetchpriority="high">
-<link rel="preload" as="script" href="js/core/DatabaseService.js" fetchpriority="high">
-<link rel="preload" as="script" href="js/core/Repository.js" fetchpriority="high">
-<link rel="preload" as="script" href="js/core/UndoManager.js" fetchpriority="high">
-<link rel="preload" as="script" href="js/core/UndoReconciler.js" fetchpriority="high">
-<link rel="preload" as="script" href="js/core/IndexedDBErrors.js" fetchpriority="high">
-<link rel="preload" as="script" href="js/core/IndexedDBSchema.js" fetchpriority="high">
-<link rel="preload" as="script" href="js/core/IndexedDBUtils.js" fetchpriority="high">
-<link rel="preload" as="script" href="js/core/IndexedDBVersion.js" fetchpriority="high">
-<link rel="preload" as="script" href="js/core/IndexedDBTransaction.js" fetchpriority="high">
-<link rel="preload" as="script" href="js/core/IndexedDBEngine.js" fetchpriority="high">
-<link rel="preload" as="script" href="js/core/IndexedDBAdapter.js" fetchpriority="high">
-<link rel="preload" as="script" href="js/core/MigrationService.js" fetchpriority="high">
-<link rel="preload" as="script" href="js/core/MigrationBootstrap.js" fetchpriority="high">
-<link rel="preload" as="script" href="js/repositories/CasesRepository.js" fetchpriority="high">
-<link rel="preload" as="script" href="js/repositories/ClientsRepository.js" fetchpriority="high">
-<link rel="preload" as="script" href="js/repositories/OpponentsRepository.js" fetchpriority="high">
+<link rel="preload" as="script" href="js/debug/RuntimeDebugLayer.js?v=42" fetchpriority="high">
+<link rel="preload" as="script" href="js/api/api.js?v=42" fetchpriority="high">
+<link rel="preload" as="script" href="js/core/OfflineQueue.js?v=42" fetchpriority="high">
+<link rel="preload" as="script" href="js/ui-utils.js?v=42" fetchpriority="high">
+<link rel="preload" as="script" href="js/print-utils.js?v=42" fetchpriority="high">
+<link rel="preload" as="script" href="js/core/StorageAdapter.js?v=42" fetchpriority="high">
+<link rel="preload" as="script" href="js/core/StartupTimeoutManager.js?v=42" fetchpriority="high">
+<link rel="preload" as="script" href="js/core/LocalStorageAdapter.js?v=42" fetchpriority="high">
+<link rel="preload" as="script" href="js/core/DatabaseService.js?v=42" fetchpriority="high">
+<link rel="preload" as="script" href="js/core/Repository.js?v=42" fetchpriority="high">
+<link rel="preload" as="script" href="js/core/UndoManager.js?v=42" fetchpriority="high">
+<link rel="preload" as="script" href="js/core/UndoReconciler.js?v=42" fetchpriority="high">
+<link rel="preload" as="script" href="js/core/IndexedDBErrors.js?v=42" fetchpriority="high">
+<link rel="preload" as="script" href="js/core/IndexedDBSchema.js?v=42" fetchpriority="high">
+<link rel="preload" as="script" href="js/core/IndexedDBUtils.js?v=42" fetchpriority="high">
+<link rel="preload" as="script" href="js/core/IndexedDBVersion.js?v=42" fetchpriority="high">
+<link rel="preload" as="script" href="js/core/IndexedDBTransaction.js?v=42" fetchpriority="high">
+<link rel="preload" as="script" href="js/core/IndexedDBEngine.js?v=42" fetchpriority="high">
+<link rel="preload" as="script" href="js/core/IndexedDBAdapter.js?v=42" fetchpriority="high">
+<link rel="preload" as="script" href="js/core/MigrationService.js?v=42" fetchpriority="high">
+<link rel="preload" as="script" href="js/core/MigrationBootstrap.js?v=42" fetchpriority="high">
+<link rel="preload" as="script" href="js/repositories/CasesRepository.js?v=42" fetchpriority="high">
+<link rel="preload" as="script" href="js/repositories/ClientsRepository.js?v=42" fetchpriority="high">
+<link rel="preload" as="script" href="js/repositories/OpponentsRepository.js?v=42" fetchpriority="high">
 <!-- PHASE 38 — Process Server Works Module (أعمال المحضرين). Same
      preload-priority convention as OpponentsRepository.js just above. -->
-<link rel="preload" as="script" href="js/repositories/ProcessServerWorksRepository.js" fetchpriority="high">
-<link rel="preload" as="script" href="js/repositories/ClientMessagesRepository.js" fetchpriority="high">
-<link rel="preload" as="script" href="js/repositories/ChildrenRepository.js" fetchpriority="high">
-<link rel="preload" as="script" href="js/repositories/SessionsRepository.js" fetchpriority="high">
-<link rel="preload" as="script" href="js/repositories/TasksRepository.js" fetchpriority="high">
-<link rel="preload" as="script" href="js/repositories/FeesRepository.js" fetchpriority="high">
-<link rel="preload" as="script" href="js/repositories/DocumentsRepository.js" fetchpriority="high">
-<link rel="preload" as="script" href="js/repositories/LibraryRepository.js" fetchpriority="high">
-<link rel="preload" as="script" href="js/repositories/TemplatesRepository.js" fetchpriority="high">
-<link rel="preload" as="script" href="js/repositories/SettingsRepository.js" fetchpriority="high">
-<link rel="preload" as="script" href="js/repositories/SettingsRepositoryWiring.js" fetchpriority="high">
-<link rel="preload" as="script" href="js/core/RepositoryReadyTimeout.js" fetchpriority="high">
-<link rel="preload" as="script" href="js/modules/cases.js" fetchpriority="high">
-<link rel="preload" as="script" href="js/modules/settings.js" fetchpriority="high">
-<link rel="preload" as="script" href="js/modules/firstrun.js" fetchpriority="high">
-<link rel="preload" as="script" href="js/modules/calendar.js" fetchpriority="low">
-<link rel="preload" as="script" href="js/modules/children.js" fetchpriority="low">
-<link rel="preload" as="script" href="js/modules/dashboard.js" fetchpriority="high">
-<link rel="preload" as="script" href="js/modules/tasks.js" fetchpriority="low">
-<link rel="preload" as="script" href="js/modules/documents.js" fetchpriority="low">
-<link rel="preload" as="script" href="js/modules/sessions.js" fetchpriority="low">
-<link rel="preload" as="script" href="js/core/HistoryPanel.js" fetchpriority="high">
-<link rel="preload" as="script" href="js/modules/clients.js" fetchpriority="high">
-<link rel="preload" as="script" href="js/modules/client-fields.js" fetchpriority="high">
-<link rel="preload" as="script" href="js/modules/opponents.js" fetchpriority="high">
-<link rel="preload" as="script" href="js/modules/opponent-fields.js" fetchpriority="high">
+<link rel="preload" as="script" href="js/repositories/ProcessServerWorksRepository.js?v=42" fetchpriority="high">
+<link rel="preload" as="script" href="js/repositories/ClientMessagesRepository.js?v=42" fetchpriority="high">
+<link rel="preload" as="script" href="js/repositories/ChildrenRepository.js?v=42" fetchpriority="high">
+<link rel="preload" as="script" href="js/repositories/SessionsRepository.js?v=42" fetchpriority="high">
+<link rel="preload" as="script" href="js/repositories/TasksRepository.js?v=42" fetchpriority="high">
+<link rel="preload" as="script" href="js/repositories/FeesRepository.js?v=42" fetchpriority="high">
+<link rel="preload" as="script" href="js/repositories/DocumentsRepository.js?v=42" fetchpriority="high">
+<link rel="preload" as="script" href="js/repositories/LibraryRepository.js?v=42" fetchpriority="high">
+<link rel="preload" as="script" href="js/repositories/TemplatesRepository.js?v=42" fetchpriority="high">
+<link rel="preload" as="script" href="js/repositories/SettingsRepository.js?v=42" fetchpriority="high">
+<link rel="preload" as="script" href="js/repositories/SettingsRepositoryWiring.js?v=42" fetchpriority="high">
+<link rel="preload" as="script" href="js/core/RepositoryReadyTimeout.js?v=42" fetchpriority="high">
+<link rel="preload" as="script" href="js/modules/cases.js?v=42" fetchpriority="high">
+<link rel="preload" as="script" href="js/modules/settings.js?v=42" fetchpriority="high">
+<link rel="preload" as="script" href="js/modules/firstrun.js?v=42" fetchpriority="high">
+<link rel="preload" as="script" href="js/modules/calendar.js?v=42" fetchpriority="low">
+<link rel="preload" as="script" href="js/modules/children.js?v=42" fetchpriority="low">
+<link rel="preload" as="script" href="js/modules/dashboard.js?v=42" fetchpriority="high">
+<link rel="preload" as="script" href="js/modules/tasks.js?v=42" fetchpriority="low">
+<link rel="preload" as="script" href="js/modules/documents.js?v=42" fetchpriority="low">
+<link rel="preload" as="script" href="js/modules/sessions.js?v=42" fetchpriority="low">
+<link rel="preload" as="script" href="js/core/HistoryPanel.js?v=42" fetchpriority="high">
+<link rel="preload" as="script" href="js/modules/clients.js?v=42" fetchpriority="high">
+<link rel="preload" as="script" href="js/modules/client-fields.js?v=42" fetchpriority="high">
+<link rel="preload" as="script" href="js/modules/opponents.js?v=42" fetchpriority="high">
+<link rel="preload" as="script" href="js/modules/opponent-fields.js?v=42" fetchpriority="high">
 <!-- PHASE 38 — Process Server Works Module (أعمال المحضرين). Same
      preload-priority convention as opponents.js/opponent-fields.js above. -->
-<link rel="preload" as="script" href="js/modules/process-server-works.js" fetchpriority="high">
-<link rel="preload" as="script" href="js/modules/process-server-fields.js" fetchpriority="high">
-<link rel="preload" as="script" href="js/modules/client-messages.js" fetchpriority="low">
-<link rel="preload" as="script" href="js/modules/fees.js" fetchpriority="low">
-<link rel="preload" as="script" href="js/modules/library.js" fetchpriority="low">
-<link rel="preload" as="script" href="js/modules/templates.js" fetchpriority="low">
-<link rel="preload" as="script" href="js/modules/historypanel-ui.js" fetchpriority="low">
-<link rel="preload" as="script" href="js/core/RepositoryReadyCoordinator.js" fetchpriority="high">
-<link rel="preload" as="script" href="js/core/boot/BootManager.js" fetchpriority="high">
-<link rel="preload" as="script" href="js/core/shell/ShellEvents.js" fetchpriority="high">
-<link rel="preload" as="script" href="js/core/shell/BootState.js" fetchpriority="high">
-<link rel="preload" as="script" href="js/core/shell/PageRegistry.js" fetchpriority="high">
-<link rel="preload" as="script" href="js/core/shell/ViewRegistry.js" fetchpriority="high">
-<link rel="preload" as="script" href="js/core/shell/NavigationRegistry.js" fetchpriority="high">
-<link rel="preload" as="script" href="js/core/shell/ShellState.js" fetchpriority="high">
-<link rel="preload" as="script" href="js/core/shell/ShellRegistry.js" fetchpriority="high">
-<link rel="preload" as="script" href="js/core/shell/LifecycleManager.js" fetchpriority="high">
-<link rel="preload" as="script" href="js/core/render/RenderMetrics.js" fetchpriority="high">
-<link rel="preload" as="script" href="js/core/render/RenderTask.js" fetchpriority="high">
-<link rel="preload" as="script" href="js/core/render/RenderRegistry.js" fetchpriority="high">
-<link rel="preload" as="script" href="js/core/render/RenderScheduler.js" fetchpriority="high">
-<link rel="preload" as="script" href="js/core/render/RenderDispatcher.js" fetchpriority="high">
-<link rel="preload" as="script" href="js/core/render/RenderQueue.js" fetchpriority="high">
-<link rel="preload" as="script" href="js/core/view/ViewVersion.js" fetchpriority="high">
-<link rel="preload" as="script" href="js/core/view/DirtyTracker.js" fetchpriority="high">
-<link rel="preload" as="script" href="js/core/view/ViewCache.js" fetchpriority="high">
-<link rel="preload" as="script" href="js/core/view/PageState.js" fetchpriority="high">
-<link rel="preload" as="script" href="js/core/view/ViewLifecycle.js" fetchpriority="high">
-<link rel="preload" as="script" href="js/core/dom/DomKeyIndex.js" fetchpriority="high">
-<link rel="preload" as="script" href="js/core/dom/DomNodeFactory.js" fetchpriority="high">
-<link rel="preload" as="script" href="js/core/dom/DomPatch.js" fetchpriority="high">
-<link rel="preload" as="script" href="js/core/dom/DomRecycler.js" fetchpriority="high">
-<link rel="preload" as="script" href="js/core/shell/ApplicationShell.js" fetchpriority="high">
-<link rel="preload" as="script" href="js/core/shell/NavigationManager.js" fetchpriority="high">
-<link rel="preload" as="script" href="js/core/modal/ZIndexEngine.js" fetchpriority="high">
-<link rel="preload" as="script" href="js/core/modal/ModalStack.js" fetchpriority="high">
-<link rel="preload" as="script" href="js/core/modal/ScrollLockManager.js" fetchpriority="high">
-<link rel="preload" as="script" href="js/core/modal/FocusManager.js" fetchpriority="high">
-<link rel="preload" as="script" href="js/core/modal/ModalHistoryBridge.js" fetchpriority="high">
-<link rel="preload" as="script" href="js/core/modal/ModalManager.js" fetchpriority="high">
+<link rel="preload" as="script" href="js/modules/process-server-works.js?v=42" fetchpriority="high">
+<link rel="preload" as="script" href="js/modules/process-server-fields.js?v=42" fetchpriority="high">
+<link rel="preload" as="script" href="js/modules/client-messages.js?v=42" fetchpriority="low">
+<link rel="preload" as="script" href="js/modules/fees.js?v=42" fetchpriority="low">
+<link rel="preload" as="script" href="js/modules/library.js?v=42" fetchpriority="low">
+<link rel="preload" as="script" href="js/modules/templates.js?v=42" fetchpriority="low">
+<link rel="preload" as="script" href="js/modules/historypanel-ui.js?v=42" fetchpriority="low">
+<link rel="preload" as="script" href="js/core/RepositoryReadyCoordinator.js?v=42" fetchpriority="high">
+<link rel="preload" as="script" href="js/core/boot/BootManager.js?v=42" fetchpriority="high">
+<link rel="preload" as="script" href="js/core/shell/ShellEvents.js?v=42" fetchpriority="high">
+<link rel="preload" as="script" href="js/core/shell/BootState.js?v=42" fetchpriority="high">
+<link rel="preload" as="script" href="js/core/shell/PageRegistry.js?v=42" fetchpriority="high">
+<link rel="preload" as="script" href="js/core/shell/ViewRegistry.js?v=42" fetchpriority="high">
+<link rel="preload" as="script" href="js/core/shell/NavigationRegistry.js?v=42" fetchpriority="high">
+<link rel="preload" as="script" href="js/core/shell/ShellState.js?v=42" fetchpriority="high">
+<link rel="preload" as="script" href="js/core/shell/ShellRegistry.js?v=42" fetchpriority="high">
+<link rel="preload" as="script" href="js/core/shell/LifecycleManager.js?v=42" fetchpriority="high">
+<link rel="preload" as="script" href="js/core/render/RenderMetrics.js?v=42" fetchpriority="high">
+<link rel="preload" as="script" href="js/core/render/RenderTask.js?v=42" fetchpriority="high">
+<link rel="preload" as="script" href="js/core/render/RenderRegistry.js?v=42" fetchpriority="high">
+<link rel="preload" as="script" href="js/core/render/RenderScheduler.js?v=42" fetchpriority="high">
+<link rel="preload" as="script" href="js/core/render/RenderDispatcher.js?v=42" fetchpriority="high">
+<link rel="preload" as="script" href="js/core/render/RenderQueue.js?v=42" fetchpriority="high">
+<link rel="preload" as="script" href="js/core/view/ViewVersion.js?v=42" fetchpriority="high">
+<link rel="preload" as="script" href="js/core/view/DirtyTracker.js?v=42" fetchpriority="high">
+<link rel="preload" as="script" href="js/core/view/ViewCache.js?v=42" fetchpriority="high">
+<link rel="preload" as="script" href="js/core/view/PageState.js?v=42" fetchpriority="high">
+<link rel="preload" as="script" href="js/core/view/ViewLifecycle.js?v=42" fetchpriority="high">
+<link rel="preload" as="script" href="js/core/dom/DomKeyIndex.js?v=42" fetchpriority="high">
+<link rel="preload" as="script" href="js/core/dom/DomNodeFactory.js?v=42" fetchpriority="high">
+<link rel="preload" as="script" href="js/core/dom/DomPatch.js?v=42" fetchpriority="high">
+<link rel="preload" as="script" href="js/core/dom/DomRecycler.js?v=42" fetchpriority="high">
+<link rel="preload" as="script" href="js/core/shell/ApplicationShell.js?v=42" fetchpriority="high">
+<link rel="preload" as="script" href="js/core/shell/NavigationManager.js?v=42" fetchpriority="high">
+<link rel="preload" as="script" href="js/core/modal/ZIndexEngine.js?v=42" fetchpriority="high">
+<link rel="preload" as="script" href="js/core/modal/ModalStack.js?v=42" fetchpriority="high">
+<link rel="preload" as="script" href="js/core/modal/ScrollLockManager.js?v=42" fetchpriority="high">
+<link rel="preload" as="script" href="js/core/modal/FocusManager.js?v=42" fetchpriority="high">
+<link rel="preload" as="script" href="js/core/modal/ModalHistoryBridge.js?v=42" fetchpriority="high">
+<link rel="preload" as="script" href="js/core/modal/ModalManager.js?v=42" fetchpriority="high">
 <!-- END PHASE 17.1 LOADER OPTIMIZATION BLOCK -->
 </head>
 <body>
@@ -1754,11 +1754,11 @@ style="color:var(--muted);font-size:12px;margin-top:4px;"> جارٍ تحميل
     <div class="modal-footer"><button class="btn btn-ghost" id="modalConfirmNo">إلغاء</button><button class="btn btn-danger" id="modalConfirmYes">&#128465; تأكيد</button></div>
   </div>
 </div>
-<script src="js/api/api.js"></script>
-<script src="js/core/OfflineQueue.js"></script>
-<script src="js/ui-utils.js"></script>
-<script src="js/print-utils.js"></script>
-<script src="js/core/StorageAdapter.js"></script>
+<script src="js/api/api.js?v=42"></script>
+<script src="js/core/OfflineQueue.js?v=42"></script>
+<script src="js/ui-utils.js?v=42"></script>
+<script src="js/print-utils.js?v=42"></script>
+<script src="js/core/StorageAdapter.js?v=42"></script>
 <!-- PHASE 17.5 — Startup Timeout Manager: generic bounded-wait helper.
      Must load BEFORE js/core/MigrationBootstrap.js (wraps its getStatus()/
      migrate() steps) AND BEFORE js/repositories/SettingsRepositoryWiring.js
@@ -1766,21 +1766,21 @@ style="color:var(--muted);font-size:12px;margin-top:4px;"> جارٍ تحميل
      StartupTimeoutManager.wrap(...) at the moment they run. New,
      standalone file; no other <script> tag was moved, removed, or
      reordered. -->
-<script src="js/core/StartupTimeoutManager.js"></script>
-<script src="js/core/LocalStorageAdapter.js"></script>
-<script src="js/core/DatabaseService.js"></script>
-<script src="js/core/Repository.js"></script>
-<script src="js/core/UndoManager.js"></script>
-<script src="js/core/UndoReconciler.js"></script>
-<script src="js/core/IndexedDBErrors.js"></script>
-<script src="js/core/IndexedDBSchema.js"></script>
-<script src="js/core/IndexedDBUtils.js"></script>
-<script src="js/core/IndexedDBVersion.js"></script>
-<script src="js/core/IndexedDBTransaction.js"></script>
-<script src="js/core/IndexedDBEngine.js"></script>
-<script src="js/core/IndexedDBAdapter.js"></script>
-<script src="js/core/MigrationService.js"></script>
-<script src="js/core/MigrationBootstrap.js"></script>
+<script src="js/core/StartupTimeoutManager.js?v=42"></script>
+<script src="js/core/LocalStorageAdapter.js?v=42"></script>
+<script src="js/core/DatabaseService.js?v=42"></script>
+<script src="js/core/Repository.js?v=42"></script>
+<script src="js/core/UndoManager.js?v=42"></script>
+<script src="js/core/UndoReconciler.js?v=42"></script>
+<script src="js/core/IndexedDBErrors.js?v=42"></script>
+<script src="js/core/IndexedDBSchema.js?v=42"></script>
+<script src="js/core/IndexedDBUtils.js?v=42"></script>
+<script src="js/core/IndexedDBVersion.js?v=42"></script>
+<script src="js/core/IndexedDBTransaction.js?v=42"></script>
+<script src="js/core/IndexedDBEngine.js?v=42"></script>
+<script src="js/core/IndexedDBAdapter.js?v=42"></script>
+<script src="js/core/MigrationService.js?v=42"></script>
+<script src="js/core/MigrationBootstrap.js?v=42"></script>
 <!-- PHASE 31 — Users, Roles & Permissions Core (RBAC): additive-only.
      Must load AFTER js/core/Repository.js (SessionContext.js's
      HossamPermissionGuard is what Repository.js's new, additive
@@ -1797,31 +1797,31 @@ style="color:var(--muted);font-size:12px;margin-top:4px;"> جارٍ تحميل
      phase calls HossamSession.setCurrentUser() yet, so the whole layer
      stays inert (fail-open) until a future login screen does — zero
      behavior change today. -->
-<script src="js/core/rbac/Permissions.js"></script>
-<script src="js/core/rbac/PermissionGroups.js"></script>
-<script src="js/core/rbac/Roles.js"></script>
-<script src="js/core/rbac/PermissionService.js"></script>
+<script src="js/core/rbac/Permissions.js?v=42"></script>
+<script src="js/core/rbac/PermissionGroups.js?v=42"></script>
+<script src="js/core/rbac/Roles.js?v=42"></script>
+<script src="js/core/rbac/PermissionService.js?v=42"></script>
 <!-- SESSION PERSISTENCE FIX: optional dependency of SessionContext.js's
      setCurrentUser()/clear()/restoreSession() (see that file's header) —
      must load BEFORE SessionContext.js. Self-contained, no dependency of
      its own. Fixes "every refresh asks for username/password again". -->
-<script src="js/auth/SessionPersistence.js"></script>
-<script src="js/core/rbac/SessionContext.js"></script>
-<script src="js/core/rbac/AuditLog.js"></script>
-<script src="js/repositories/CasesRepository.js"></script>
-<script src="js/repositories/ClientsRepository.js"></script>
-<script src="js/repositories/OpponentsRepository.js"></script>
-<script src="js/repositories/ProcessServerWorksRepository.js"></script>
-<script src="js/repositories/ClientMessagesRepository.js"></script>
-<script src="js/repositories/ChildrenRepository.js"></script>
-<script src="js/repositories/SessionsRepository.js"></script>
-<script src="js/repositories/TasksRepository.js"></script>
-<script src="js/repositories/FeesRepository.js"></script>
-<script src="js/repositories/DocumentsRepository.js"></script>
-<script src="js/repositories/LibraryRepository.js"></script>
-<script src="js/repositories/TemplatesRepository.js"></script>
-<script src="js/repositories/SettingsRepository.js"></script>
-<script src="js/repositories/SettingsRepositoryWiring.js"></script>
+<script src="js/auth/SessionPersistence.js?v=42"></script>
+<script src="js/core/rbac/SessionContext.js?v=42"></script>
+<script src="js/core/rbac/AuditLog.js?v=42"></script>
+<script src="js/repositories/CasesRepository.js?v=42"></script>
+<script src="js/repositories/ClientsRepository.js?v=42"></script>
+<script src="js/repositories/OpponentsRepository.js?v=42"></script>
+<script src="js/repositories/ProcessServerWorksRepository.js?v=42"></script>
+<script src="js/repositories/ClientMessagesRepository.js?v=42"></script>
+<script src="js/repositories/ChildrenRepository.js?v=42"></script>
+<script src="js/repositories/SessionsRepository.js?v=42"></script>
+<script src="js/repositories/TasksRepository.js?v=42"></script>
+<script src="js/repositories/FeesRepository.js?v=42"></script>
+<script src="js/repositories/DocumentsRepository.js?v=42"></script>
+<script src="js/repositories/LibraryRepository.js?v=42"></script>
+<script src="js/repositories/TemplatesRepository.js?v=42"></script>
+<script src="js/repositories/SettingsRepository.js?v=42"></script>
+<script src="js/repositories/SettingsRepositoryWiring.js?v=42"></script>
 <!-- OFFICE PROFILE — office identity data (office name, lawyer name,
      address, branches, phones, WhatsApp) that replaces the hardcoded
      "حسام محمد ابراهيم / مكتب الحسام للمحاماة" text once an office
@@ -1830,15 +1830,15 @@ style="color:var(--muted);font-size:12px;margin-top:4px;"> جارٍ تحميل
      globals) and after js/api/api.js (needs `ApiService`, already
      loaded much earlier — see top of file). See js/office/*.js headers
      for the full design. -->
-<script src="js/office/OfficeProfileService.js"></script>
-<script src="js/office/OfficeSetupWizard.js"></script>
-<script src="js/office/OfficeProfilePanel.js"></script>
+<script src="js/office/OfficeProfileService.js?v=42"></script>
+<script src="js/office/OfficeSetupWizard.js?v=42"></script>
+<script src="js/office/OfficeProfilePanel.js?v=42"></script>
 <!-- PHASE 31 — Users Repository. Loaded after the RBAC core files and
      after the other repositories, same DatabaseService/IndexedDBAdapter
      pipeline as every one of them. Originally landed with no UI screen
      using it yet (see docs/phase31, "Deferred: Login Screen & Admin
      UI"); PHASE 32 immediately below is that screen. -->
-<script src="js/repositories/UsersRepository.js"></script>
+<script src="js/repositories/UsersRepository.js?v=42"></script>
 <!-- PHASE 32 — Login Screen, Session Activation & Users Admin Panel.
      Must load AFTER UsersRepository.js, js/core/rbac/*.js (uses
      HossamSession/HossamPermissionService/HossamLoginLog/HossamRoles/
@@ -1849,25 +1849,25 @@ style="color:var(--muted);font-size:12px;margin-top:4px;"> جارٍ تحميل
      design, including exactly when/why LoginScreen ever shows (short
      version: never, until an office creates its first active user via
      the Users panel below — zero behavior change by default). -->
-<script src="js/auth/PasswordHasher.js"></script>
-<script src="js/auth/LoginAttempts.js"></script>
-<script src="js/auth/LoginScreen.js"></script>
-<script src="js/auth/UsersAdminPanel.js"></script>
+<script src="js/auth/PasswordHasher.js?v=42"></script>
+<script src="js/auth/LoginAttempts.js?v=42"></script>
+<script src="js/auth/LoginScreen.js?v=42"></script>
+<script src="js/auth/UsersAdminPanel.js?v=42"></script>
 <!-- SESSION PERSISTENCE FIX: visible topbar "logged in as / logout"
      control (site-wide, not buried inside Settings -> Users panel),
      so switching to a different username/permissions no longer
      requires hunting for UsersAdminPanel.js's own logout button first.
      Purely presentational — reads window.HossamSession, never touches
      it beyond clear(). Must load after LoginScreen.js/SessionContext.js. -->
-<script src="js/auth/TopbarSessionBadge.js"></script>
-<script src="js/auth/SidebarSessionBadge.js"></script>
+<script src="js/auth/TopbarSessionBadge.js?v=42"></script>
+<script src="js/auth/SidebarSessionBadge.js?v=42"></script>
 <!-- PHASE 17.0 — Startup Reliability: per-entity ready-promise timeout
      helper. Must load AFTER core files and BEFORE every entity module
      below, since each module calls RepositoryReadyTimeout.wrap(...) at
      top-level parse time. New, standalone file; no other <script> tag
      was moved, removed, or reordered. -->
-<script src="js/core/RepositoryReadyTimeout.js"></script>
-<script src="js/modules/cases.js"></script>
+<script src="js/core/RepositoryReadyTimeout.js?v=42"></script>
+<script src="js/modules/cases.js?v=42"></script>
 <script>
 'use strict';
 var API_URL=localStorage.getItem('apiUrl')||'';
@@ -2315,14 +2315,14 @@ window.addEventListener('DOMContentLoaded',function(){
 });
 </script>
 
-<script src="js/modules/settings.js"></script>
-<script src="js/modules/firstrun.js"></script>
-<script src="js/modules/calendar.js"></script>
-<script src="js/modules/children.js"></script>
-<script src="js/modules/dashboard.js"></script>
-<script src="js/modules/tasks.js"></script>
-<script src="js/modules/documents.js"></script>
-<script src="js/modules/sessions.js"></script>
+<script src="js/modules/settings.js?v=42"></script>
+<script src="js/modules/firstrun.js?v=42"></script>
+<script src="js/modules/calendar.js?v=42"></script>
+<script src="js/modules/children.js?v=42"></script>
+<script src="js/modules/dashboard.js?v=42"></script>
+<script src="js/modules/tasks.js?v=42"></script>
+<script src="js/modules/documents.js?v=42"></script>
+<script src="js/modules/sessions.js?v=42"></script>
 
 <!-- VIEW MODAL (عرض + طباعة) -->
 <div class="modal-overlay" id="modalView" style="z-index:300;">
@@ -2407,18 +2407,18 @@ window.addEventListener('DOMContentLoaded',function(){
   </div>
 </div>
 
-<script src="js/core/HistoryPanel.js"></script>
-<script src="js/modules/clients.js"></script>
-<script src="js/modules/client-fields.js"></script>
-<script src="js/modules/opponents.js"></script>
-<script src="js/modules/opponent-fields.js"></script>
-<script src="js/modules/process-server-works.js"></script>
-<script src="js/modules/process-server-fields.js"></script>
-<script src="js/modules/client-messages.js"></script>
-<script src="js/modules/fees.js"></script>
-<script src="js/modules/library.js"></script>
-<script src="js/modules/templates.js"></script>
-<script src="js/modules/historypanel-ui.js"></script>
+<script src="js/core/HistoryPanel.js?v=42"></script>
+<script src="js/modules/clients.js?v=42"></script>
+<script src="js/modules/client-fields.js?v=42"></script>
+<script src="js/modules/opponents.js?v=42"></script>
+<script src="js/modules/opponent-fields.js?v=42"></script>
+<script src="js/modules/process-server-works.js?v=42"></script>
+<script src="js/modules/process-server-fields.js?v=42"></script>
+<script src="js/modules/client-messages.js?v=42"></script>
+<script src="js/modules/fees.js?v=42"></script>
+<script src="js/modules/library.js?v=42"></script>
+<script src="js/modules/templates.js?v=42"></script>
+<script src="js/modules/historypanel-ui.js?v=42"></script>
 <!-- PHASE 13.3D — PART 2A: RepositoryReadyCoordinator.js is deliberately
      the LAST <script> tag on the page, not grouped with the other
      js/core/*.js tags above (js/core/Repository.js etc.). It reads each
@@ -2430,8 +2430,8 @@ window.addEventListener('DOMContentLoaded',function(){
      library.js, templates.js, children.js. It adds no new Repository
      API, does not modify Repository.js, and does not poll — see
      RepositoryReadyCoordinator_Report.md. -->
-<script src="js/core/RepositoryReadyCoordinator.js"></script>
-<script src="js/core/boot/BootManager.js"></script>
+<script src="js/core/RepositoryReadyCoordinator.js?v=42"></script>
+<script src="js/core/boot/BootManager.js?v=42"></script>
 <!-- PHASE 16.1 — APPLICATION SHELL FOUNDATION (ZERO REGRESSION)
      These files add a new, fully separate layer (see js/core/shell/
      ApplicationShell.js for full documentation) that tracks page
@@ -2446,14 +2446,14 @@ window.addEventListener('DOMContentLoaded',function(){
      only in that each one is a plain, independent object — there is no
      inter-file load-order dependency, but they are listed in the order
      they are conceptually built on top of one another for readability. -->
-<script src="js/core/shell/ShellEvents.js"></script>
-<script src="js/core/shell/BootState.js"></script>
-<script src="js/core/shell/PageRegistry.js"></script>
-<script src="js/core/shell/ViewRegistry.js"></script>
-<script src="js/core/shell/NavigationRegistry.js"></script>
-<script src="js/core/shell/ShellState.js"></script>
-<script src="js/core/shell/ShellRegistry.js"></script>
-<script src="js/core/shell/LifecycleManager.js"></script>
+<script src="js/core/shell/ShellEvents.js?v=42"></script>
+<script src="js/core/shell/BootState.js?v=42"></script>
+<script src="js/core/shell/PageRegistry.js?v=42"></script>
+<script src="js/core/shell/ViewRegistry.js?v=42"></script>
+<script src="js/core/shell/NavigationRegistry.js?v=42"></script>
+<script src="js/core/shell/ShellState.js?v=42"></script>
+<script src="js/core/shell/ShellRegistry.js?v=42"></script>
+<script src="js/core/shell/LifecycleManager.js?v=42"></script>
 <!-- PHASE 16.2 — RENDER QUEUE FOUNDATION (ZERO REGRESSION)
      A new, fully separate, entity-agnostic layer (see js/core/render/
      RenderQueue.js for full documentation) that provides a generic
@@ -2465,12 +2465,12 @@ window.addEventListener('DOMContentLoaded',function(){
      file) can find window.RenderQueue already defined. Nothing here
      references Repository, DatabaseService, StorageAdapter,
      RepositoryReadyCoordinator, or any entity-specific render function. -->
-<script src="js/core/render/RenderMetrics.js"></script>
-<script src="js/core/render/RenderTask.js"></script>
-<script src="js/core/render/RenderRegistry.js"></script>
-<script src="js/core/render/RenderScheduler.js"></script>
-<script src="js/core/render/RenderDispatcher.js"></script>
-<script src="js/core/render/RenderQueue.js"></script>
+<script src="js/core/render/RenderMetrics.js?v=42"></script>
+<script src="js/core/render/RenderTask.js?v=42"></script>
+<script src="js/core/render/RenderRegistry.js?v=42"></script>
+<script src="js/core/render/RenderScheduler.js?v=42"></script>
+<script src="js/core/render/RenderDispatcher.js?v=42"></script>
+<script src="js/core/render/RenderQueue.js?v=42"></script>
 <!-- PHASE 16.5 — VIEW CACHE & DIRTY TRACKING (ZERO REGRESSION)
      A new, fully separate, page-agnostic layer (see js/core/view/
      ViewLifecycle.js for full documentation) that tracks, per page,
@@ -2484,11 +2484,11 @@ window.addEventListener('DOMContentLoaded',function(){
      matters only for readability — ViewLifecycle.js reads the other
      four defensively (each guarded by an `if (global.X)` check), so
      there is no strict inter-file load-order dependency. -->
-<script src="js/core/view/ViewVersion.js"></script>
-<script src="js/core/view/DirtyTracker.js"></script>
-<script src="js/core/view/ViewCache.js"></script>
-<script src="js/core/view/PageState.js"></script>
-<script src="js/core/view/ViewLifecycle.js"></script>
+<script src="js/core/view/ViewVersion.js?v=42"></script>
+<script src="js/core/view/DirtyTracker.js?v=42"></script>
+<script src="js/core/view/ViewCache.js?v=42"></script>
+<script src="js/core/view/PageState.js?v=42"></script>
+<script src="js/core/view/ViewLifecycle.js?v=42"></script>
 <!-- PHASE 16.6.1 — DOM RECYCLER PILOT INTEGRATION (ZERO REGRESSION)
      Loads the four js/core/dom/ files built in Phase 16.6 so that
      window.DomRecycler (and its dependencies window.DomKeyIndex,
@@ -2512,24 +2512,24 @@ window.addEventListener('DOMContentLoaded',function(){
      files reference Repository, DatabaseService, StorageAdapter,
      RepositoryReadyCoordinator, ShellState, RenderQueue, or
      ViewLifecycle. -->
-<script src="js/core/dom/DomKeyIndex.js"></script>
-<script src="js/core/dom/DomNodeFactory.js"></script>
-<script src="js/core/dom/DomPatch.js"></script>
-<script src="js/core/dom/DomRecycler.js"></script>
-<script src="js/core/shell/ApplicationShell.js"></script>
-<script src="js/core/shell/NavigationManager.js"></script>
+<script src="js/core/dom/DomKeyIndex.js?v=42"></script>
+<script src="js/core/dom/DomNodeFactory.js?v=42"></script>
+<script src="js/core/dom/DomPatch.js?v=42"></script>
+<script src="js/core/dom/DomRecycler.js?v=42"></script>
+<script src="js/core/shell/ApplicationShell.js?v=42"></script>
+<script src="js/core/shell/NavigationManager.js?v=42"></script>
 <!-- PHASE 33 — Modal Engine (Root Cause fix for the floating-window system;
      see docs/phase33/Modal_Engine_Root_Cause_And_Implementation_Report.md).
      Purely additive: observes existing .modal-overlay elements via
      MutationObserver, so no existing classList.add/remove('open') call
      site in this file or in js/modules/*.js was changed. ModalManager.js
      must load last since it is the only one that reads the others. -->
-<script src="js/core/modal/ZIndexEngine.js"></script>
-<script src="js/core/modal/ModalStack.js"></script>
-<script src="js/core/modal/ScrollLockManager.js"></script>
-<script src="js/core/modal/FocusManager.js"></script>
-<script src="js/core/modal/ModalHistoryBridge.js"></script>
-<script src="js/core/modal/ModalManager.js"></script>
+<script src="js/core/modal/ZIndexEngine.js?v=42"></script>
+<script src="js/core/modal/ModalStack.js?v=42"></script>
+<script src="js/core/modal/ScrollLockManager.js?v=42"></script>
+<script src="js/core/modal/FocusManager.js?v=42"></script>
+<script src="js/core/modal/ModalHistoryBridge.js?v=42"></script>
+<script src="js/core/modal/ModalManager.js?v=42"></script>
 <!-- PHASE 17.6 — Safe Mode Boot. Additive-only: after BootManager.js
      completes the boot sequence, marks any entity Repository that never
      became ready (nav-item ✓/✕, a non-blocking banner, and a per-page
@@ -2537,25 +2537,25 @@ window.addEventListener('DOMContentLoaded',function(){
      those modules. Depends on RepositoryReadyCoordinator.js and
      BootManager.js (both already loaded above) — see
      js/core/boot/SafeModeController.js for the full contract. -->
-<script src="js/core/boot/SafeModeController.js"></script>
+<script src="js/core/boot/SafeModeController.js?v=42"></script>
 <!-- PHASE 17.3 — Service Worker registration (offline cache, safe updates,
      faster repeat boot). Additive-only: registers ./service-worker.js after
      window.load and shows its own update banner; see
      js/core/pwa/ServiceWorkerRegistrar.js for the full contract. Placed last
      so it never competes with boot-critical script execution above it. -->
-<script src="js/core/pwa/ServiceWorkerRegistrar.js"></script>
+<script src="js/core/pwa/ServiceWorkerRegistrar.js?v=42"></script>
 <!-- PHASE PWA-INSTALL — wires the persistent "تثبيت التطبيق" card in
      Settings (#installAppCard) to the real install prompt; see
      js/core/pwa/InstallPromptManager.js for the full contract. Loaded
      last, same reasoning as ServiceWorkerRegistrar.js above. -->
-<script src="js/core/pwa/InstallPromptManager.js"></script>
+<script src="js/core/pwa/InstallPromptManager.js?v=42"></script>
 <!-- PHASE PWA-NOTIFICATIONS — local, professional system-tray notifications
      for the app's own alerts (sessions today/soon, overdue tasks, cases
      missing opponent/documents), shown only at app-open time, no external
      server. Wires the #notificationsCard markup above; see
      js/core/pwa/NotificationManager.js for the full contract. Loaded last,
      same reasoning as ServiceWorkerRegistrar.js/InstallPromptManager.js. -->
-<script src="js/core/pwa/NotificationManager.js"></script>
+<script src="js/core/pwa/NotificationManager.js?v=42"></script>
 <!-- PHASE 35 — Voice Input (Speech-to-Text): adds a microphone button to
      every input[type="text"] / textarea field (never to numeric/date/tel/
      email/url/checkbox/file fields) so users can dictate instead of type.
@@ -2563,6 +2563,6 @@ window.addEventListener('DOMContentLoaded',function(){
      MutationObserver picks up every field rendered afterwards (modals,
      DomRecycler-managed pages, etc.). 100% additive — see file header in
      js/core/VoiceInputController.js. -->
-<script src="js/core/VoiceInputController.js"></script>
+<script src="js/core/VoiceInputController.js?v=42"></script>
 </body>
 </html>
