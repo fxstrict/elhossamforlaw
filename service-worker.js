@@ -167,7 +167,18 @@
 // as every previous bump in this file — otherwise a previously-
 // installed PWA keeps serving its old cached shell (missing the new
 // opponents page/modal/scripts) and never picks up these additions.
-var SW_VERSION = 'v38'; // BUGFIX (PHASE PWA-NOTIFICATIONS-CLOSED-APP, cont'd) — v18 fixed the
+// PHASE 38 — Process Server Works Module (أعمال المحضرين): added
+// js/repositories/ProcessServerWorksRepository.js and js/modules/
+// process-server-works.js to PRECACHE_URLS above (mirroring their
+// Opponents counterparts exactly). js/modules/process-server-fields.js
+// is intentionally NOT precached, same treatment js/modules/
+// opponent-fields.js and js/modules/client-fields.js already get
+// (runtime-cached on first fetch instead). SW_VERSION bumped v35 -> v36
+// for the same "Cache Versioning" reason as every previous bump in this
+// file — otherwise a previously-installed PWA keeps serving its old
+// cached shell (missing the new أعمال المحضرين page/modal/scripts) and
+// never picks up these additions.
+var SW_VERSION = 'v39'; // BUGFIX (PHASE PWA-NOTIFICATIONS-CLOSED-APP, cont'd) — v18 fixed the
                          // WRONG-PAGE part (see that entry below) but a real installed WebAPK
                          // (confirmed: appears as its own entry under Settings > Apps, installed via
                          // Chrome's "تثبيت التطبيق") was still opening the tapped notification in a
@@ -297,6 +308,7 @@ var PRECACHE_URLS = [
   'js/repositories/CasesRepository.js',
   'js/repositories/ClientsRepository.js',
   'js/repositories/OpponentsRepository.js',
+  'js/repositories/ProcessServerWorksRepository.js',
   'js/repositories/ClientMessagesRepository.js',
   'js/repositories/ChildrenRepository.js',
   'js/repositories/SessionsRepository.js',
@@ -326,6 +338,7 @@ var PRECACHE_URLS = [
   'js/core/HistoryPanel.js',
   'js/modules/clients.js',
   'js/modules/opponents.js',
+  'js/modules/process-server-works.js',
   'js/modules/client-messages.js',
   'js/modules/fees.js',
   'js/modules/library.js',
