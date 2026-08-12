@@ -2243,6 +2243,7 @@ window.addEventListener('DOMContentLoaded',function(){
   // orchestrating a single hydration render instead (see beginBoot()
   // above). If BootManager is absent/unmanaged, shouldSkipLegacyRender()
   // returns false and this runs exactly as it always has.
+  if(window.ShellNavigationManager)ShellNavigationManager.init();
   if(!(window.BootManager&&BootManager.shouldSkipLegacyRender())){updateBadges();renderDashboard();}
   updateConnectionStatus();
   var db=document.getElementById('driveOpenBtn');if(DRIVE_URL){db.href=DRIVE_URL;db.style.display='';}else db.style.display='none';
