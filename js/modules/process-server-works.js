@@ -1,0 +1,565 @@
+/**
+ * ================================================================
+ * js/modules/process-server-works.js — وحدة أعمال المحضرين | نظام الحسام
+ * ================================================================
+ * PHASE 38 — Process Server Works Module (أعمال المحضرين)
+ *
+ * Built the same way js/modules/opponents.js was (see that file's own
+ * header for the full rationale of every pattern reused here):
+ *   - Reads/writes go through js/repositories/ProcessServerWorksRepository.js
+ *     (own 'processServerWorks' localStorage/IndexedDB entity — never
+ *     touches 'clients'/'cases'/'opponents'/'documents').
+ *   - `data.processServerWorks` is kept as a synced, read-only mirror of
+ *     `processServerWorksRepository.getAll()`, exactly like `data.opponents`.
+ *   - INDEX -> RECORD -> ID translation layer identical to Opponents'
+ *     (`resolvePswIndex`), because index.html's row templates use plain
+ *     onclick="editProcessServerWork(N)" indexes.
+ *   - Soft delete via ProcessServerWorksRepository (`softDelete: true`).
+ *
+ * SECOND RESPONSIBILITY — CLIENT + CASE SELECTORS (single-select each)
+ *   Reuses the exact same 'client-selector-*' CSS classes/markup pattern
+ *   already used by js/modules/clients.js (case's client picker) and
+ *   js/modules/opponents.js (case's opponent picker) — just single-select
+ *   instead of multi-select, since one Process Server Work belongs to
+ *   exactly one client. The case dropdown (#fPswCaseNum, a plain <select>,
+ *   reusing populateCaseDropdown()'s markup style from js/modules/cases.js)
+ *   is re-populated to show ONLY that client's own cases, matched by
+ *   'اسم_الموكل' text — the exact same client<->case name-matching
+ *   convention js/modules/clients.js already relies on (القضايا has no
+ *   formal client-id column; see that file's own comments).
+ *
+ * THIRD RESPONSIBILITY — CLIENT PORTAL VISIBILITY (tri-state)
+ *   'ظهور_في_بوابة_الموكل' is surfaced as a plain <select> in the modal
+ *   (#fPswPortalVisibility) with three options — مخفي / بيانات_فقط /
+ *   بيانات_ومستندات — read by Config/05_Portal.gs when building each
+ *   client's portal page. Defaults to 'مخفي' for every new/legacy record
+ *   (safe-by-default, same philosophy as 'ظاهر_للموكل' on Documents/Tasks).
+ *
+ * Depends on (globals expected from index.html / prior scripts):
+ *   - data, editIdx, ApiService, saveLocal(), toast(), closeModal(),
+ *     val(), uid(), collectForm(), fillForm(), resetForm(),
+ *     confirmDialog(), escapeHtml(), CLIENT_NAME_SEPARATOR,
+ *     _splitClientNames() — same shared globals/helpers every sibling
+ *     module uses (CLIENT_NAME_SEPARATOR/_splitClientNames come from
+ *     js/modules/clients.js, loaded before this file).
+ *   - ProcessServerWorksRepository : js/repositories/ProcessServerWorksRepository.js
+ *   - ProcessServerFields          : js/modules/process-server-fields.js
+ *
+ * Sheet name (GAS): 'أعمال_المحضرين'
+ *
+ * Does NOT touch:
+ *   - Clients, Cases, Opponents, Sessions, Documents, Tasks, Fees,
+ *     Calendar, Library, Templates, Settings, Children
+ *   - js/core/Repository.js, DatabaseService.js, StorageAdapter.js,
+ *     IndexedDBAdapter.js, any sibling *Repository.js
+ * ================================================================
+ */
+
+// escapeHtml fallback — defensive only, mirrors opponents.js.
+if (typeof escapeHtml !== 'function') {
+  var escapeHtml = function (v) {
+    if (v == null) return '';
+    return String(v).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  };
+}
+
+// ================================================================
+// Repository wiring
+// ================================================================
+var ProcessServerWorksRepositoryNS = (typeof module !== 'undefined' && module.exports)
+  ? require('../repositories/ProcessServerWorksRepository.js')
+  : (typeof window !== 'undefined' ? window : this);
+
+var ProcessServerWorksRepository = ProcessServerWorksRepositoryNS && ProcessServerWorksRepositoryNS.ProcessServerWorksRepository;
+
+if (typeof ProcessServerWorksRepository !== 'function') {
+  throw new Error(
+    'process-server-works.js requires js/repositories/ProcessServerWorksRepository.js ' +
+    'to be loaded first (ProcessServerWorksRepository class not found).'
+  );
+}
+
+var PSW_ID_FIELD = 'رقم_العمل';
+var PSW_PORTAL_VISIBILITY_DEFAULT = (ProcessServerWorksRepositoryNS && ProcessServerWorksRepositoryNS.PSW_PORTAL_VISIBILITY_DEFAULT) || 'مخفي';
+
+/** The single ProcessServerWorksRepository instance this module talks to. */
+var processServerWorksRepository = new ProcessServerWorksRepository();
+
+var processServerWorksRepositoryReadyPromise = (function () {
+  var _p = processServerWorksRepository.open().then(function () {
+    syncProcessServerWorksMirror();
+  }).catch(function (err) {
+    if (typeof console !== 'undefined' && console.error) {
+      console.error('ProcessServerWorksRepository failed to open:', err);
+    }
+  });
+  return (typeof RepositoryReadyTimeout !== 'undefined') ? RepositoryReadyTimeout.wrap('processServerWorks', _p) : _p;
+})();
+
+function ensureProcessServerWorksRepositoryReady() {
+  if (processServerWorksRepository.isReady()) return Promise.resolve();
+  return processServerWorksRepositoryReadyPromise;
+}
+
+function syncProcessServerWorksMirror() {
+  if (typeof data !== 'undefined') data.processServerWorks = processServerWorksRepository.getAll();
+}
+
+function resolvePswIndex(list, record) {
+  var id = record ? record[PSW_ID_FIELD] : undefined;
+  for (var i = 0; i < list.length; i++) {
+    if (list[i][PSW_ID_FIELD] === id) return i;
+  }
+  return -1;
+}
+
+// ================================================================
+// RENDER — عرض قائمة أعمال المحضرين (+ تبويبات الكل/مستلم/غير مستلم)
+// ================================================================
+var _pswStatusFilter = 'all';
+
+function filterPswStatus(status) {
+  _pswStatusFilter = status || 'all';
+  document.querySelectorAll('.ps-tab').forEach(function (btn) {
+    btn.classList.toggle('ps-tab-active', btn.getAttribute('data-ps-status') === _pswStatusFilter);
+  });
+  renderProcessServerWorks();
+}
+
+function renderProcessServerWorks() {
+  if (!processServerWorksRepository.isReady()) return;
+
+  var s = (document.getElementById('searchPsw') && typeof val === 'function') ? val('searchPsw').toLowerCase() : '';
+
+  syncProcessServerWorksMirror();
+  var allWorks = data.processServerWorks || [];
+
+  var queryModel = {};
+  if (s) queryModel.search = s;
+  if (_pswStatusFilter === 'received') queryModel.filter = { 'الحالة': 'مستلم' };
+  else if (_pswStatusFilter === 'notReceived') queryModel.filter = { 'الحالة': 'غير مستلم' };
+
+  var rows = processServerWorksRepository.search(queryModel).items;
+  rows = processServerWorksRepository.sort(rows);
+
+  var tb = document.getElementById('pswTableBody');
+  var em = document.getElementById('pswEmpty');
+  var ml = document.getElementById('pswMobileList');
+  var countBadge = document.getElementById('pswCount');
+  if (countBadge) countBadge.textContent = allWorks.length;
+
+  var receivedCountEl = document.getElementById('pswReceivedCount');
+  var notReceivedCountEl = document.getElementById('pswNotReceivedCount');
+  if (receivedCountEl) receivedCountEl.textContent = allWorks.filter(function (w) { return w['الحالة'] === 'مستلم'; }).length;
+  if (notReceivedCountEl) notReceivedCountEl.textContent = allWorks.filter(function (w) { return w['الحالة'] !== 'مستلم'; }).length;
+
+  if (!rows.length) {
+    if (tb) tb.innerHTML = '';
+    if (ml) ml.innerHTML = '';
+    if (em) {
+      em.style.display = '';
+      var emTitle = em.querySelector('h3');
+      if (emTitle) {
+        emTitle.textContent = _pswStatusFilter === 'received' ? 'لا يوجد محاضر مستلمة'
+          : (_pswStatusFilter === 'notReceived' ? 'لا يوجد محاضر غير مستلمة' : 'لا يوجد أعمال محضرين مضافة حتى الآن');
+      }
+    }
+    return;
+  }
+  if (em) em.style.display = 'none';
+
+  function statusBadgeHtml(w) {
+    var received = w['الحالة'] === 'مستلم';
+    return '<span class="badge ' + (received ? 'badge-active' : 'badge-pending') + '">' + (received ? '&#10003; مستلم' : '&#128337; غير مستلم') + '</span>';
+  }
+
+  function desktopPswRowInner(w) {
+    var ri = resolvePswIndex(allWorks, w);
+    return '<td><strong>' + escapeHtml(w['طبيعة_الاعلان'] || '—') + '</strong></td>' +
+      '<td>' + escapeHtml(w['اسم_الموكل'] || '—') + '</td>' +
+      '<td>' + escapeHtml(w['رقم_القضية'] || '—') + '</td>' +
+      '<td>' + escapeHtml(w['المحكمة'] || '—') + '</td>' +
+      '<td>' + escapeHtml(w['تاريخ_الجلسة'] || '—') + '</td>' +
+      '<td>' + statusBadgeHtml(w) + '</td>' +
+      '<td>' +
+        '<button class="btn btn-info btn-sm btn-icon" onclick="viewProcessServerWork(' + ri + ')" title="عرض">&#128065;</button> ' +
+        '<button class="btn btn-ghost btn-sm btn-icon" onclick="editProcessServerWork(' + ri + ')" title="تعديل">&#9998;</button> ' +
+        '<button class="btn btn-danger btn-sm btn-icon" onclick="deleteProcessServerWork(' + ri + ')" title="حذف">&#128465;</button>' +
+      '</td>';
+  }
+
+  function mobilePswCardInner(w) {
+    var ri = resolvePswIndex(allWorks, w);
+    return '<div class="m-card-header">' +
+        '<div class="m-card-title">&#128220; ' + escapeHtml(w['طبيعة_الاعلان'] || 'عمل محضرين') + '</div>' +
+        '<div class="m-card-num">' + statusBadgeHtml(w) + '</div>' +
+      '</div>' +
+      '<div class="m-card-meta">' +
+        (w['اسم_الموكل'] ? '<span>&#128100; ' + escapeHtml(w['اسم_الموكل']) + '</span>' : '') +
+        (w['رقم_القضية'] ? '<span>&#128193; ' + escapeHtml(w['رقم_القضية']) + '</span>' : '') +
+        (w['المحكمة'] ? '<span>&#127963; ' + escapeHtml(w['المحكمة']) + '</span>' : '') +
+        (w['تاريخ_الجلسة'] ? '<span>&#128197; ' + escapeHtml(w['تاريخ_الجلسة']) + '</span>' : '') +
+      '</div>' +
+      '<div class="m-card-actions">' +
+        '<button class="btn btn-info btn-sm" onclick="viewProcessServerWork(' + ri + ')" style="flex:1;">&#128065; عرض</button>' +
+        '<button class="btn btn-ghost btn-sm btn-icon" onclick="editProcessServerWork(' + ri + ')">&#9998;</button>' +
+        '<button class="btn btn-danger btn-sm btn-icon" onclick="deleteProcessServerWork(' + ri + ')">&#128465;</button>' +
+      '</div>';
+  }
+
+  if (tb) tb.innerHTML = rows.map(function (w) { return '<tr>' + desktopPswRowInner(w) + '</tr>'; }).join('');
+  if (ml) ml.innerHTML = rows.map(function (w) { return '<div class="m-card">' + mobilePswCardInner(w) + '</div>'; }).join('');
+}
+
+function searchProcessServerWorks() { renderProcessServerWorks(); }
+
+function _pswDocuments(w) {
+  if (!w) return [];
+  try {
+    var arr = JSON.parse(w['المستندات'] || '[]');
+    return Array.isArray(arr) ? arr : [];
+  } catch (e) { return []; }
+}
+
+// ================================================================
+// CRUD — إنشاء / تحديث / حذف / عرض أعمال المحضرين
+// ================================================================
+async function saveProcessServerWork() {
+  var clientId = document.getElementById('fPswClientId') ? document.getElementById('fPswClientId').value.trim() : '';
+  if (!clientId) {
+    toast('يرجى اختيار الموكل أولاً', 'error');
+    return;
+  }
+
+  await ensureProcessServerWorksRepositoryReady();
+
+  var obj = collectForm('processServerWorks');
+
+  if (window.ProcessServerFields && typeof ProcessServerFields.collect === 'function') {
+    var extended = ProcessServerFields.collect();
+    Object.keys(extended).forEach(function (k) { obj[k] = extended[k]; });
+  }
+
+  if (!obj['الحالة']) obj['الحالة'] = 'غير مستلم';
+  if (!obj['ظهور_في_بوابة_الموكل']) obj['ظهور_في_بوابة_الموكل'] = PSW_PORTAL_VISIBILITY_DEFAULT;
+
+  obj[PSW_ID_FIELD] = obj[PSW_ID_FIELD] || uid();
+  obj['تاريخ_الإنشاء'] = obj['تاريخ_الإنشاء'] || new Date().toISOString();
+  obj['آخر_تحديث'] = new Date().toISOString();
+
+  var idx = editIdx.processServerWorks;
+  var result;
+
+  if (idx >= 0) {
+    var existingId = data.processServerWorks[idx] ? data.processServerWorks[idx][PSW_ID_FIELD] : null;
+    result = await processServerWorksRepository.update(existingId, obj);
+  } else {
+    result = await processServerWorksRepository.create(obj);
+  }
+
+  if (!result || !result.success) {
+    toast('حدث خطأ أثناء حفظ عمل المحضرين', 'error');
+    return;
+  }
+
+  syncProcessServerWorksMirror();
+
+  toast(idx >= 0 ? 'تم تحديث عمل المحضرين' : 'تمت إضافة عمل المحضرين بنجاح', 'success');
+
+  saveLocal();
+  ApiService.syncRow('أعمال_المحضرين', result.record, idx);
+
+  closeModal('modalProcessServerWork');
+  renderProcessServerWorks();
+  if (typeof updateBadges === 'function') updateBadges();
+  if (window.ApplicationShell) { ApplicationShell.markDirty('processServerWorks'); }
+}
+
+function editProcessServerWork(i) {
+  editIdx.processServerWorks = i;
+  var record = data.processServerWorks[i];
+  fillForm('processServerWorks', record);
+  syncPswClientSelectorFromRecord(record);
+  syncPswCaseSelectorFromRecord(record);
+  if (window.ProcessServerFields && typeof ProcessServerFields.fill === 'function') {
+    ProcessServerFields.fill(record);
+  }
+  document.getElementById('modalProcessServerWorkTitle').textContent = 'تعديل عمل المحضرين';
+  document.getElementById('modalProcessServerWork').classList.add('open');
+}
+
+async function deleteProcessServerWork(i) {
+  if (!(await confirmDialog('حذف عمل المحضرين هذا من السجل؟'))) return;
+
+  await ensureProcessServerWorksRepositoryReady();
+
+  var record = data.processServerWorks[i];
+  if (!record) return;
+
+  var id = record[PSW_ID_FIELD];
+
+  ApiService.deleteData('أعمال_المحضرين', i);
+
+  var result = await processServerWorksRepository.delete(id);
+
+  if (!result || !result.success) {
+    toast('حدث خطأ أثناء حذف عمل المحضرين', 'error');
+    return;
+  }
+
+  syncProcessServerWorksMirror();
+  saveLocal();
+  toast('تم حذف عمل المحضرين', 'info');
+  renderProcessServerWorks();
+  if (typeof updateBadges === 'function') updateBadges();
+  if (window.ApplicationShell) { ApplicationShell.markDirty('processServerWorks'); }
+}
+
+async function restoreProcessServerWork(id) {
+  await ensureProcessServerWorksRepositoryReady();
+  var result = await processServerWorksRepository.restore(id);
+  if (!result || !result.success) {
+    toast('حدث خطأ أثناء استرجاع عمل المحضرين', 'error');
+    return;
+  }
+  syncProcessServerWorksMirror();
+  saveLocal();
+  toast('تم استرجاع عمل المحضرين', 'success');
+  renderProcessServerWorks();
+  if (typeof updateBadges === 'function') updateBadges();
+  if (window.ApplicationShell) { ApplicationShell.markDirty('processServerWorks'); }
+}
+
+/**
+ * viewProcessServerWork — عرض بطاقة العمل. تُنشئ Overlay مؤقتاً ديناميكياً
+ * وتُزيله عند الإغلاق، فلا حاجة لتعديل index.html من أجلها.
+ * @param {number} i
+ */
+function viewProcessServerWork(i) {
+  var w = data.processServerWorks[i];
+  if (!w) return;
+  var docs = _pswDocuments(w);
+  var docsHtml = docs.length
+    ? docs.map(function (d) {
+        return d.fileUrl
+          ? '<div>&#128206; <a href="' + d.fileUrl + '" target="_blank">' + escapeHtml(d.name || 'مستند') + '</a></div>'
+          : '<div>&#128206; ' + escapeHtml(d.name || 'مستند') + '</div>';
+      }).join('')
+    : '—';
+
+  var visibilityLabels = { 'مخفي': 'مخفي عن بوابة الموكل', 'بيانات_فقط': 'بيانات العمل فقط ظاهرة بالبوابة', 'بيانات_ومستندات': 'بيانات العمل والمستندات ظاهرة بالبوابة' };
+
+  var html =
+    '<div class="modal-overlay open" id="pswViewOverlay" onclick="if(event.target===this)this.remove();">' +
+      '<div class="modal">' +
+        '<div class="modal-header"><div class="modal-title">&#128220; ' + escapeHtml(w['طبيعة_الاعلان'] || 'عمل محضرين') + '</div><button class="modal-close" onclick="document.getElementById(\'pswViewOverlay\').remove();">&#10005;</button></div>' +
+        '<div class="modal-body">' +
+          '<p><strong>الموكل:</strong> ' + escapeHtml(w['اسم_الموكل'] || '—') + '</p>' +
+          '<p><strong>القضية:</strong> ' + escapeHtml(w['رقم_القضية'] || '—') + (w['عنوان_القضية'] ? ' — ' + escapeHtml(w['عنوان_القضية']) : '') + '</p>' +
+          '<p><strong>رقم المحضرين:</strong> ' + escapeHtml(w['رقم_المحضرين'] || '—') + '</p>' +
+          '<p><strong>المحكمة:</strong> ' + escapeHtml(w['المحكمة'] || '—') + '</p>' +
+          '<p><strong>قلم المحضرين:</strong> ' + escapeHtml(w['قلم_المحضرين'] || '—') + '</p>' +
+          '<p><strong>تاريخ التسليم:</strong> ' + escapeHtml(w['تاريخ_التسليم'] || '—') + '</p>' +
+          '<p><strong>تاريخ الاستلام:</strong> ' + escapeHtml(w['تاريخ_الاستلام'] || '—') + '</p>' +
+          '<p><strong>تاريخ الجلسة:</strong> ' + escapeHtml(w['تاريخ_الجلسة'] || '—') + '</p>' +
+          '<p><strong>الحالة:</strong> ' + escapeHtml(w['الحالة'] || '—') + '</p>' +
+          '<p><strong>الملاحظات:</strong><br>' + escapeHtml(w['الملاحظات'] || '—') + '</p>' +
+          '<p><strong>المستندات:</strong><br>' + docsHtml + '</p>' +
+          '<p><strong>الظهور ببوابة الموكل:</strong> ' + escapeHtml(visibilityLabels[w['ظهور_في_بوابة_الموكل']] || visibilityLabels[PSW_PORTAL_VISIBILITY_DEFAULT]) + '</p>' +
+        '</div>' +
+        '<div class="modal-footer"><button class="btn btn-ghost" onclick="document.getElementById(\'pswViewOverlay\').remove();">إغلاق</button></div>' +
+      '</div>' +
+    '</div>';
+
+  var existing = document.getElementById('pswViewOverlay');
+  if (existing) existing.remove();
+  document.body.insertAdjacentHTML('beforeend', html);
+}
+
+// ================================================================
+// CLIENT SELECTOR (single-select) — اختيار موكل واحد لعمل المحضرين
+// ================================================================
+var _pswSelectedClientId = '';
+
+function togglePswClientSelector(evt) {
+  if (evt) evt.stopPropagation();
+  var panel = document.getElementById('pswClientSelectorPanel');
+  if (!panel) return;
+  var willOpen = !panel.classList.contains('open');
+  document.querySelectorAll('.client-selector-panel').forEach(function (p) { p.classList.remove('open'); });
+  if (willOpen) {
+    panel.classList.add('open');
+    renderPswClientSelectorList();
+    var search = document.getElementById('pswClientSelectorSearch');
+    if (search) { search.value = ''; search.focus(); }
+  }
+}
+
+function renderPswClientSelectorList() {
+  var list = document.getElementById('pswClientSelectorList');
+  if (!list) return;
+  var q = (document.getElementById('pswClientSelectorSearch') ? document.getElementById('pswClientSelectorSearch').value : '').trim().toLowerCase();
+  var all = (data.clients || []).slice().sort(function (a, b) {
+    return String(a['الاسم'] || '').localeCompare(String(b['الاسم'] || ''), 'ar');
+  });
+  var filtered = q ? all.filter(function (c) { return String(c['الاسم'] || '').toLowerCase().indexOf(q) !== -1; }) : all;
+
+  if (!filtered.length) {
+    list.innerHTML = '<div class="client-selector-empty">لا يوجد موكلين مطابقين — يمكنك إضافة موكل جديد من صفحة الموكلين.</div>';
+  } else {
+    list.innerHTML = filtered.map(function (c) {
+      var id = c['رقم_الموكل'];
+      var checked = _pswSelectedClientId === id;
+      return '<div class="client-selector-item' + (checked ? ' selected' : '') + '" onclick="selectPswClient(\'' + id + '\')">' +
+        '<span>' + escapeHtml(c['الاسم'] || '—') + (c['الهاتف'] ? ' <small>(' + escapeHtml(c['الهاتف']) + ')</small>' : '') + '</span>' +
+      '</div>';
+    }).join('');
+  }
+}
+
+function selectPswClient(id) {
+  _pswSelectedClientId = id;
+  var client = (data.clients || []).filter(function (c) { return c['رقم_الموكل'] === id; })[0];
+
+  var idEl = document.getElementById('fPswClientId');
+  var nameEl = document.getElementById('fPswClientNameHidden');
+  if (idEl) idEl.value = id;
+  if (nameEl) nameEl.value = client ? (client['الاسم'] || '') : '';
+
+  renderPswClientSelectorChips();
+  populatePswCaseDropdown(client ? client['الاسم'] : '');
+
+  var panel = document.getElementById('pswClientSelectorPanel');
+  if (panel) panel.classList.remove('open');
+}
+
+function removePswClient() {
+  _pswSelectedClientId = '';
+  var idEl = document.getElementById('fPswClientId');
+  var nameEl = document.getElementById('fPswClientNameHidden');
+  if (idEl) idEl.value = '';
+  if (nameEl) nameEl.value = '';
+  renderPswClientSelectorChips();
+  populatePswCaseDropdown('');
+}
+
+function renderPswClientSelectorChips() {
+  var chips = document.getElementById('pswClientSelectorChips');
+  if (!chips) return;
+  if (!_pswSelectedClientId) {
+    chips.innerHTML = '<span class="client-selector-placeholder">اضغط لاختيار الموكل...</span>';
+    return;
+  }
+  var client = (data.clients || []).filter(function (c) { return c['رقم_الموكل'] === _pswSelectedClientId; })[0];
+  var label = client ? client['الاسم'] : _pswSelectedClientId;
+  chips.innerHTML = '<span class="client-chip">' + escapeHtml(label) +
+    '<button type="button" class="client-chip-remove" onclick="event.stopPropagation();removePswClient()" title="إزالة">&times;</button></span>';
+}
+
+function syncPswClientSelectorFromRecord(record) {
+  _pswSelectedClientId = record ? (record['رقم_الموكل'] || '') : '';
+  var idEl = document.getElementById('fPswClientId');
+  var nameEl = document.getElementById('fPswClientNameHidden');
+  if (idEl) idEl.value = _pswSelectedClientId;
+  if (nameEl) nameEl.value = record ? (record['اسم_الموكل'] || '') : '';
+  renderPswClientSelectorChips();
+}
+
+function resetPswClientSelector() {
+  _pswSelectedClientId = '';
+  renderPswClientSelectorChips();
+  populatePswCaseDropdown('');
+}
+
+// Close the picker panel on outside click (mirrors the client/opponent
+// selectors' own document-level listener; every listener only ever
+// touches its own DOM ids, so all three coexist harmlessly).
+if (typeof document !== 'undefined' && document.addEventListener) {
+  document.addEventListener('click', function () {
+    var panel = document.getElementById('pswClientSelectorPanel');
+    if (panel) panel.classList.remove('open');
+  });
+}
+
+// ================================================================
+// CASE SELECTOR (scoped to the chosen client) — اختيار قضية من قضايا
+// الموكل المختار فقط. Cases have no formal client-id column (see
+// js/modules/clients.js's own comments), so — exactly like that file
+// already does for the case's own client picker — matching is done by
+// 'اسم_الموكل' text, split on CLIENT_NAME_SEPARATOR to tolerate cases
+// that list more than one client name.
+// ================================================================
+function populatePswCaseDropdown(clientName) {
+  var sel = document.getElementById('fPswCaseNum');
+  if (!sel) return;
+  var current = sel.value;
+  sel.innerHTML = '<option value="">-- بدون ربط بقضية محددة --</option>';
+
+  if (!clientName) {
+    sel.disabled = true;
+    return;
+  }
+  sel.disabled = false;
+
+  var name = clientName.trim();
+  var matchingCases = (data.cases || []).filter(function (c) {
+    var names = (typeof _splitClientNames === 'function') ? _splitClientNames(c['اسم_الموكل'] || '') : [(c['اسم_الموكل'] || '').trim()];
+    return names.indexOf(name) !== -1;
+  });
+
+  matchingCases.forEach(function (c) {
+    var num = c['رقم_القضية'] || '';
+    var title = c['عنوان_القضية'] || '';
+    var opt = document.createElement('option');
+    opt.value = num;
+    opt.textContent = num + (title ? ' — ' + title : '');
+    opt.setAttribute('data-case-title', title);
+    if (num === current) opt.selected = true;
+    sel.appendChild(opt);
+  });
+
+  if (!matchingCases.length) {
+    var noneOpt = document.createElement('option');
+    noneOpt.value = '';
+    noneOpt.textContent = '-- لا توجد قضايا مسجلة لهذا الموكل --';
+    noneOpt.disabled = true;
+    sel.appendChild(noneOpt);
+  }
+}
+
+/** onPswCaseChange — autofills the hidden عنوان_القضية field. */
+function onPswCaseChange() {
+  var sel = document.getElementById('fPswCaseNum');
+  var titleEl = document.getElementById('fPswCaseTitle');
+  if (!sel || !titleEl) return;
+  var opt = sel.options[sel.selectedIndex];
+  titleEl.value = opt ? (opt.getAttribute('data-case-title') || '') : '';
+}
+
+function syncPswCaseSelectorFromRecord(record) {
+  var sel = document.getElementById('fPswCaseNum');
+  if (sel) sel.value = record ? (record['رقم_القضية'] || '') : '';
+  onPswCaseChange();
+}
+
+// ================================================================
+// Exports (Node/test harness only — browser globals are the plain
+// function declarations above, same convention as opponents.js)
+// ================================================================
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = {
+    processServerWorksRepository: processServerWorksRepository,
+    renderProcessServerWorks: renderProcessServerWorks,
+    saveProcessServerWork: saveProcessServerWork,
+    editProcessServerWork: editProcessServerWork,
+    deleteProcessServerWork: deleteProcessServerWork,
+    restoreProcessServerWork: restoreProcessServerWork,
+    viewProcessServerWork: viewProcessServerWork,
+    filterPswStatus: filterPswStatus,
+    selectPswClient: selectPswClient,
+    removePswClient: removePswClient,
+    populatePswCaseDropdown: populatePswCaseDropdown
+  };
+}
