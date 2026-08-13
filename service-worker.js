@@ -220,7 +220,7 @@
 // corrected copy — same "Cache Versioning" rule as every previous
 // SW_VERSION bump in this file. No Repository/DatabaseService/IndexedDB
 // code touched — see audit report §11.
-var SW_VERSION = 'v46'; // FORENSIC FIX (Repository-Ready / ViewLifecycle Race) —
+var SW_VERSION = 'v47'; // FORENSIC FIX (Repository-Ready / ViewLifecycle Race) —
                          // js/core/RepositoryReadyCoordinator.js?v=42 is listed in
                          // PRECACHE_URLS below and served cacheFirstIn(SHELL_CACHE), which is
                          // keyed by SW_VERSION (see SHELL_CACHE definition a few lines down), so
