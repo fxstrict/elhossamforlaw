@@ -333,49 +333,205 @@ async function restoreProcessServerWork(id) {
 }
 
 /**
- * viewProcessServerWork — عرض بطاقة العمل. تُنشئ Overlay مؤقتاً ديناميكياً
- * وتُزيله عند الإغلاق، فلا حاجة لتعديل index.html من أجلها.
+ * viewProcessServerWork — عرض ملف عمل المحضرين الكامل، بنفس نظام العرض
+ * المستخدم بالفعل لملف الموكل (viewClient) وملف القضية (viewCase) وملف
+ * الخصم (viewOpponent): نفس الـ Overlay المشترك #modalView
+ * (viewModalTitle/viewModalBody)، ونفس أقسام view-section/view-grid
+ * المرئية والقابلة للطباعة، بدلاً من الـ Overlay المؤقت البسيط الذي كان
+ * يُستخدم سابقًا لهذه الشاشة فقط. لا حاجة لتعديل index.html من أجلها —
+ * #modalView معرَّف هناك بالفعل ومشترك بين كل الوحدات.
  * @param {number} i
  */
 function viewProcessServerWork(i) {
   var w = data.processServerWorks[i];
   if (!w) return;
-  var docs = _pswDocuments(w);
-  var docsHtml = docs.length
-    ? docs.map(function (d) {
-        return d.fileUrl
-          ? '<div>&#128206; <a href="' + d.fileUrl + '" target="_blank">' + escapeHtml(d.name || 'مستند') + '</a></div>'
-          : '<div>&#128206; ' + escapeHtml(d.name || 'مستند') + '</div>';
-      }).join('')
-    : '—';
 
+  // نفس تقنية viewClient/viewCase/viewOpponent بالضبط: تصفير أعلام
+  // العرض الأخرى حتى يعرف printView() (js/modules/clients.js) أي نوع
+  // ملف مفتوح حاليًا، وإخفاء زر "QR الموكل" لأن هذا ليس ملف موكل.
+  window._currentViewCase     = null;
+  window._currentViewClient   = null;
+  window._currentViewOpponent = null;
+  window._currentViewPsw      = w;
+  window._currentViewPswIdx   = i;
+
+  var portalBtn = document.getElementById('viewPortalBtn');
+  if (portalBtn) portalBtn.style.display = 'none';
+
+  document.getElementById('viewModalTitle').innerHTML =
+    '&#128220; ملف عمل المحضرين — ' + escapeHtml(w['طبيعة_الاعلان'] || '');
+  document.getElementById('viewModalBody').innerHTML = buildPswReport(w);
+  document.getElementById('modalView').classList.add('open');
+}
+
+// ================================================================
+// REPORT BUILDER — بناء تقرير عمل المحضرين
+// ================================================================
+
+/**
+ * buildPswReport — يبني نفس هيكل تقرير الموكل/الخصم (buildClientReport
+ * في js/modules/clients.js، buildOpponentReport في js/modules/opponents.js)
+ * لكن لبيانات عمل المحضرين: نفس ترويسة المكتب، ونفس فئات
+ * view-section/view-grid — تحافظ على نفس الحقول التي كانت تُعرض في
+ * الـ Overlay البسيط القديم (الموكل/القضية/رقم المحضرين/المحكمة/قلم
+ * المحضرين/التواريخ/الحالة/الملاحظات/المستندات/ظهور بوابة الموكل)، دون
+ * حذف أي منها.
+ * @param {Object} w  Process Server Work record
+ * @returns {string}
+ */
+function buildPswReport(w) {
+  var today = new Date().toLocaleDateString('ar-EG', {
+    year: 'numeric', month: 'long', day: 'numeric'
+  });
+
+  function f(v) {
+    return (v && String(v).trim()) ? escapeHtml(String(v).trim()) : '—';
+  }
+
+  function vf(label, value) {
+    var v = (value && String(value).trim())
+      ? String(value).trim()
+      : '<span class="empty">—</span>';
+    return '<div class="view-field"><div class="view-label">' + label +
+           '</div><div class="view-value">' + v + '</div></div>';
+  }
+
+  var statusReceived = w['الحالة'] === 'مستلم';
   var visibilityLabels = { 'مخفي': 'مخفي عن بوابة الموكل', 'بيانات_فقط': 'بيانات العمل فقط ظاهرة بالبوابة', 'بيانات_ومستندات': 'بيانات العمل والمستندات ظاهرة بالبوابة' };
 
-  var html =
-    '<div class="modal-overlay open" id="pswViewOverlay" onclick="if(event.target===this)this.remove();">' +
-      '<div class="modal">' +
-        '<div class="modal-header"><div class="modal-title">&#128220; ' + escapeHtml(w['طبيعة_الاعلان'] || 'عمل محضرين') + '</div><button class="modal-close" onclick="document.getElementById(\'pswViewOverlay\').remove();">&#10005;</button></div>' +
-        '<div class="modal-body">' +
-          '<p><strong>الموكل:</strong> ' + escapeHtml(w['اسم_الموكل'] || '—') + '</p>' +
-          '<p><strong>القضية:</strong> ' + escapeHtml(w['رقم_القضية'] || '—') + (w['عنوان_القضية'] ? ' — ' + escapeHtml(w['عنوان_القضية']) : '') + '</p>' +
-          '<p><strong>رقم المحضرين:</strong> ' + escapeHtml(w['رقم_المحضرين'] || '—') + '</p>' +
-          '<p><strong>المحكمة:</strong> ' + escapeHtml(w['المحكمة'] || '—') + '</p>' +
-          '<p><strong>قلم المحضرين:</strong> ' + escapeHtml(w['قلم_المحضرين'] || '—') + '</p>' +
-          '<p><strong>تاريخ التسليم:</strong> ' + escapeHtml(w['تاريخ_التسليم'] || '—') + '</p>' +
-          '<p><strong>تاريخ الاستلام:</strong> ' + escapeHtml(w['تاريخ_الاستلام'] || '—') + '</p>' +
-          '<p><strong>تاريخ الجلسة:</strong> ' + escapeHtml(w['تاريخ_الجلسة'] || '—') + '</p>' +
-          '<p><strong>الحالة:</strong> ' + escapeHtml(w['الحالة'] || '—') + '</p>' +
-          '<p><strong>الملاحظات:</strong><br>' + escapeHtml(w['الملاحظات'] || '—') + '</p>' +
-          '<p><strong>المستندات:</strong><br>' + docsHtml + '</p>' +
-          '<p><strong>الظهور ببوابة الموكل:</strong> ' + escapeHtml(visibilityLabels[w['ظهور_في_بوابة_الموكل']] || visibilityLabels[PSW_PORTAL_VISIBILITY_DEFAULT]) + '</p>' +
-        '</div>' +
-        '<div class="modal-footer"><button class="btn btn-ghost" onclick="document.getElementById(\'pswViewOverlay\').remove();">إغلاق</button></div>' +
-      '</div>' +
-    '</div>';
+  var html = '';
 
-  var existing = document.getElementById('pswViewOverlay');
-  if (existing) existing.remove();
-  document.body.insertAdjacentHTML('beforeend', html);
+  // ---- Report header ----
+  var _officeReport = (window.OfficeProfileService && OfficeProfileService.getDisplayProfile())
+    || { officeName: 'مكتب الحسام للمحاماة', lawyerName: 'المستشار حسام محمد إبراهيم' };
+  html += '<div class="case-report" style="padding:20px;font-family:Cairo,Arial,sans-serif;direction:rtl;">';
+  html += '<div class="report-header" style="text-align:center;border-bottom:2px solid #c9a84c;padding-bottom:14px;margin-bottom:18px;">' +
+    '<div style="font-size:20px;font-weight:900;color:#1a2744;">' + f(_officeReport.officeName) + '</div>' +
+    '<div style="font-size:13px;color:#555;margin-top:4px;">' + f(_officeReport.lawyerName) + '</div>' +
+    '<div style="font-size:15px;font-weight:700;color:#c9a84c;margin-top:10px;">&#128220; ملف عمل المحضرين</div>' +
+  '</div>';
+
+  // ---- بيانات العمل ----
+  html += '<div class="view-section"><div class="view-section-title">&#128203; بيانات العمل</div>' +
+    '<div class="view-grid">' +
+    vf('طبيعة الإعلان',    f(w['طبيعة_الاعلان'])) +
+    vf('الحالة',            statusReceived ? '<span style="color:#1e8449;font-weight:700;">&#10003; مستلم</span>' : '<span style="color:#a04000;font-weight:700;">&#128337; غير مستلم</span>') +
+    vf('الموكل',            f(w['اسم_الموكل'])) +
+    vf('رقم القضية',       f(w['رقم_القضية'])) +
+    (w['عنوان_القضية'] ? vf('عنوان القضية', f(w['عنوان_القضية'])) : '') +
+    vf('رقم المحضرين',      f(w['رقم_المحضرين'])) +
+    vf('المحكمة',           f(w['المحكمة'])) +
+    vf('قلم المحضرين',      f(w['قلم_المحضرين'])) +
+    vf('تاريخ التسليم',    f(w['تاريخ_التسليم'])) +
+    vf('تاريخ الاستلام',   f(w['تاريخ_الاستلام'])) +
+    vf('تاريخ الجلسة',     f(w['تاريخ_الجلسة'])) +
+    vf('الظهور ببوابة الموكل', f(visibilityLabels[w['ظهور_في_بوابة_الموكل']] || visibilityLabels[PSW_PORTAL_VISIBILITY_DEFAULT])) +
+    '</div></div>';
+
+  // ---- الملاحظات ----
+  if (w['الملاحظات'] && w['الملاحظات'].trim()) {
+    html += '<div class="view-section"><div class="view-section-title">&#128221; ملاحظات</div>' +
+      '<div class="view-field-full"><div class="view-value">' + escapeHtml(w['الملاحظات']) + '</div></div>' +
+      '</div>';
+  }
+
+  // ---- المستندات ----
+  var docs = _pswDocuments(w);
+  html += '<div class="view-section"><div class="view-section-title">&#128193; المستندات (' + docs.length + ')</div>';
+  if (docs.length) {
+    html += '<div class="view-field-full"><div class="view-value">' +
+      docs.map(function (d) {
+        return d.fileUrl
+          ? '<a href="' + escapeHtml(d.fileUrl) + '" target="_blank">&#128206; ' + f(d.name || 'مستند') + '</a>'
+          : '&#128206; ' + f(d.name || 'مستند');
+      }).join('<br>') +
+      '</div></div>';
+  } else {
+    html += '<div style="padding:12px;color:#888;font-size:12px;">لا توجد مستندات مرفقة</div>';
+  }
+  html += '</div>';
+
+  // ---- Footer ----
+  html += '<div class="view-footer" style="display:flex;justify-content:space-between;border-top:1px solid #e8e0d0;padding-top:10px;margin-top:18px;font-size:11px;color:#999;">' +
+    '<span>نظام الحسام للمحاماة</span>' +
+    '<span>تاريخ الطباعة: ' + today + '</span>' +
+  '</div>';
+
+  html += '</div>'; // .case-report
+  return html;
+}
+
+// ================================================================
+// PRINT — طباعة ملف عمل المحضرين (يوسّع printView() المشتركة إضافةً)
+// ================================================================
+// نفس تقنية اللف (wrap) المستخدمة في js/modules/opponents.js: printView()
+// الأصلية (معرَّفة في js/modules/clients.js) تبقى دون أي تعديل مباشر؛
+// هذا اللف يضيف فقط حالة "ملف عمل محضرين مفتوح حاليًا" قبل تفويض أي حالة
+// أخرى (موكل/قضية/خصم) لأقرب لفّة سابقة كما هي.
+if (typeof printView === 'function') {
+  var _origPrintViewForPsw = printView;
+  printView = function () {
+    if (window._currentViewPsw) {
+      var body = document.getElementById('viewModalBody');
+      if (!body || !body.innerHTML.trim()) {
+        toast('لا يوجد محتوى لطباعته', 'info');
+        return;
+      }
+      var printContent = (typeof _buildClientPrintDocument === 'function')
+        ? _buildClientPrintDocument(body.innerHTML)
+        : body.innerHTML;
+      var w = window.open('', '_blank', 'width=900,height=1100,scrollbars=yes');
+      if (!w) { toast('افتح النوافذ المنبثقة للطباعة', 'info'); return; }
+      w.document.open();
+      w.document.write(printContent);
+      w.document.close();
+      w.focus();
+      setTimeout(function () { w.print(); }, 600);
+      return;
+    }
+    return _origPrintViewForPsw.apply(this, arguments);
+  };
+}
+
+// ================================================================
+// OVERRIDE viewClient/viewCase/viewOpponent — clear stale
+// _currentViewPsw flag
+// ================================================================
+// Same non-invasive wrap technique used throughout this file and by
+// js/modules/opponents.js's own wraps of viewClient/viewCase: opening a
+// client/case/opponent file after a process-server-work file (same
+// session, no reload) must not leave window._currentViewPsw set, or
+// printView() above would keep printing the psw template instead of
+// whichever file is actually open. Additive only — clients.js/cases.js/
+// opponents.js themselves are never edited.
+if (typeof viewClient === 'function') {
+  var _origViewClientForPsw = viewClient;
+  viewClient = function (i) {
+    var r = _origViewClientForPsw.apply(this, arguments);
+    window._currentViewPsw = null;
+    window._currentViewPswIdx = null;
+    return r;
+  };
+}
+
+if (typeof viewCase === 'function') {
+  var _origViewCaseForPsw = viewCase;
+  viewCase = function (i) {
+    var r = _origViewCaseForPsw.apply(this, arguments);
+    window._currentViewPsw = null;
+    window._currentViewPswIdx = null;
+    return r;
+  };
+}
+
+if (typeof viewOpponent === 'function') {
+  var _origViewOpponentForPsw = viewOpponent;
+  viewOpponent = function (i) {
+    var r = _origViewOpponentForPsw.apply(this, arguments);
+    window._currentViewPsw = null;
+    window._currentViewPswIdx = null;
+    return r;
+  };
 }
 
 // ================================================================
@@ -557,6 +713,7 @@ if (typeof module !== 'undefined' && module.exports) {
     deleteProcessServerWork: deleteProcessServerWork,
     restoreProcessServerWork: restoreProcessServerWork,
     viewProcessServerWork: viewProcessServerWork,
+    buildPswReport: buildPswReport,
     filterPswStatus: filterPswStatus,
     selectPswClient: selectPswClient,
     removePswClient: removePswClient,

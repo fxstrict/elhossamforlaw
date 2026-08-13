@@ -165,6 +165,8 @@ function renderOpponents() {
       '<td style="direction:ltr;text-align:right;">' + escapeHtml(o['الرقم_القومي'] || '—') + '</td>' +
       '<td>' + escapeHtml(o['الوظيفة'] || '—') + '</td>' +
       '<td>' +
+        '<button class="btn btn-call btn-sm btn-icon" onclick="callOpponent(' + ri + ')" title="اتصال هاتفي">&#128222;</button> ' +
+        '<button class="btn btn-whatsapp btn-sm btn-icon" onclick="whatsappOpponent(' + ri + ')" title="محادثة واتساب">&#128172;</button> ' +
         '<button class="btn btn-info btn-sm btn-icon" onclick="viewOpponent(' + ri + ')" title="عرض">&#128065;</button> ' +
         '<button class="btn btn-ghost btn-sm btn-icon" onclick="editOpponent(' + ri + ')" title="تعديل">&#9998;</button> ' +
         '<button class="btn btn-danger btn-sm btn-icon" onclick="deleteOpponent(' + ri + ')" title="حذف">&#128465;</button>' +
@@ -174,15 +176,21 @@ function renderOpponents() {
   function mobileOpponentCardInner(o) {
     var ri = resolveOpponentIndex(allOpponents, o);
     var phone = _opponentFirstPhone(o);
+    var addr = _opponentAddresses(o)[0];
+    var addrText = addr ? (addr.detail || '') : (o['العنوان'] || '');
     return '<div class="m-card-header">' +
         '<div class="m-card-title">&#129333; ' + escapeHtml(o['الاسم'] || '—') + '</div>' +
         '<div class="m-card-num">' + escapeHtml(o['النوع'] || '—') + '</div>' +
       '</div>' +
       '<div class="m-card-meta">' +
         (phone ? '<span>&#128222; ' + escapeHtml(phone) + '</span>' : '') +
+        (o['الرقم_القومي'] ? '<span>&#128179; ' + escapeHtml(o['الرقم_القومي']) + '</span>' : '') +
+        (addrText ? '<span>&#127968; ' + escapeHtml(addrText) + '</span>' : '') +
         (o['الوظيفة'] ? '<span>&#128188; ' + escapeHtml(o['الوظيفة']) + '</span>' : '') +
       '</div>' +
       '<div class="m-card-actions">' +
+        '<button class="btn btn-call btn-sm btn-icon" onclick="callOpponent(' + ri + ')" title="اتصال هاتفي">&#128222;</button>' +
+        '<button class="btn btn-whatsapp btn-sm btn-icon" onclick="whatsappOpponent(' + ri + ')" title="محادثة واتساب">&#128172;</button>' +
         '<button class="btn btn-info btn-sm" onclick="viewOpponent(' + ri + ')" style="flex:1;">&#128065; عرض</button>' +
         '<button class="btn btn-ghost btn-sm btn-icon" onclick="editOpponent(' + ri + ')">&#9998;</button>' +
         '<button class="btn btn-danger btn-sm btn-icon" onclick="deleteOpponent(' + ri + ')">&#128465;</button>' +
@@ -212,6 +220,45 @@ function _opponentAddresses(o) {
 function _opponentFirstPhone(o) {
   var p = _opponentPhones(o);
   return p.length ? p[0].number : '';
+}
+
+// ================================================================
+// اتصال فون / محادثة واتساب — أزرار الاتصال المباشر بالخصم من الصف
+// ================================================================
+// نفس نمط callClient()/whatsappClient() تمامًا (js/modules/clients.js)،
+// بالاعتماد على أول رقم هاتف مسجَّل للخصم (_opponentFirstPhone) بدلاً من
+// عمود 'الهاتف' المفرد الذي تستخدمه بطاقة الموكل — الخصوم تخزّن أرقامها
+// كمصفوفة JSON في 'أرقام_الهواتف' (انظر _opponentPhones أعلاه). بيانات
+// خارجية بحتة (روابط tel:/wa.me) لا تُنشئ ولا تُعدّل أي شيء في حاوية
+// التخزين (data.opponents). يعتمد على normalizeEgyptPhoneForWhatsapp()
+// و sanitizeClientUrl() المعرَّفتين عالميًا في js/modules/clients.js
+// (محمَّل قبل هذا الملف — انظر index.html)، مع حارس دفاعي لو تغيّر ترتيب
+// التحميل يومًا ما.
+
+/**
+ * callOpponent — يفتح تطبيق الاتصال بأول رقم هاتف مسجَّل للخصم رقمه i.
+ * @param {number} i  0-based index في data.opponents
+ */
+function callOpponent(i) {
+  var o = data.opponents[i];
+  var phone = _opponentFirstPhone(o);
+  if (!phone) { toast('لا يوجد رقم هاتف مسجل لهذا الخصم', 'error'); return; }
+  window.location.href = 'tel:' + phone;
+}
+
+/**
+ * whatsappOpponent — يفتح محادثة واتساب مع الخصم رقمه i في تبويب جديد.
+ * @param {number} i  0-based index في data.opponents
+ */
+function whatsappOpponent(i) {
+  var o = data.opponents[i];
+  var phone = _opponentFirstPhone(o);
+  if (!phone) { toast('لا يوجد رقم هاتف مسجل لهذا الخصم', 'error'); return; }
+  var waNumber = (typeof normalizeEgyptPhoneForWhatsapp === 'function') ? normalizeEgyptPhoneForWhatsapp(phone) : '';
+  if (!waNumber) { toast('رقم الهاتف غير صالح لفتح واتساب', 'error'); return; }
+  var url = 'https://wa.me/' + waNumber;
+  if (typeof sanitizeClientUrl === 'function') url = sanitizeClientUrl(url);
+  window.open(url, '_blank', 'noopener');
 }
 
 // ================================================================
@@ -319,37 +366,237 @@ async function restoreOpponent(id) {
 }
 
 /**
- * viewOpponent — عرض بطاقة الخصم. تُنشئ Overlay مؤقتاً ديناميكياً
- * وتُزيله عند الإغلاق، فلا حاجة لتعديل index.html من أجلها.
+ * viewOpponent — عرض ملف الخصم الكامل، بنفس نظام العرض المستخدم بالفعل
+ * لملف الموكل (viewClient) وملف القضية (viewCase): نفس الـ Overlay
+ * المشترك #modalView (viewModalTitle/viewModalBody)، ونفس أقسام
+ * view-section/view-grid المرئية والقابلة للطباعة، بدلاً من الـ Overlay
+ * المؤقت البسيط الذي كان يُستخدم سابقًا لهذه الشاشة فقط. لا حاجة لتعديل
+ * index.html من أجلها — #modalView معرَّف هناك بالفعل ومشترك بين كل
+ * الوحدات (انظر تعليق viewClient في js/modules/clients.js).
  * @param {number} i
  */
 function viewOpponent(i) {
   var o = data.opponents[i];
   if (!o) return;
-  var phones = _opponentPhones(o).map(function (p) { return escapeHtml(p.type) + ': ' + escapeHtml(p.number); }).join('<br>') || '—';
-  var addresses = _opponentAddresses(o).map(function (a) { return escapeHtml(a.type) + ': ' + escapeHtml(a.detail); }).join('<br>') || '—';
 
-  var html =
-    '<div class="modal-overlay open" id="opponentViewOverlay" onclick="if(event.target===this)this.remove();">' +
-      '<div class="modal">' +
-        '<div class="modal-header"><div class="modal-title">&#129333; ' + escapeHtml(o['الاسم'] || '—') + '</div><button class="modal-close" onclick="document.getElementById(\'opponentViewOverlay\').remove();">&#10005;</button></div>' +
-        '<div class="modal-body">' +
-          '<p><strong>النوع:</strong> ' + escapeHtml(o['النوع'] || '—') + '</p>' +
-          '<p><strong>الرقم القومي:</strong> ' + escapeHtml(o['الرقم_القومي'] || '—') + '</p>' +
-          '<p><strong>الجنسية:</strong> ' + escapeHtml(o['الجنسية'] || '—') + '</p>' +
-          '<p><strong>رقم جواز السفر:</strong> ' + escapeHtml(o['رقم_جواز_السفر'] || '—') + '</p>' +
-          '<p><strong>الوظيفة:</strong> ' + escapeHtml(o['الوظيفة'] || '—') + '</p>' +
-          '<p><strong>جهة العمل:</strong> ' + escapeHtml(o['جهة_العمل'] || '—') + '</p>' +
-          '<p><strong>الهواتف:</strong><br>' + phones + '</p>' +
-          '<p><strong>العناوين:</strong><br>' + addresses + '</p>' +
-        '</div>' +
-        '<div class="modal-footer"><button class="btn btn-ghost" onclick="document.getElementById(\'opponentViewOverlay\').remove();">إغلاق</button></div>' +
-      '</div>' +
-    '</div>';
+  // نفس تقنية viewClient/viewCase بالضبط: تصفير أعلام العرض الأخرى حتى
+  // يعرف printView() (js/modules/clients.js) أي نوع ملف مفتوح حاليًا،
+  // وإخفاء زر "QR الموكل" لأن الخصم ليس له بوابة موكل.
+  window._currentViewCase     = null;
+  window._currentViewClient   = null;
+  window._currentViewOpponent = o;
+  window._currentViewOpponentIdx = i;
+  window._currentViewPsw       = null;
 
-  var existing = document.getElementById('opponentViewOverlay');
-  if (existing) existing.remove();
-  document.body.insertAdjacentHTML('beforeend', html);
+  var portalBtn = document.getElementById('viewPortalBtn');
+  if (portalBtn) portalBtn.style.display = 'none';
+
+  document.getElementById('viewModalTitle').innerHTML =
+    '&#129333; ملف الخصم — ' + escapeHtml(o['الاسم'] || '');
+  document.getElementById('viewModalBody').innerHTML = buildOpponentReport(o);
+  document.getElementById('modalView').classList.add('open');
+}
+
+// ================================================================
+// REPORT BUILDER — بناء تقرير الخصم
+// ================================================================
+
+/**
+ * buildOpponentReport — يبني نفس هيكل تقرير الموكل (buildClientReport في
+ * js/modules/clients.js) لكن لبيانات الخصم: نفس ترويسة المكتب، ونفس
+ * فئات view-section/view-grid، زائد قسم "القضايا المرتبطة" التي يظهر
+ * فيها هذا الخصم — إما عبر عمود 'رقم_الخصوم' الحديث (مصفوفة JSON من
+ * معرّفات الخصوم، يكتبه محدد الخصوم المتعدد في نموذج القضية — انظر
+ * toggleCaseOpponent أعلاه)، أو عبر الحقل النصي القديم 'اسم_الخصم' لأي
+ * قضية أُنشئت قبل هذا المحدد. مطابقة اسمية احتياطية فقط عند غياب المعرّف.
+ * @param {Object} o  Opponent record
+ * @returns {string}
+ */
+function buildOpponentReport(o) {
+  var today = new Date().toLocaleDateString('ar-EG', {
+    year: 'numeric', month: 'long', day: 'numeric'
+  });
+
+  function f(v) {
+    return (v && String(v).trim()) ? escapeHtml(String(v).trim()) : '—';
+  }
+
+  function vf(label, value) {
+    var v = (value && String(value).trim())
+      ? String(value).trim()
+      : '<span class="empty">—</span>';
+    return '<div class="view-field"><div class="view-label">' + label +
+           '</div><div class="view-value">' + v + '</div></div>';
+  }
+
+  var opponentId   = o[OPPONENTS_ID_FIELD];
+  var opponentName = (o['الاسم'] || '').trim();
+  var linkedCases = (data.cases || []).filter(function (cs) {
+    if (opponentId && cs['رقم_الخصوم']) {
+      try {
+        var ids = JSON.parse(cs['رقم_الخصوم']);
+        if (Array.isArray(ids) && ids.indexOf(opponentId) !== -1) return true;
+      } catch (e) { /* legacy/malformed value — fall through to name match */ }
+    }
+    return opponentName && (cs['اسم_الخصم'] || '').trim() === opponentName;
+  });
+
+  var html = '';
+
+  // ---- Report header ----
+  var _officeReport = (window.OfficeProfileService && OfficeProfileService.getDisplayProfile())
+    || { officeName: 'مكتب الحسام للمحاماة', lawyerName: 'المستشار حسام محمد إبراهيم' };
+  html += '<div class="case-report" style="padding:20px;font-family:Cairo,Arial,sans-serif;direction:rtl;">';
+  html += '<div class="report-header" style="text-align:center;border-bottom:2px solid #c9a84c;padding-bottom:14px;margin-bottom:18px;">' +
+    '<div style="font-size:20px;font-weight:900;color:#1a2744;">' + f(_officeReport.officeName) + '</div>' +
+    '<div style="font-size:13px;color:#555;margin-top:4px;">' + f(_officeReport.lawyerName) + '</div>' +
+    '<div style="font-size:15px;font-weight:700;color:#c9a84c;margin-top:10px;">&#129333; ملف الخصم</div>' +
+  '</div>';
+
+  // ---- Opponent details ----
+  html += '<div class="view-section"><div class="view-section-title">&#129333; البيانات الشخصية</div>' +
+    '<div class="view-grid">' +
+    vf('الاسم الكامل',       f(o['الاسم'])) +
+    vf('نوع الخصم',          f(o['النوع'])) +
+    vf('الرقم القومي',       f(o['الرقم_القومي'])) +
+    vf('الوظيفة',             f(o['الوظيفة'])) +
+    vf('جهة العمل',           f(o['جهة_العمل'])) +
+    (o['الجنسية']        ? vf('الجنسية', f(o['الجنسية'])) : '') +
+    (o['رقم_جواز_السفر'] ? vf('رقم جواز السفر', f(o['رقم_جواز_السفر'])) : '') +
+    '</div></div>';
+
+  // ---- أرقام الهواتف ----
+  var _phones = _opponentPhones(o);
+  html += '<div class="view-section"><div class="view-section-title">&#128222; أرقام الهواتف</div>';
+  if (_phones.length) {
+    html += '<div class="view-field-full"><div class="view-value">' +
+      _phones.map(function (p) { return escapeHtml((p.type || '') + ': ' + (p.number || '')); }).join('<br>') +
+      '</div></div>';
+  } else {
+    html += '<div style="padding:12px;color:#888;font-size:12px;">لا توجد أرقام هواتف مسجلة</div>';
+  }
+  html += '</div>';
+
+  // ---- العناوين ----
+  var _addrs = _opponentAddresses(o);
+  html += '<div class="view-section"><div class="view-section-title">&#128205; العناوين</div>';
+  if (_addrs.length) {
+    html += '<div class="view-field-full"><div class="view-value">' +
+      _addrs.map(function (a) { return escapeHtml((a.type || '') + ': ' + (a.detail || '')); }).join('<br>') +
+      '</div></div>';
+  } else {
+    html += '<div style="padding:12px;color:#888;font-size:12px;">لا توجد عناوين مسجلة</div>';
+  }
+  html += '</div>';
+
+  // ---- Notes ----
+  if (o['ملاحظات'] && o['ملاحظات'].trim()) {
+    html += '<div class="view-section"><div class="view-section-title">&#128221; ملاحظات</div>' +
+      '<div class="view-field-full"><div class="view-value">' + escapeHtml(o['ملاحظات']) + '</div></div>' +
+      '</div>';
+  }
+
+  // ---- Linked cases ----
+  html += '<div class="view-section"><div class="view-section-title">&#9878; القضايا المرتبطة (' + linkedCases.length + ' قضية)</div>';
+  if (!linkedCases.length) {
+    html += '<div style="padding:12px;color:#888;font-size:12px;">لا توجد قضايا مسجلة ضد هذا الخصم</div>';
+  } else {
+    html += '<div class="hsm-table-scroll"><table style="width:100%;min-width:560px;font-size:12px;border-collapse:collapse;">' +
+      '<tr style="background:#f5f0e8;">' +
+        '<th style="padding:7px 10px;text-align:right;border:1px solid #e8e0d0;">رقم القضية</th>' +
+        '<th style="padding:7px 10px;text-align:right;border:1px solid #e8e0d0;">العنوان</th>' +
+        '<th style="padding:7px 10px;text-align:right;border:1px solid #e8e0d0;">النوع</th>' +
+        '<th style="padding:7px 10px;text-align:right;border:1px solid #e8e0d0;">الحالة</th>' +
+        '<th style="padding:7px 10px;text-align:right;border:1px solid #e8e0d0;">الجلسة القادمة</th>' +
+      '</tr>';
+    linkedCases.forEach(function (cs) {
+      html += '<tr>' +
+        '<td style="padding:7px 10px;border:1px solid #e8e0d0;font-weight:700;color:#c9a84c;">' + f(cs['رقم_القضية']) + '</td>' +
+        '<td style="padding:7px 10px;border:1px solid #e8e0d0;">' + f(cs['عنوان_القضية']) + '</td>' +
+        '<td style="padding:7px 10px;border:1px solid #e8e0d0;">' + f(cs['نوع_الدعوى']) + '</td>' +
+        '<td style="padding:7px 10px;border:1px solid #e8e0d0;">' + f(cs['الحالة']) + '</td>' +
+        '<td style="padding:7px 10px;border:1px solid #e8e0d0;">' +
+          (cs['تاريخ_الجلسة_القادمة']
+            ? new Date(cs['تاريخ_الجلسة_القادمة']).toLocaleDateString('ar-EG')
+            : '—') +
+        '</td>' +
+      '</tr>';
+    });
+    html += '</table></div>';
+  }
+  html += '</div>';
+
+  // ---- Footer ----
+  html += '<div class="view-footer" style="display:flex;justify-content:space-between;border-top:1px solid #e8e0d0;padding-top:10px;margin-top:18px;font-size:11px;color:#999;">' +
+    '<span>نظام الحسام للمحاماة</span>' +
+    '<span>تاريخ الطباعة: ' + today + '</span>' +
+  '</div>';
+
+  html += '</div>'; // .case-report
+  return html;
+}
+
+// ================================================================
+// PRINT — طباعة ملف الخصم (يوسّع printView() المشتركة إضافةً لا تعديلاً)
+// ================================================================
+// نفس تقنية اللف (wrap) التي يعتمدها هذا الملف بالفعل مع
+// resetForm/editCase/saveCase أعلاه: printView() الأصلية (معرَّفة في
+// js/modules/clients.js) تبقى دون أي تعديل مباشر؛ هذا اللف يضيف فقط حالة
+// "ملف خصم مفتوح حاليًا" قبل تفويض أي حالة أخرى (موكل/قضية) للدالة
+// الأصلية كما هي.
+if (typeof printView === 'function') {
+  var _origPrintViewForOpponents = printView;
+  printView = function () {
+    if (window._currentViewOpponent) {
+      var body = document.getElementById('viewModalBody');
+      if (!body || !body.innerHTML.trim()) {
+        toast('لا يوجد محتوى لطباعته', 'info');
+        return;
+      }
+      var printContent = (typeof _buildClientPrintDocument === 'function')
+        ? _buildClientPrintDocument(body.innerHTML)
+        : body.innerHTML;
+      var w = window.open('', '_blank', 'width=900,height=1100,scrollbars=yes');
+      if (!w) { toast('افتح النوافذ المنبثقة للطباعة', 'info'); return; }
+      w.document.open();
+      w.document.write(printContent);
+      w.document.close();
+      w.focus();
+      setTimeout(function () { w.print(); }, 600);
+      return;
+    }
+    return _origPrintViewForOpponents.apply(this, arguments);
+  };
+}
+
+// ================================================================
+// OVERRIDE viewClient/viewCase — clear stale _currentViewOpponent flag
+// ================================================================
+// Same non-invasive wrap technique used everywhere in this file (and by
+// viewClient's own wrap of viewCase in js/modules/clients.js): opening a
+// client or case file after an opponent file (same session, no reload)
+// must not leave window._currentViewOpponent set, or printView() above
+// would keep printing the opponent template instead of the client/case
+// one that's actually open. Additive only — clients.js/cases.js
+// themselves are never edited.
+if (typeof viewClient === 'function') {
+  var _origViewClientForOpponents = viewClient;
+  viewClient = function (i) {
+    var r = _origViewClientForOpponents.apply(this, arguments);
+    window._currentViewOpponent = null;
+    window._currentViewOpponentIdx = null;
+    return r;
+  };
+}
+
+if (typeof viewCase === 'function') {
+  var _origViewCaseForOpponents = viewCase;
+  viewCase = function (i) {
+    var r = _origViewCaseForOpponents.apply(this, arguments);
+    window._currentViewOpponent = null;
+    window._currentViewOpponentIdx = null;
+    return r;
+  };
 }
 
 // ================================================================
@@ -548,6 +795,9 @@ if (typeof module !== 'undefined' && module.exports) {
     deleteOpponent: deleteOpponent,
     restoreOpponent: restoreOpponent,
     viewOpponent: viewOpponent,
+    buildOpponentReport: buildOpponentReport,
+    callOpponent: callOpponent,
+    whatsappOpponent: whatsappOpponent,
     toggleCaseOpponent: toggleCaseOpponent,
     removeCaseOpponent: removeCaseOpponent,
     syncCaseOpponentSelectorFromField: syncCaseOpponentSelectorFromField,
