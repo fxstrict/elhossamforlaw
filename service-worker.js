@@ -220,7 +220,24 @@
 // corrected copy — same "Cache Versioning" rule as every previous
 // SW_VERSION bump in this file. No Repository/DatabaseService/IndexedDB
 // code touched — see audit report §11.
-var SW_VERSION = 'v47'; // FORENSIC FIX (Repository-Ready / ViewLifecycle Race) —
+var SW_VERSION = 'v48'; // RANK 1 FIX (Android Fixed-Surface Reduction) —
+                         // css/components.css?v=42 is listed in PRECACHE_URLS below and
+                         // served cacheFirstIn(SHELL_CACHE), which is keyed by SW_VERSION
+                         // (see SHELL_CACHE definition a few lines down), so an already-
+                         // installed client keeps serving its OLD cached copy of that file
+                         // forever until SW_VERSION changes — same "Cache Versioning" rule
+                         // as every previous SW_VERSION bump in this file. .modal-overlay's
+                         // default display was just changed from display:flex (always in
+                         // the render tree, hidden only via opacity:0) to display:none,
+                         // with @starting-style + transition-behavior:allow-discrete added
+                         // so the existing .25s opacity/transform fade-in/out still plays
+                         // exactly as before — see css/components.css for the full
+                         // root-cause note. No HTML/JS changed, PRECACHE_URLS itself is
+                         // unchanged (no file added/removed/renamed) — this bump only
+                         // regenerates SHELL_CACHE's contents under the new 'ahp-shell-v48'
+                         // name so it re-fetches every listed URL, components.css included.
+                         // No other file/line in this file touched.
+// (v47 note, kept for history) FORENSIC FIX (Repository-Ready / ViewLifecycle Race) —
                          // js/core/RepositoryReadyCoordinator.js?v=42 is listed in
                          // PRECACHE_URLS below and served cacheFirstIn(SHELL_CACHE), which is
                          // keyed by SW_VERSION (see SHELL_CACHE definition a few lines down), so
