@@ -60,18 +60,46 @@
 .search-wrap .icon{position:absolute;right:11px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:15px;pointer-events:none;}
 .search-wrap input{padding-right:38px;}
 
-.modal-overlay{position:fixed;inset:0;background:rgba(30,52,82,0.6);backdrop-filter:blur(4px);z-index:var(--z-modal,200);display:flex;align-items:center;justify-content:center;padding:14px;opacity:0;pointer-events:none;transition:opacity .25s;}
+/* PHASE UX-BUGFIX — ANDROID FIXED-SURFACE REDUCTION (RANK 1 FIX)
+   ------------------------------------------------------------------
+   Root cause investigation (see docs/): all 17 .modal-overlay instances
+   used to stay in the render tree at all times (display:flex even while
+   closed, hidden only via opacity:0/pointer-events:none), each one a
+   full-viewport position:fixed + backdrop-filter surface — 17 permanent
+   compositing/raster candidates competing for Android's smaller GPU
+   budget during scroll, independent of whether any modal was open.
+   Fix: closed overlays are now removed from the render tree entirely
+   (display:none) so only the CSS/JS that follow keep the exact same
+   fade + scale animation, timing, backdrop-filter, z-index and
+   open/close behavior as before — confirmed no JS depends on measuring
+   a closed modal (FocusManager only measures after `.open` is already
+   applied; ModalStack/ModalManager do not read layout of closed
+   overlays). display participates in the transition via
+   transition-behavior:allow-discrete (Chrome/Android Chrome 117+) so it
+   flips to/from `none` only at the end of the .25s opacity transition,
+   and @starting-style supplies the "before" frame both elements need
+   the very first time they go from not-rendered to rendered, so the
+   fade-in/scale-in still animates instead of popping in. No HTML, JS,
+   backdrop-filter, z-index, or modal design changed. */
+.modal-overlay{position:fixed;inset:0;background:rgba(30,52,82,0.6);backdrop-filter:blur(4px);z-index:var(--z-modal,200);display:none;align-items:center;justify-content:center;padding:14px;opacity:0;pointer-events:none;transition:opacity .25s,display .25s allow-discrete;}
 /* PHASE 33 — Modal Engine (js/core/modal/ModalManager.js). Applied only by
    the engine, only to a modal-overlay that is open but NOT the topmost of
    a stack of 2+. Hides the duplicated backdrop/box of every background
    modal instead of letting stacked backdrops compound. The element stays
    technically "open" (state preserved) but is fully invisible and inert
    until it becomes top again. !important is required to win over the
-   .open rule below on the same element. */
+   .open rule below on the same element. Still display:flex (still has
+   .open), so it remains correctly excluded from RANK 1's display:none. */
 .modal-overlay--stacked-hidden{opacity:0 !important;pointer-events:none !important;}
-.modal-overlay.open{padding-top:max(14px,env(safe-area-inset-top));opacity:1;pointer-events:all;}
+.modal-overlay.open{display:flex;padding-top:max(14px,env(safe-area-inset-top));opacity:1;pointer-events:all;}
+@starting-style{
+  .modal-overlay.open{opacity:0;}
+}
 .modal{background:#FFFFFF;border:1px solid rgba(201,168,76,0.25);border-radius:16px;width:100%;max-width:680px;max-height:92vh;max-height:92dvh;overflow-y:auto;transform:scale(.95) translateY(10px);transition:transform .25s;}
 .modal-overlay.open .modal{transform:scale(1) translateY(0);}
+@starting-style{
+  .modal-overlay.open .modal{transform:scale(.95) translateY(10px);}
+}
 .modal-wide{max-width:820px;}
 .modal-header{padding:18px 22px;border-bottom:1px solid rgba(0,0,0,0.07);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--navy-lt);z-index:10;}
 .modal-title{font-size:16px;font-weight:700;}.modal-title .icon{color:var(--gold);margin-left:7px;}
