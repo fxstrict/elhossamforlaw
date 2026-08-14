@@ -12,27 +12,84 @@
 
 /* -----------------------------------------------------------------
    Today Center (مركز اليوم) — Priority 1
+   PHASE 30 — redesigned as a card: clock + Hijri/Gregorian columns +
+   flip-calendar tile on top, a scrollable holidays strip underneath.
+   Structure/markup is produced by renderTodayCenterWidget() in
+   js/modules/dashboard.js.
    ----------------------------------------------------------------- */
 .today-center{
-  display:flex;flex-wrap:nowrap;align-items:center;justify-content:flex-start;
-  gap:10px;background:var(--navy-lt);border:1px solid rgba(201,168,76,0.25);
-  border-radius:999px;padding:8px 16px;margin-bottom:18px;
+  display:block;background:var(--navy-lt);border:1px solid rgba(201,168,76,0.25);
+  border-radius:var(--radius-lg,18px);padding:14px 14px 10px;margin-bottom:18px;
   box-shadow:var(--shadow-sm);cursor:pointer;
-  transition:transform var(--transition),box-shadow var(--transition),border-color var(--transition);
+  transition:box-shadow var(--transition),border-color var(--transition);
 }
 .today-center:hover,.today-center:focus-visible{
-  transform:translateY(-1px);box-shadow:var(--shadow-md,var(--shadow-sm));
-  border-color:rgba(201,168,76,0.45);outline:none;
+  box-shadow:var(--shadow-md,var(--shadow-sm));border-color:rgba(201,168,76,0.45);outline:none;
 }
-.today-center-icon{font-size:14px;line-height:1;flex-shrink:0;}
-.today-center-dates{
-  display:flex;align-items:baseline;flex-wrap:wrap;gap:6px;flex:1;min-width:0;
+
+.today-center-main{display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+
+/* Clock */
+.tc-clock{
+  position:relative;flex:0 0 auto;width:82px;height:82px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;cursor:pointer;
+  background:#fff;
 }
-.today-center-day{font-size:12.5px;color:var(--gold-dk);font-weight:600;white-space:nowrap;}
-.today-center-gregorian{font-size:12.5px;font-weight:700;color:var(--steel);white-space:nowrap;}
-.today-center-hijri{font-size:11.5px;color:var(--muted);white-space:nowrap;}
-.today-center-hijri::before{content:"\00b7";margin-inline-end:6px;color:var(--muted);}
-.today-center-time{font-size:14px;font-weight:700;color:var(--steel);letter-spacing:.3px;white-space:nowrap;}
+.tc-clock-ring{position:absolute;inset:0;width:100%;height:100%;transform:rotate(-90deg);}
+.tc-ring-bg{fill:none;stroke:rgba(201,168,76,0.18);stroke-width:5;}
+.tc-ring-fg{fill:none;stroke:var(--gold);stroke-width:5;stroke-linecap:round;
+  stroke-dasharray:276.5;stroke-dashoffset:70;}
+.tc-clock-mode{position:absolute;top:2px;font-size:13px;}
+.tc-clock-bell{position:absolute;bottom:2px;font-size:12px;color:var(--gold-dk);}
+.tc-clock-face{display:flex;flex-direction:column;align-items:center;line-height:1.1;}
+.tc-clock-time{font-size:17px;font-weight:800;color:var(--steel);letter-spacing:.2px;}
+.tc-clock-ampm{font-size:11px;color:var(--muted);}
+.tc-clock:hover .tc-ring-fg{stroke:var(--gold-dk);}
+
+/* Hijri / Gregorian columns */
+.tc-hijri,.tc-gregorian{flex:1 1 130px;min-width:120px;}
+.tc-col-label{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted);margin-bottom:3px;white-space:nowrap;}
+.tc-col-main{font-size:13.5px;font-weight:700;color:var(--steel);}
+.tc-col-muted{color:var(--muted);font-weight:500;}
+.tc-col-sub{font-size:12px;color:var(--steel);margin-top:1px;}
+.tc-countdown{margin-top:5px;font-size:11px;color:var(--gold-dk);background:rgba(201,168,76,0.1);
+  border-radius:999px;padding:2px 9px;display:inline-block;white-space:nowrap;}
+
+/* Flip calendar tile */
+.tc-flip-cal{
+  flex:0 0 auto;width:56px;border:1px solid rgba(201,168,76,0.3);border-radius:10px;
+  overflow:hidden;text-align:center;cursor:pointer;background:#fff;
+  box-shadow:var(--shadow-sm);
+}
+.tc-flip-top{background:var(--gold);color:#fff;font-size:9px;font-weight:700;padding:3px 0;letter-spacing:.5px;}
+.tc-flip-day{font-size:20px;font-weight:800;color:var(--steel);padding:4px 0 6px;}
+.tc-flip-cal:hover{border-color:rgba(201,168,76,0.55);}
+
+/* Holidays / seasons strip */
+.tc-holidays{display:flex;align-items:center;gap:6px;margin-top:12px;}
+.tc-arrow{
+  flex:0 0 auto;width:26px;height:26px;border-radius:50%;border:1px solid rgba(201,168,76,0.3);
+  background:#fff;color:var(--gold-dk);display:flex;align-items:center;justify-content:center;
+  cursor:pointer;font-size:12px;line-height:1;padding:0;
+}
+.tc-arrow:hover{background:rgba(201,168,76,0.1);}
+.tc-holidays-track{
+  flex:1;display:flex;gap:8px;overflow-x:auto;scroll-behavior:smooth;scrollbar-width:none;
+  padding:2px 1px;
+}
+.tc-holidays-track::-webkit-scrollbar{display:none;}
+.tc-holiday-chip{
+  flex:0 0 auto;min-width:118px;background:#fff;border:1px solid rgba(201,168,76,0.25);
+  border-radius:10px;padding:6px 10px;text-align:center;
+}
+.tc-holiday-date{display:block;font-size:11px;color:var(--gold-dk);font-weight:700;white-space:nowrap;}
+.tc-holiday-label{display:block;font-size:11px;color:var(--steel);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:118px;}
+.tc-tip-chip{background:rgba(201,168,76,0.08);border-color:rgba(201,168,76,0.4);cursor:pointer;}
+.tc-tip-chip:hover{background:rgba(201,168,76,0.15);}
+
+.tc-dots{display:flex;align-items:center;justify-content:center;gap:5px;margin-top:8px;}
+.tc-dot{width:5px;height:5px;border-radius:50%;background:rgba(201,168,76,0.3);}
+.tc-dot.active{background:var(--gold-dk);width:14px;border-radius:4px;}
 
 /* -----------------------------------------------------------------
    Alerts Center (مركز التنبيهات) — Priority 3
@@ -67,10 +124,14 @@
 .alert-chip.warning .alert-chip-count{background:var(--warning);}
 
 @media (max-width:640px){
-  .today-center{flex-wrap:wrap;border-radius:var(--radius);padding:9px 14px;}
-  .today-center-dates{gap:5px;}
-  .today-center-hijri{display:none;}
-  .today-center-time{font-size:13px;margin-inline-start:auto;}
+  .today-center{padding:12px 10px 8px;}
+  .tc-clock{width:70px;height:70px;}
+  .tc-clock-time{font-size:15px;}
+  .tc-hijri{display:none;}
+  .tc-gregorian{flex:1 1 auto;}
+  .tc-flip-cal{width:48px;}
+  .tc-flip-day{font-size:17px;}
+  .tc-holiday-chip{min-width:104px;}
 }
 
 /* -----------------------------------------------------------------
