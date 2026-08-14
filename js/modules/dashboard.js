@@ -225,13 +225,153 @@ function renderExtendedStatisticsWidget(){
   var elUpcoming=document.getElementById('statUpcoming');if(elUpcoming)elUpcoming.textContent=upcoming;
 }
 
+// ==================================================================
+// PHASE 30 — TODAY CENTER REDESIGN (Smart Clock + Holidays Strip)
+// ==================================================================
+// Replaces the single-row "bar" layout of renderTodayCenterWidget()
+// with the richer card layout from the approved design reference:
+// a circular clock (tap → opens the device's native alarm screen),
+// a Hijri date column, a Gregorian date column with a "days to next
+// holiday" counter, a flip-calendar tile (tap → Calendar page), and
+// a horizontally scrollable strip of upcoming official
+// holidays/seasons with prev/next arrows + dot pagination.
+//
+// Everything here is additive/replacement to this one widget only —
+// no other widget function, id, or file is touched. The container's
+// own onclick="navigate('calendar')" (set once in index.html) is left
+// as-is as a background fallback; the two interactive sub-elements
+// below (.tc-clock, .tc-flip-cal) stop propagation so they can each
+// carry their own, different action.
+// ==================================================================
+
+// Best-effort list of Egyptian official holidays/observances. Fixed
+// (Gregorian) dates are exact; Islamic/Hijri-based dates shift every
+// year and are recomputed below from the Hijri calendar via Intl
+// where possible — the array only needs the *fixed* entries; Hijri
+// entries are generated separately by getUpcomingHolidays().
+var FIXED_HOLIDAYS=[
+  {month:1,day:1,label:'رأس السنة الميلادية',icon:'&#127881;'},
+  {month:1,day:7,label:'عيد الميلاد المجيد',icon:'&#10013;&#65039;'},
+  {month:1,day:25,label:'عيد الشرطة وثورة 25 يناير',icon:'&#127894;'},
+  {month:4,day:25,label:'عيد تحرير سيناء',icon:'&#127470;&#127468;'},
+  {month:5,day:1,label:'عيد العمال',icon:'&#128119;'},
+  {month:6,day:30,label:'ثورة 30 يونيو',icon:'&#127894;'},
+  {month:7,day:23,label:'ثورة 23 يوليو',icon:'&#127894;'},
+  {month:10,day:6,label:'عيد القوات المسلحة',icon:'&#127474;&#127468;'}
+];
+
+// Hijri-based observances, expressed as an (approximate month/day)
+// pair in the *current* Hijri year — recomputed each call against
+// `now` so the widget stays correct as years roll over, without
+// hard-coding a Gregorian date that would go stale next year.
+var HIJRI_HOLIDAYS=[
+  {hMonth:1,hDay:1,label:'رأس السنة الهجرية',icon:'&#127769;'},
+  {hMonth:3,hDay:12,label:'المولد النبوي الشريف',icon:'&#127978;'},
+  {hMonth:9,hDay:1,label:'بداية شهر رمضان',icon:'&#127765;'},
+  {hMonth:10,hDay:1,label:'عيد الفطر المبارك',icon:'&#127873;'},
+  {hMonth:12,hDay:10,label:'عيد الأضحى المبارك',icon:'&#128031;'}
+];
+
+function getUpcomingHolidays(now,count){
+  var results=[];
+  var year=now.getFullYear();
+  [year,year+1].forEach(function(y){
+    FIXED_HOLIDAYS.forEach(function(h){
+      var d=new Date(y,h.month-1,h.day);
+      results.push({date:d,label:h.label,icon:h.icon});
+    });
+  });
+  // Hijri entries: scan a ~380-day window day-by-day and match against
+  // the Hijri month/day the Intl formatter reports — avoids needing a
+  // full Hijri→Gregorian conversion routine of our own.
+  try{
+    var fmt=new Intl.DateTimeFormat('ar-SA-u-ca-islamic-umalqura',{month:'numeric',day:'numeric'});
+    var seen={};
+    for(var i=0;i<380;i++){
+      var d=new Date(now.getTime()+i*864e5);
+      var parts=fmt.formatToParts(d);
+      var hm=null,hd=null;
+      parts.forEach(function(p){if(p.type==='month')hm=parseInt(p.value,10);if(p.type==='day')hd=parseInt(p.value,10);});
+      HIJRI_HOLIDAYS.forEach(function(h){
+        var key=h.label+'-'+d.getFullYear();
+        if(hm===h.hMonth&&hd===h.hDay&&!seen[key]){
+          seen[key]=true;
+          results.push({date:d,label:h.label,icon:h.icon});
+        }
+      });
+    }
+  }catch(e){
+    // Islamic-calendar ICU data unavailable — fixed-date holidays
+    // above still populate the strip normally.
+  }
+  var todayMid=new Date(now);todayMid.setHours(0,0,0,0);
+  results=results.filter(function(r){return r.date>=todayMid;})
+    .sort(function(a,b){return a.date-b.date;});
+  return results.slice(0,count||8);
+}
+
+// Tap target for the clock face — best-effort deep link into the
+// device's native clock/alarm app (no reliable cross-platform Web API
+// exists for this, so we branch on user agent and fall back to a
+// friendly message rather than a silent no-op).
+function openDeviceAlarmClock(ev){
+  if(ev&&ev.stopPropagation)ev.stopPropagation();
+  var ua=navigator.userAgent||'';
+  try{
+    if(/Android/i.test(ua)){
+      window.location.href='intent://com.android.deskclock/#Intent;scheme=android-app;action=android.intent.action.SET_ALARM;end';
+    }else if(/iPhone|iPad|iPod/i.test(ua)){
+      window.location.href='clock-alarm://';
+    }else{
+      alert('افتح تطبيق الساعة على جهازك لضبط تنبيه جديد.');
+    }
+  }catch(e){
+    alert('افتح تطبيق الساعة على جهازك لضبط تنبيه جديد.');
+  }
+}
+
+// Prev/next arrow buttons for the holidays strip.
+function scrollTodayHolidays(dir){
+  var track=document.getElementById('tcHolidaysTrack');
+  if(!track)return;
+  track.scrollBy({left:dir*160,behavior:'smooth'});
+}
+
+// Keeps the dot pagination under the strip in sync with scroll
+// position. Bound once via the track's own onscroll= attribute (see
+// markup below) rather than an addEventListener re-attached on every
+// renderDashboard() call, to avoid stacking duplicate listeners.
+function updateTodayHolidaysDots(){
+  var track=document.getElementById('tcHolidaysTrack');
+  var dots=document.getElementById('tcHolidaysDots');
+  if(!track||!dots)return;
+  var children=track.children;
+  if(!children.length)return;
+  var trackCenter=track.scrollLeft+track.clientWidth/2;
+  var closest=0,closestDist=Infinity;
+  for(var i=0;i<children.length;i++){
+    var c=children[i];
+    var center=c.offsetLeft+c.offsetWidth/2;
+    var dist=Math.abs(center-trackCenter);
+    if(dist<closestDist){closestDist=dist;closest=i;}
+  }
+  var dotEls=dots.children;
+  for(var j=0;j<dotEls.length;j++){
+    dotEls[j].classList.toggle('active',j===closest);
+  }
+}
+
 function renderTodayCenterWidget(){
   var el=document.getElementById('dashTodayCenter');
   if(!el)return;
   var now=new Date();
-  var gregorian=now.toLocaleDateString('ar-EG',{year:'numeric',month:'long',day:'numeric'});
+  var gregorianDay=now.toLocaleDateString('ar-EG',{day:'numeric'});
+  var gregorianMonth=now.toLocaleDateString('ar-EG',{month:'long'});
+  var gregorianYear=now.toLocaleDateString('ar-EG',{year:'numeric'});
+  var monthShortEn=now.toLocaleDateString('en-US',{month:'short'}).toUpperCase();
   var dayName=now.toLocaleDateString('ar-EG',{weekday:'long'});
-  var time=now.toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'});
+  var time=now.toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit',hour12:true});
+  var isPm=now.getHours()>=12;
   var hijri='';
   try{
     hijri=new Intl.DateTimeFormat('ar-SA-u-ca-islamic-umalqura',{year:'numeric',month:'long',day:'numeric'}).format(now);
@@ -241,21 +381,86 @@ function renderTodayCenterWidget(){
     // omitted rather than showing an incorrect approximation.
     hijri='';
   }
-  // PHASE UX — Today Center compaction: same data as before (day,
-  // Gregorian date, Hijri date, time), now laid out as a single-row
-  // bar instead of a tall stacked block. The container itself is the
-  // click target (onclick="navigate('calendar')" set once in
-  // index.html on #dashTodayCenter) — nothing here needs to change to
-  // support that, so the click handler is intentionally not
-  // duplicated per sub-element.
+
+  var upcoming=getUpcomingHolidays(now,8);
+
+  // LAWYER-CONTEXT TIP — a small, practical addition for this widget:
+  // a first "chip" (before the holiday chips) surfacing the lawyer's
+  // own nearest court obligation, computed from data already on the
+  // dashboard (data.sessions), so the strip isn't only about public
+  // holidays but also about what's actually due soon.
+  var todayMid=new Date(now);todayMid.setHours(0,0,0,0);
+  var nextSession=data.sessions
+    .map(function(s){return{s:s,d:parseLocalDate(s['التاريخ'])};})
+    .filter(function(x){return x.d&&x.d>=todayMid;})
+    .sort(function(a,b){return a.d-b.d;})[0];
+  var tipChip='';
+  if(nextSession){
+    var daysToSession=Math.round((nextSession.d-todayMid)/864e5);
+    var sessLabel=daysToSession===0?'أقرب جلسة اليوم':'أقرب جلسة خلال '+daysToSession+' يوم';
+    tipChip='<div class="tc-holiday-chip tc-tip-chip" onclick="event.stopPropagation();navigate(\'sessions\')" title="'+(nextSession.s['عنوان_القضية']||'')+'">'+
+      '<span class="tc-holiday-date">&#9878;&#65039;</span>'+
+      '<span class="tc-holiday-label">'+sessLabel+'</span>'+
+    '</div>';
+  }
+
+  var holidayChips=upcoming.map(function(h){
+    var dd=h.date.toLocaleDateString('ar-EG',{day:'numeric'});
+    var mm=h.date.toLocaleDateString('ar-EG',{month:'long'});
+    return '<div class="tc-holiday-chip">'+
+      '<span class="tc-holiday-date">'+dd+' '+mm+'</span>'+
+      '<span class="tc-holiday-label">'+h.icon+' '+h.label+'</span>'+
+    '</div>';
+  }).join('');
+
+  var dots=upcoming.map(function(_,i){return '<span class="tc-dot'+(i===0?' active':'')+'"></span>';}).join('');
+
+  var next=upcoming[0];
+  var countdownText='';
+  if(next){
+    var daysTo=Math.round((next.date-todayMid)/864e5);
+    countdownText=daysTo<=0?'عطلة اليوم — '+next.label:daysTo+' يوم قادم حتى '+next.label;
+  }
+
   el.innerHTML=
-    '<span class="today-center-icon" aria-hidden="true">&#128197;</span>'+
-    '<div class="today-center-dates">'+
-      '<span class="today-center-day">'+dayName+'</span>'+
-      '<span class="today-center-gregorian">'+gregorian+'</span>'+
-      (hijri?'<span class="today-center-hijri">'+hijri+' هـ</span>':'')+
+    '<div class="today-center-main">'+
+      '<div class="tc-clock" onclick="openDeviceAlarmClock(event)" role="button" tabindex="0" title="ضبط تنبيه في ساعة الجهاز" '+
+        'onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();openDeviceAlarmClock(event);}">'+
+        '<svg class="tc-clock-ring" viewBox="0 0 100 100" aria-hidden="true">'+
+          '<circle cx="50" cy="50" r="44" class="tc-ring-bg"/>'+
+          '<circle cx="50" cy="50" r="44" class="tc-ring-fg"/>'+
+        '</svg>'+
+        '<span class="tc-clock-mode">'+(isPm?'&#9728;&#65039;':'&#127765;')+'</span>'+
+        '<div class="tc-clock-face">'+
+          '<span class="tc-clock-time">'+time.replace(/\s?(ص|م|AM|PM)/i,'')+'</span>'+
+          '<span class="tc-clock-ampm">'+(isPm?'م':'ص')+'</span>'+
+        '</div>'+
+        '<span class="tc-clock-bell">&#128276;</span>'+
+      '</div>'+
+      '<div class="tc-hijri">'+
+        '<div class="tc-col-label"><span>&#127769;</span> التاريخ الهجري</div>'+
+        (hijri?'<div class="tc-col-main">'+hijri+' هـ</div>':'<div class="tc-col-main tc-col-muted">غير متاح</div>')+
+      '</div>'+
+      '<div class="tc-gregorian">'+
+        '<div class="tc-col-label"><span>&#128198;</span> التاريخ الميلادي</div>'+
+        '<div class="tc-col-main">'+dayName+'</div>'+
+        '<div class="tc-col-sub">'+gregorianDay+' '+gregorianMonth+' '+gregorianYear+'</div>'+
+        (countdownText?'<div class="tc-countdown">&#128197; '+countdownText+'</div>':'')+
+      '</div>'+
+      '<div class="tc-flip-cal" onclick="event.stopPropagation();navigate(\'calendar\')" role="button" tabindex="0" title="عرض التقويم" '+
+        'onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();navigate(\'calendar\');}">'+
+        '<div class="tc-flip-top">'+monthShortEn+'</div>'+
+        '<div class="tc-flip-day">'+gregorianDay+'</div>'+
+      '</div>'+
     '</div>'+
-    '<div class="today-center-time">'+time+'</div>';
+    (upcoming.length?
+      '<div class="tc-holidays">'+
+        '<button type="button" class="tc-arrow tc-arrow-prev" onclick="event.stopPropagation();scrollTodayHolidays(-1)" aria-label="السابق">&#10094;</button>'+
+        '<div class="tc-holidays-track" id="tcHolidaysTrack" onscroll="updateTodayHolidaysDots()">'+tipChip+holidayChips+'</div>'+
+        '<button type="button" class="tc-arrow tc-arrow-next" onclick="event.stopPropagation();scrollTodayHolidays(1)" aria-label="التالي">&#10095;</button>'+
+      '</div>'+
+      '<div class="tc-dots" id="tcHolidaysDots">'+dots+'</div>'
+      :'');
 }
 
 function renderAlertsCenterWidget(){
