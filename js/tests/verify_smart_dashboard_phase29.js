@@ -213,9 +213,8 @@ function check(label, cond) {
   const sb = loadDashboardModule(doc, data);
   sb.renderTodayCenterWidget();
   const html = doc._store.dashTodayCenter.innerHTML;
-  check('gregorian date block present', html.indexOf('tc-col-sub') !== -1);
-  check('clock time block present', html.indexOf('tc-clock-time') !== -1);
-  check('flip-calendar tile present', html.indexOf('tc-flip-cal') !== -1);
+  check('gregorian date block present', html.indexOf('today-center-gregorian') !== -1);
+  check('time block present', html.indexOf('today-center-time') !== -1);
 })();
 
 // ================================================================
