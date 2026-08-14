@@ -220,7 +220,7 @@
 // corrected copy — same "Cache Versioning" rule as every previous
 // SW_VERSION bump in this file. No Repository/DatabaseService/IndexedDB
 // code touched — see audit report §11.
-var SW_VERSION = 'v50'; // RANK 1 FIX (Android Fixed-Surface Reduction) —
+var SW_VERSION = 'v51'; // RANK 1 FIX (Android Fixed-Surface Reduction) —
                          // css/components.css?v=42 is listed in PRECACHE_URLS below and
                          // served cacheFirstIn(SHELL_CACHE), which is keyed by SW_VERSION
                          // (see SHELL_CACHE definition a few lines down), so an already-
