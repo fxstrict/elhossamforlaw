@@ -810,14 +810,12 @@ async function deleteClient(i) {
   // async and internally catches its own errors (js/api/api.js), so this
   // ordering has no functional effect either before or after migration.
   //
-  // KNOWN ARCHITECTURAL LIMITATION (audit R-06, documented not fixed):
-  // this still passes the plain frontend index `i`, exactly as before
-  // migration. Once ClientsRepository's soft-delete semantics apply,
-  // `rowIndex` sent here can drift from the true GAS sheet row after the
-  // first deleted client — a pre-existing, already-latent architectural
-  // gap this phase intentionally does not fix. See
-  // docs/Clients_Repository_Integration_Report.md §6.
-  ApiService.deleteData('الموكلين', i);
+  // FIX C1/P3 (DATABASE_FORENSIC_REPORT.md): `i` is still passed as a
+  // fallback, but `id` (رقم_الموكل) is now also passed — Config/06_Api.gs's
+  // apiDeleteRow() matches by this id FIRST, closing the exact drift gap
+  // documented above (ClientsRepository soft-delete semantics no longer
+  // able to desync `rowIndex` from the true GAS sheet row).
+  ApiService.deleteData('الموكلين', i, id);
 
   var result = await clientsRepository.delete(id);
 
@@ -877,6 +875,10 @@ async function restoreClient(id) {
     toast('حدث خطأ أثناء استرجاع الموكل', 'error');
     return;
   }
+
+  // FIX C4 (DATABASE_FORENSIC_REPORT.md §C4): sync the restore to Sheets
+  // — same pattern as restoreCase(). See that function's comment.
+  ApiService.syncRow('الموكلين', result.record, 0);
 
   syncClientsMirror();
   saveLocal();

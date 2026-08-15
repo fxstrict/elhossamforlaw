@@ -556,12 +556,16 @@ function editDocument(i) {
  * deleteDocument — confirms, removes via DocumentsRepository.
  * @param {number} i - 0-based index in the data.documents mirror.
  *
- * NOTE: Preserves original behaviour exactly — the original inline
- * deleteDocument() does NOT call syncDeleteToSheets()/ApiService.deleteData()
- * for documents (unlike deleteSession/deleteClient/etc). This module makes
- * no functional change to that behaviour; it is flagged in
- * DOCUMENTS_MODULE_REPORT.md as a pre-existing gap, consistent with the
- * "no functional changes" extraction mandate.
+ * FIX P1 (DATABASE_FORENSIC_REPORT.md §P1, "حذف Documents/Fees/Tasks لا
+ * يُزامَن مع Google Sheet إطلاقًا"): the original inline deleteDocument()
+ * never called syncDeleteToSheets()/ApiService.deleteData() — a
+ * documented, code-comment-confirmed gap (unlike deleteSession/
+ * deleteClient/etc, which always did). Local soft-delete succeeded and
+ * the row vanished from the UI, but its Sheet row was never removed, so
+ * it came back on the next loadFromSheets(). This now calls
+ * ApiService.deleteData() with the record's own id (رقم_المستند) — same
+ * call shape already used by deleteCase()/deleteSession()/deleteClient()
+ * — closing the gap with no other behavior change.
  *
  * Crosses the async boundary (Repository.delete() is Promise-returning)
  * — the only reason this function is now `async`.
@@ -575,6 +579,8 @@ async function deleteDocument(i) {
   if (!record) return;
 
   var id = record[DOCUMENTS_ID_FIELD];
+  ApiService.deleteData('المستندات', i, id);
+
   var result = await documentsRepository.delete(id);
 
   if (!result || !result.success) {
@@ -619,6 +625,11 @@ async function restoreDocument(id) {
     toast('حدث خطأ أثناء الاسترجاع', 'error');
     return;
   }
+
+  // FIX C4 (DATABASE_FORENSIC_REPORT.md §C4): sync the restore to
+  // Sheets — same pattern as restoreCase() (also now closes the P1
+  // "deleteDocument never synced" gap symmetrically for the restore path).
+  ApiService.syncRow('المستندات', result.record, 0);
 
   syncDocumentsMirror();
   saveLocal();

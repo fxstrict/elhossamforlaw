@@ -332,7 +332,9 @@ async function deleteOpponent(i) {
 
   var id = record[OPPONENTS_ID_FIELD];
 
-  ApiService.deleteData('الخصوم', i);
+  // FIX C1 (DATABASE_FORENSIC_REPORT.md §P6-C1): pass `id` alongside the
+  // fallback index `i` so the backend matches by رقم_الخصم first.
+  ApiService.deleteData('الخصوم', i, id);
 
   var result = await opponentsRepository.delete(id);
 
@@ -357,6 +359,9 @@ async function restoreOpponent(id) {
     toast('حدث خطأ أثناء استرجاع الخصم', 'error');
     return;
   }
+  // FIX C4 (DATABASE_FORENSIC_REPORT.md §C4): sync the restore to
+  // Sheets — same pattern as restoreCase().
+  ApiService.syncRow('الخصوم', result.record, 0);
   syncOpponentsMirror();
   saveLocal();
   toast('تم استرجاع الخصم', 'success');

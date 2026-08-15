@@ -221,14 +221,25 @@ async function pingConnection(){
 // resolved by naming convention (`<key>Repository` / `<key>RepositoryReadyPromise`,
 // consistent across all 9 entity modules); an entity with no Repository
 // (there are none today, but this stays defensive) is simply skipped.
-async function _persistEntityViaRepository(key, mode, entities) {
+// FIX P2 (DATABASE_FORENSIC_REPORT.md §P2, "عودة بيانات محذوفة بعد
+// Refresh/Sync"): this now accepts a 4th, OPTIONAL `importMode` param
+// used only when `mode === 'import'`, defaulting to 'replace' — the
+// exact prior behavior, unchanged for every existing caller
+// (handleImport()'s explicit "restore from backup file" flow correctly
+// wants a full replace: the user is deliberately overwriting local data
+// with a chosen backup). loadFromSheets() (below) is the ONLY caller
+// updated to pass 'merge' explicitly, since a periodic/automatic Sheets
+// read must never blow away local soft-deletes or not-yet-synced
+// records the way 'replace' did — see Repository.js's own import()
+// 'merge' branch (FIX P2) for how a local tombstone is preserved.
+async function _persistEntityViaRepository(key, mode, entities, importMode) {
   var repo = window[key + 'Repository'];
   var readyPromise = window[key + 'RepositoryReadyPromise'];
   if (!repo || !readyPromise) return null;
   try {
     await readyPromise;
     if (mode === 'clear') return await repo.clear();
-    return await repo.import(entities || [], 'replace');
+    return await repo.import(entities || [], importMode || 'replace');
   } catch (e) {
     console.warn('Repository persist failed for "' + key + '":', e);
     return null;
@@ -548,8 +559,23 @@ async function loadFromSheets(){
         var arr=await r.json();
         if(Array.isArray(arr)&&arr.length>0){
           if(sh==='الجلسات'){arr=arr.map(function(row){if(row['الوقت'])row['الوقت']=sanitizeTime(row['الوقت']);return row;});}
-          await _persistEntityViaRepository(k,'import',arr);
-          data[k]=arr;
+          // FIX P2 (DATABASE_FORENSIC_REPORT.md §P2): 'merge' instead of
+          // 'replace' — a local soft-delete (tombstone) or a not-yet-
+          // synced local record must survive a periodic Sheets read.
+          // See Repository.js import() 'merge' branch + settings.js
+          // _persistEntityViaRepository() header comment above.
+          await _persistEntityViaRepository(k,'import',arr,'merge');
+          // FIX P2 (continued): `data[k]` (the legacy mirror every
+          // render*()/module reads) must reflect what the Repository
+          // ACTUALLY holds after the merge (soft-deleted records
+          // excluded, tombstones respected) — not the raw, un-merged
+          // Sheet array. Assigning the raw `arr` here previously
+          // re-displayed resurrected/soft-deleted rows regardless of
+          // what import() had just correctly computed.
+          var repoForMirror = window[k + 'Repository'];
+          data[k] = (repoForMirror && typeof repoForMirror.getAll === 'function')
+            ? repoForMirror.getAll()
+            : arr;
           // PHASE 16.5.1 — DIRTY PROPAGATION (additive only, see phase brief)
           if(window.ApplicationShell)ApplicationShell.markDirty(k);
           return 'loaded';
@@ -592,6 +618,32 @@ async function loadFromSheets(){
 
 async function refreshAll(){if(API_URL)await loadFromSheets();else toast('أضف رابط Apps Script في الإعدادات للمزامنة السحابية','info');renderDashboard();}
 
+// FIX (DATABASE_FORENSIC_REPORT.md §P2 boot-order cause, §6 item 4):
+// "ضمان اكتمال OfflineQueue.replay() قبل أول loadFromSheets() عند
+// الإقلاع". OfflineQueue's own boot-time catch-up was bound to the
+// `window` 'load' event, which always fires AFTER 'DOMContentLoaded' —
+// but index.html calls loadFromSheets() directly from the
+// 'DOMContentLoaded' listener, so on every boot with pending offline
+// writes, the initial Sheets read could run BEFORE those writes were
+// replayed, importing a stale server snapshot that doesn't yet reflect
+// them (worst case: a locally-created-while-offline record, still only
+// in the queue and not yet in the Sheet, gets overwritten by
+// import('replace') before FIX P2 above — now merge-safe either way,
+// but still best avoided outright). bootLoadFromSheets() is a thin,
+// additive wrapper: it awaits OfflineQueue.replay() first (a no-op,
+// already-guarded call if the queue is empty or the device is offline —
+// see OfflineQueue.js's own re-entrancy/online guards) and only then
+// calls the exact same loadFromSheets() as before. Remains
+// fire-and-forget from the caller's perspective (index.html), matching
+// the original call's own "never block the interface" contract.
+function bootLoadFromSheets(){
+  if(typeof OfflineQueue!=='undefined'&&typeof OfflineQueue.replay==='function'){
+    OfflineQueue.replay().catch(function(e){console.warn('[bootLoadFromSheets] OfflineQueue.replay failed, proceeding anyway:',e);}).then(function(){loadFromSheets();});
+  } else {
+    loadFromSheets();
+  }
+}
+
 // ==================================================================
 // Node/test export (browser: `module` is undefined, this is a no-op —
 // every function above remains a plain global exactly as before).
@@ -600,6 +652,14 @@ async function refreshAll(){if(API_URL)await loadFromSheets();else toast('أضف
 // ==================================================================
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
-    formatLastSyncRelative: formatLastSyncRelative
+    formatLastSyncRelative: formatLastSyncRelative,
+    // Test-support exports only (FIX P2 coverage — see
+    // verify_settings_merge_tombstone.js). Adding a function to this
+    // CommonJS-only export block has zero effect in the browser (the
+    // `if` guard never runs there — `module` is undefined) and does not
+    // change how any other module/script references these functions
+    // (still plain globals via the scope chain everywhere else).
+    _persistEntityViaRepository: _persistEntityViaRepository,
+    bootLoadFromSheets: (typeof bootLoadFromSheets !== 'undefined') ? bootLoadFromSheets : undefined
   };
 }

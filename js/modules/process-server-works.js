@@ -300,7 +300,11 @@ async function deleteProcessServerWork(i) {
 
   var id = record[PSW_ID_FIELD];
 
-  ApiService.deleteData('أعمال_المحضرين', i);
+  // FIX C1 (DATABASE_FORENSIC_REPORT.md §P6-C1): pass `id` alongside the
+  // fallback index `i` so the backend matches by رقم_العمل first — this
+  // is the module behind the "بيانات أعمال المحضرين لا تُحذف بشكل صحيح"
+  // symptom reported for this task (see DATABASE_SYNC_FINAL_REPORT.md §A).
+  ApiService.deleteData('أعمال_المحضرين', i, id);
 
   var result = await processServerWorksRepository.delete(id);
 
@@ -324,6 +328,10 @@ async function restoreProcessServerWork(id) {
     toast('حدث خطأ أثناء استرجاع عمل المحضرين', 'error');
     return;
   }
+  // FIX C4 (DATABASE_FORENSIC_REPORT.md §C4): sync the restore to
+  // Sheets — same pattern as restoreCase(). This module is the one
+  // behind the "بيانات أعمال المحضرين" symptom reported for this task.
+  ApiService.syncRow('أعمال_المحضرين', result.record, 0);
   syncProcessServerWorksMirror();
   saveLocal();
   toast('تم استرجاع عمل المحضرين', 'success');

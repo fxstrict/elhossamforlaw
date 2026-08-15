@@ -620,12 +620,11 @@ function editFee(i) {
  * deleteFee — confirms, removes via FeesRepository.
  * @param {number} i - 0-based index in the data.fees mirror.
  *
- * NOTE: Preserves original behaviour exactly — the original inline
- * deleteFee() does NOT call syncDeleteToSheets()/ApiService.deleteData()
- * for fees, identical to the pre-existing gap already flagged for
- * deleteDocument() (DOCUMENTS_AUDIT_REPORT.md OBS-1/FIX-3) and
- * deleteTask()/toggleTask() (TASKS_AUDIT_REPORT.md FIX-3). This module
- * makes no functional change to that behaviour.
+ * FIX P1 (DATABASE_FORENSIC_REPORT.md §P1): the original inline
+ * deleteFee() never called syncDeleteToSheets()/ApiService.deleteData()
+ * — an identical, documented gap to deleteDocument()/deleteTask(). This
+ * now calls ApiService.deleteData() with the record's own id
+ * (رقم_العملية), same call shape used by deleteCase()/deleteSession().
  *
  * Crosses the async boundary (Repository.delete() is Promise-returning)
  * — the only reason this function is now `async`.
@@ -639,6 +638,8 @@ async function deleteFee(i) {
   if (!record) return;
 
   var id = record[FEES_ID_FIELD];
+  ApiService.deleteData('الأتعاب', i, id);
+
   var result = await feesRepository.delete(id);
 
   if (!result || !result.success) {
@@ -666,10 +667,9 @@ async function deleteFee(i) {
  * `updateBadges()` sequence.
  *
  * ID, NOT INDEX — same documented reason as `restoreCase()`.
- * NO UI WIRING — Rollout scope, matches the Pilot.
- * Does NOT call `ApiService` — same explicit, documented design
- * decision as `restoreCase()` (`deleteFee()` itself calls no
- * `ApiService` method either, so this preserves exact symmetry).
+ * FIX C4 (DATABASE_FORENSIC_REPORT.md §C4): now calls ApiService.syncRow()
+ * — same pattern as restoreCase()/restoreDocument(). Also closes the P1
+ * "deleteFee never synced" gap symmetrically for the restore path.
  *
  * @param {string} id - the FeesRepository id (رقم_العملية) of the
  *   soft-deleted fee record to restore.
@@ -683,6 +683,8 @@ async function restoreFee(id) {
     toast('حدث خطأ أثناء الاسترجاع', 'error');
     return;
   }
+
+  ApiService.syncRow('الأتعاب', result.record, 0);
 
   syncFeesMirror();
   saveLocal();

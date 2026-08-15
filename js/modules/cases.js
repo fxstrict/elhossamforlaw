@@ -749,10 +749,13 @@ async function deleteCase(i) {
   // internally catches its own errors (js/api/api.js), so this ordering
   // has no functional effect either before or after migration.
   //
-  // KNOWN ARCHITECTURAL LIMITATION (audit §14, documented not fixed):
-  // this still passes the plain frontend index `i`, exactly as before
-  // migration. See file header note.
-  ApiService.deleteData('القضايا', i);
+  // FIX C1/P3 (DATABASE_FORENSIC_REPORT.md): the plain frontend index `i`
+  // is still passed as a fallback (unchanged), but `id` (رقم_القضية) is
+  // now also passed — Config/06_Api.gs's apiDeleteRow() matches by this
+  // id FIRST, so a stale `i` (caused by a concurrent loadFromSheets()/
+  // syncCasesMirror() reshuffling data.cases while this modal was open)
+  // can no longer cause the wrong Sheet row to be deleted.
+  ApiService.deleteData('القضايا', i, id);
 
   var result = await casesRepository.delete(id);
 
@@ -831,6 +834,17 @@ async function restoreCase(id) {
     toast('حدث خطأ أثناء استرجاع القضية', 'error');
     return;
   }
+
+  // FIX C4 (DATABASE_FORENSIC_REPORT.md §C4, "restoreCase لا تُزامن
+  // الاسترجاع مع الشيت"): previously left uncalled entirely — a local
+  // restore never touched Google Sheets, so the record could be lost
+  // again on the next Sheets read. Now calls ApiService.syncRow() with
+  // rowIndex 0 (forces the "update" path in ApiService.syncRow()); with
+  // the FIX C1 backend change, Config/06_Api.gs's apiUpdateRow() matches
+  // by رقم_القضية (not this dummy index) and safely falls back to
+  // inserting the row (Upsert) if it was actually removed from the
+  // Sheet by a prior successful delete — correct in both cases.
+  ApiService.syncRow('القضايا', result.record, 0);
 
   syncCasesMirror();
   saveLocal();

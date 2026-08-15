@@ -609,9 +609,11 @@ async function deleteSession(i) {
   var record = data.sessions[i];
   if (!record) return;
 
-  ApiService.deleteData('الجلسات', i);       // replaces: if(API_URL)syncDeleteToSheets(...)
-
   var id = record[SESSIONS_ID_FIELD];
+  // FIX C1 (DATABASE_FORENSIC_REPORT.md §P6-C1): pass `id` alongside the
+  // fallback index `i` so the backend matches by رقم_الجلسة first.
+  ApiService.deleteData('الجلسات', i, id);   // replaces: if(API_URL)syncDeleteToSheets(...)
+
   var result = await sessionsRepository.delete(id);
 
   if (!result || !result.success) {
@@ -656,6 +658,12 @@ async function restoreSession(id) {
     toast('حدث خطأ أثناء الاسترجاع', 'error');
     return;
   }
+
+  // FIX C4 (DATABASE_FORENSIC_REPORT.md §C4): sync the restore to
+  // Sheets — same pattern as restoreCase(). apiUpdateRow()/apiAddRow()
+  // in Config/06_Api.gs already contain the الجلسات-specific calendar
+  // event handling, so no extra logic is needed here.
+  ApiService.syncRow('الجلسات', result.record, 0);
 
   syncSessionsMirror();
   saveLocal();

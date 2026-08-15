@@ -807,11 +807,11 @@ function editTask(i) {
  * deleteTask — confirms, removes via TasksRepository.
  * @param {number} i - 0-based index in the data.tasks mirror.
  *
- * NOTE: Preserves original behaviour exactly — the original inline
- * deleteTask() does NOT call syncDeleteToSheets()/ApiService.deleteData()
- * for tasks, identical to the pre-existing gap already flagged for
- * deleteDocument(). This module makes no functional change to that
- * behaviour.
+ * FIX P1 (DATABASE_FORENSIC_REPORT.md §P1): the original inline
+ * deleteTask() never called syncDeleteToSheets()/ApiService.deleteData()
+ * — an identical, documented gap to deleteDocument()/deleteFee(). This
+ * now calls ApiService.deleteData() with the record's own id
+ * (رقم_المهمة), same call shape used by deleteCase()/deleteSession().
  *
  * Crosses the async boundary (Repository.delete() is Promise-returning)
  * — the only reason this function is now `async`.
@@ -825,6 +825,8 @@ async function deleteTask(i) {
   if (!record) return;
 
   var id = record[TASKS_ID_FIELD];
+  ApiService.deleteData('المهام', i, id);
+
   var result = await tasksRepository.delete(id);
 
   if (!result || !result.success) {
@@ -851,11 +853,11 @@ async function deleteTask(i) {
  * same `syncTasksMirror()` -> `saveLocal()` -> `renderTasks()` ->
  * `updateBadges()` sequence.
  *
- * ID, NOT INDEX — same documented reason as `restoreCase()`.
- * NO UI WIRING — Rollout scope, matches the Pilot.
- * Does NOT call `ApiService` — same explicit, documented design
- * decision as `restoreCase()` (`deleteTask()` itself calls no
- * `ApiService` method either, so this preserves exact symmetry).
+ * FIX C4 (DATABASE_FORENSIC_REPORT.md §C4): now calls ApiService.syncRow()
+ * — same pattern as restoreCase()/restoreDocument()/restoreFee(). Also
+ * closes the P1 "deleteTask never synced" gap symmetrically for the
+ * restore path (deleteTask() itself now calls ApiService.deleteData(),
+ * see FIX P1 above in this file).
  *
  * @param {string} id - the TasksRepository id (رقم_المهمة) of the
  *   soft-deleted task to restore.
@@ -869,6 +871,8 @@ async function restoreTask(id) {
     toast('حدث خطأ أثناء الاسترجاع', 'error');
     return;
   }
+
+  ApiService.syncRow('المهام', result.record, 0);
 
   syncTasksMirror();
   saveLocal();
