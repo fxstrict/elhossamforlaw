@@ -178,6 +178,7 @@ async function main() {
     const badgeCalls = { count: 0 };
     const closeModalLog = [];
     const syncRowLog = [];
+    const deleteDataLog = [];
     const saveLocalCalls = { count: 0 };
 
     const sandboxGlobals = {
@@ -204,7 +205,15 @@ async function main() {
       uid: function () { return 'test-uid-' + Math.random().toString(36).slice(2, 8); },
       collectForm: function () { return sandboxGlobals.__nextFormValue || {}; },
       fillForm: function (type, obj) { sandboxGlobals.__lastFilled = obj; },
-      ApiService: { syncRow: function (sheet, obj, idx) { syncRowLog.push({ sheet: sheet, obj: obj, idx: idx }); } },
+      ApiService: {
+        syncRow: function (sheet, obj, idx) { syncRowLog.push({ sheet: sheet, obj: obj, idx: idx }); },
+        // FIX P1 (DATABASE_FORENSIC_REPORT.md §P1): deleteDocument() now
+        // calls ApiService.deleteData() (previously a documented gap —
+        // local delete never reached Google Sheets). Logged here the
+        // same way syncRow already was, so the assertion below can
+        // observe it.
+        deleteData: function (sheet, idx, id) { deleteDataLog.push({ sheet: sheet, idx: idx, id: id }); }
+      },
       saveLocal: function () { saveLocalCalls.count++; },
       confirm: function () { return true; },
       confirmDialog: __confirmDialogStub,
@@ -372,12 +381,11 @@ async function main() {
       assert.ok(!docsModule.documentsRepository.exists(deletedId), 'but exists()/getAll()/get() all correctly hide it');
     });
 
-    // ---- ApiService.deleteData()/syncDeleteToSheets() gap preserved ----
-    check('deleteDocument(): still does NOT call any ApiService delete/sync method (pre-existing documented gap, unchanged)', () => {
-      const deleteCalls = syncRowLog.filter(function (c) { return c.sheet === 'المستندات' && c.idx === undefined; });
-      // syncRowLog only ever receives calls from saveDocument(); deleteDocument()
-      // never pushes to it at all — that absence is the assertion.
-      assert.strictEqual(typeof docsModule, 'object');
+    // ---- ApiService.deleteData() now called — FIX P1 ----
+    check('deleteDocument(): now calls ApiService.deleteData() with the record id (FIX P1 — closes the "delete never synced to Sheets" gap)', () => {
+      const deleteCalls = deleteDataLog.filter(function (c) { return c.sheet === 'المستندات'; });
+      assert.strictEqual(deleteCalls.length, 1);
+      assert.ok(deleteCalls[0].id, 'the record id (رقم_المستند) must be passed so the backend can match by identity, not a stale index');
     });
 
     // ---- Validation: required-field guard still short-circuits before any Repository/DOM call ----

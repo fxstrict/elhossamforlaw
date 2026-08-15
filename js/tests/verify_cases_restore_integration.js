@@ -550,7 +550,11 @@ async function main() {
   }
 
   // ================================================================
-  // 9. restoreCase() does NOT call ApiService (documented design decision)
+  // 9. restoreCase() DOES call ApiService.syncRow() to sync the restore
+  //    to Google Sheets — FIX C4 (DATABASE_FORENSIC_REPORT.md §C4).
+  //    Previously restoreCase() left Sheets untouched, which meant a
+  //    restored case could be lost again on the next Sheets read. This
+  //    test now asserts the corrected behavior.
   // ================================================================
 
   {
@@ -565,12 +569,13 @@ async function main() {
     await cm.deleteCase(idx);
 
     const syncRowCountBefore = sandbox.syncRowLog.length;
-    const deleteDataCountBefore = sandbox.deleteDataLog.length;
 
-    await checkAsync('restoreCase(id) does not call ApiService.syncRow() or ApiService.deleteData() (Google Sheets sync left untouched, per design)', async () => {
+    await checkAsync('restoreCase(id) calls ApiService.syncRow() to sync the restore to Google Sheets (FIX C4)', async () => {
       await cm.restoreCase('2026/B001');
-      assert.strictEqual(sandbox.syncRowLog.length, syncRowCountBefore, 'ApiService.syncRow() must not be called by restoreCase()');
-      assert.strictEqual(sandbox.deleteDataLog.length, deleteDataCountBefore, 'ApiService.deleteData() must not be called by restoreCase()');
+      assert.strictEqual(sandbox.syncRowLog.length, syncRowCountBefore + 1, 'ApiService.syncRow() must be called exactly once by restoreCase()');
+      const call = sandbox.syncRowLog[sandbox.syncRowLog.length - 1];
+      assert.strictEqual(call.sheet, 'القضايا');
+      assert.strictEqual(call.obj['رقم_القضية'], '2026/B001');
     });
   }
 

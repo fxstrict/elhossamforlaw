@@ -191,6 +191,8 @@ function makeSandbox(seedStorage) {
 const MODULES = [
   {
     label: 'Clients',
+    expectsSync: true,
+    syncSheet: 'الموكلين',
     modulePath: 'clients.js',
     repoPath: 'ClientsRepository.js',
     dataKey: 'clients',
@@ -211,6 +213,8 @@ const MODULES = [
   },
   {
     label: 'Sessions',
+    expectsSync: true,
+    syncSheet: 'الجلسات',
     modulePath: 'sessions.js',
     repoPath: 'SessionsRepository.js',
     dataKey: 'sessions',
@@ -231,6 +235,8 @@ const MODULES = [
   },
   {
     label: 'Tasks',
+    expectsSync: true,
+    syncSheet: 'المهام',
     modulePath: 'tasks.js',
     repoPath: 'TasksRepository.js',
     dataKey: 'tasks',
@@ -251,6 +257,8 @@ const MODULES = [
   },
   {
     label: 'Documents',
+    expectsSync: true,
+    syncSheet: 'المستندات',
     modulePath: 'documents.js',
     repoPath: 'DocumentsRepository.js',
     dataKey: 'documents',
@@ -331,6 +339,8 @@ const MODULES = [
   },
   {
     label: 'Fees',
+    expectsSync: true,
+    syncSheet: 'الأتعاب',
     modulePath: 'fees.js',
     repoPath: 'FeesRepository.js',
     dataKey: 'fees',
@@ -620,7 +630,16 @@ async function runModuleSuite(cfg) {
     });
   }
 
-  // ---- 8. No ApiService call from restore (documented design decision) ----
+  // ---- 8. ApiService sync from restore ----
+  // FIX C4 (DATABASE_FORENSIC_REPORT.md §C4): restoreClient()/
+  // restoreSession()/restoreTask()/restoreDocument()/restoreFee() now
+  // call ApiService.syncRow() to sync the restore to Google Sheets —
+  // previously a local-only restore that could be silently lost again
+  // on the next Sheets read. restoreLibBook()/restoreTemplate()/
+  // restoreChild() are unchanged (their delete paths never synced to
+  // begin with — library/templates never sync at all; children.js uses
+  // a separate legacy sync path — out of scope for this fix, see
+  // DATABASE_SYNC_FINAL_REPORT.md §D).
   {
     const sandbox = makeSandbox({});
     setGlobals(sandbox.sandboxGlobals);
@@ -635,11 +654,21 @@ async function runModuleSuite(cfg) {
     const syncRowBefore = sandbox.syncRowLog.length;
     const deleteDataBefore = sandbox.deleteDataLog.length;
 
-    await checkAsync('[' + cfg.label + '] restore does not call ApiService.syncRow()/deleteData() (Sheets sync untouched)', async () => {
-      await mod[cfg.restoreFn](id);
-      assert.strictEqual(sandbox.syncRowLog.length, syncRowBefore);
-      assert.strictEqual(sandbox.deleteDataLog.length, deleteDataBefore);
-    });
+    if (cfg.expectsSync) {
+      await checkAsync('[' + cfg.label + '] restore calls ApiService.syncRow() to sync the restore to Google Sheets (FIX C4)', async () => {
+        await mod[cfg.restoreFn](id);
+        assert.strictEqual(sandbox.syncRowLog.length, syncRowBefore + 1, 'ApiService.syncRow() must be called exactly once by ' + cfg.restoreFn + '()');
+        const call = sandbox.syncRowLog[sandbox.syncRowLog.length - 1];
+        assert.strictEqual(call.sheet, cfg.syncSheet);
+        assert.strictEqual(call.obj[cfg.idField], id);
+      });
+    } else {
+      await checkAsync('[' + cfg.label + '] restore does not call ApiService.syncRow()/deleteData() (Sheets sync untouched, out of scope for this phase)', async () => {
+        await mod[cfg.restoreFn](id);
+        assert.strictEqual(sandbox.syncRowLog.length, syncRowBefore);
+        assert.strictEqual(sandbox.deleteDataLog.length, deleteDataBefore);
+      });
+    }
   }
 
   // ---- 9. No console.error during a full cycle; render doesn't throw ----
