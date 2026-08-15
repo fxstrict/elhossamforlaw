@@ -1759,6 +1759,30 @@
         } else {
           var oldRecord = self._records[idx];
           var oldWasDeleted = self._isDeleted(oldRecord);
+          // FIX P2 (DATABASE_FORENSIC_REPORT.md §P2, "عودة بيانات محذوفة
+          // بعد Refresh/Sync"): a record that is soft-deleted LOCALLY
+          // (has deletedAt) is a tombstone that must not be silently
+          // resurrected just because an incoming merge row still exists
+          // remotely — UNLESS the incoming record explicitly carries its
+          // own `deletedAt` key (even `null`), which is a caller that
+          // knows about soft-delete semantics and is deliberately
+          // signalling a status change (this is the existing, tested
+          // contract of import('merge') — see verify_cache_validation.js
+          // D3 / verify_repository_cache_layer.js J2, both of which
+          // construct records with an explicit `deletedAt` on purpose
+          // and expect the flip to apply).
+          // A raw Google Sheets row NEVER has a `deletedAt` column/key
+          // at all (deletedAt is a purely local/internal field, never
+          // written to the Sheet) — so `'deletedAt' in record` is false
+          // for every Sheets-sourced row, and only true for a caller that
+          // deliberately built the field in. That distinction is exactly
+          // what lets this single generic Repository method serve both:
+          // loadFromSheets()'s merge (never resurrects a tombstone) and
+          // any other legitimate merge caller that explicitly manages
+          // deletedAt itself (flips honored as before).
+          if (oldWasDeleted && !('deletedAt' in record)) {
+            record.deletedAt = oldRecord.deletedAt;
+          }
           self._records[idx] = record;
           // Same array position, same id -> no this._idIndex mutation;
           // only _liveCount can change, if the incoming record's deleted
