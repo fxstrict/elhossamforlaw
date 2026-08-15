@@ -40,15 +40,44 @@ const ApiService = {
   /**
    * Core POST to Apps Script.
    * Uses Content-Type: text/plain to avoid CORS preflight (P7 workaround).
+   *
+   * FIX P5 (DATABASE_FORENSIC_REPORT.md §P5, "فشل صامت غير مُعاد المحاولة
+   * عند خطأ HTTP تطبيقي"): a resolved fetch() promise (HTTP 200, or any
+   * non-network-error status) previously meant "success" to every caller
+   * below, even though Config/06_Api.gs's own doPost()/doGet() return an
+   * ordinary 200 response with a `{error: "..."}` body on internal
+   * failures (bad sheet name, thrown exception inside apiUpdateRow/
+   * apiAddRow/etc). Nobody ever read that body, so an application-level
+   * failure was indistinguishable from a real success — no retry, no
+   * OfflineQueue entry, no user-visible signal.
+   *
+   * This now inspects BOTH the HTTP status and the parsed JSON body's
+   * `error` field, and throws in either failure case. Every existing
+   * caller (saveData/updateData/deleteData) already wraps its `await
+   * this._post(body)` call in a try/catch that enqueues the operation
+   * into OfflineQueue on any thrown error (see below) — so this change
+   * needs NO caller-side modification to start retrying application-level
+   * failures exactly the same way network failures already were retried.
+   * response.clone() is used so callers that still read the body
+   * themselves (uploadFile()) keep working unchanged.
    * @param {Object} body  - Plain object; will be JSON-stringified.
    * @returns {Promise<Response>}
    */
   async _post(body) {
-    return fetch(this._url(), {
+    const response = await fetch(this._url(), {
       method: 'POST',
       body: JSON.stringify(body),
       headers: { 'Content-Type': 'text/plain' }
     });
+    let parsed = null;
+    try { parsed = await response.clone().json(); } catch (parseErr) { /* non-JSON body — fall through to status-only check */ }
+    if (!response.ok) {
+      throw new Error('[ApiService] HTTP ' + response.status + ' من Apps Script');
+    }
+    if (parsed && parsed.error) {
+      throw new Error('[ApiService] فشل تطبيقي من الخادم: ' + parsed.error);
+    }
+    return response;
   },
 
   /**
@@ -211,16 +240,26 @@ const ApiService = {
    *
    * Replaces: syncDeleteToSheets(sheet, rowIndex)
    *
+   * FIX C1 (DATABASE_FORENSIC_REPORT.md §P6-C1): now accepts an optional
+   * `recordId` (the entity's own unique-id field value, e.g. رقم_القضية)
+   * and forwards it as `body.id`. Config/06_Api.gs's apiDeleteRow() tries
+   * this id FIRST (matching against the sheet's real idField column) and
+   * only falls back to the legacy rowIndex-based deletion when no id is
+   * supplied or no match is found — so this is purely additive: any
+   * existing call site that doesn't pass recordId keeps the exact prior
+   * behavior.
    * @param {string} sheetName  - Arabic sheet name
    * @param {number} rowIndex   - 0-based index in the frontend data array
+   * @param {string} [recordId] - the record's own unique-id field value (recommended)
    * @returns {Promise<void>}
    */
-  async deleteData(sheetName, rowIndex) {
+  async deleteData(sheetName, rowIndex, recordId) {
     if (!this._url()) return;
     const body = {
       action: 'delete',
       sheet: sheetName,
-      rowIndex: rowIndex + 1   // +1: GAS header offset (matches original)
+      rowIndex: rowIndex + 1,   // +1: GAS header offset (matches original) — fallback only now
+      id: (recordId !== undefined && recordId !== null) ? recordId : undefined
     };
     try {
       await this._post(body);
