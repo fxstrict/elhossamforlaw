@@ -2250,7 +2250,7 @@ window.addEventListener('DOMContentLoaded',function(){
   // استعادة رابط الشيت المحفوظ
   var savedSheetUrl=localStorage.getItem('sheetUrl');
   if(savedSheetUrl) displaySheetUrl(savedSheetUrl);
-  if(API_URL){loadFromSheets();setTimeout(pingConnection,2000);}
+  if(API_URL){bootLoadFromSheets();setTimeout(pingConnection,2000);}
   document.querySelectorAll('.modal-overlay').forEach(function(o){o.addEventListener('click',function(e){if(e.target===o)o.classList.remove('open');});});
 
   // PHASE 13.4 — PART 8: BOOTSTRAP REGRESSION FIX
@@ -2271,7 +2271,7 @@ window.addEventListener('DOMContentLoaded',function(){
       if(repoApiUrl!==undefined&&repoApiUrl!==API_URL){
         API_URL=repoApiUrl;
         updateConnectionStatus();
-        if(API_URL){loadFromSheets();setTimeout(pingConnection,2000);}
+        if(API_URL){bootLoadFromSheets();setTimeout(pingConnection,2000);}
       }
       if(repoDriveUrl!==undefined&&repoDriveUrl!==DRIVE_URL){
         DRIVE_URL=repoDriveUrl;

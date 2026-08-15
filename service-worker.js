@@ -220,7 +220,25 @@
 // corrected copy — same "Cache Versioning" rule as every previous
 // SW_VERSION bump in this file. No Repository/DatabaseService/IndexedDB
 // code touched — see audit report §11.
-var SW_VERSION = 'v51'; // RANK 1 FIX (Android Fixed-Surface Reduction) —
+// (v50 note) FIX (DATABASE_SYNC_FINAL_REPORT.md, database/CRUD/Sheets-
+// sync repair task): SW_VERSION bumped v49 -> v50 following the exact
+// "Cache Versioning" rule documented at every prior bump in this file
+// (see the v42 note immediately above). This bump is required because
+// several files already listed in PRECACHE_URLS below — served
+// cacheFirstIn(SHELL_CACHE), keyed by SW_VERSION, "NEVER re-check the
+// network" — had their CONTENT changed while keeping their existing
+// filename and existing ?v=42 query string (js/api/api.js,
+// js/core/Repository.js, js/modules/{cases,clients,documents,fees,
+// opponents,process-server-works,sessions,settings,tasks}.js). Per the
+// v42 note's own logic, an SW_VERSION bump alone forces a full
+// SHELL_CACHE recreation regardless of the ?v= query string value not
+// changing — so no PRECACHE_URLS entries needed editing, only this one
+// line, exactly matching the current convention (no new versioning
+// scheme invented). index.html itself needed no bump: it is served
+// networkFirstShell() (always fresh), and its only change was to a
+// small inline <script> block (bootLoadFromSheets() call sites), not a
+// cached file reference.
+var SW_VERSION = 'v52'; // RANK 1 FIX (Android Fixed-Surface Reduction) —
                          // css/components.css?v=42 is listed in PRECACHE_URLS below and
                          // served cacheFirstIn(SHELL_CACHE), which is keyed by SW_VERSION
                          // (see SHELL_CACHE definition a few lines down), so an already-
