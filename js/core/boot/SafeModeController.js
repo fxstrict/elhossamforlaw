@@ -128,7 +128,7 @@
   // no hard dependency on PAGE_TITLES existing (fails soft to the page id
   // itself if PAGE_TITLES is ever unavailable).
   var PAGE_LABELS = {
-    cases: 'القضايا', clients: 'الموكلون', sessions: 'الجلسات', tasks: 'المهام',
+    cases: 'القضايا', clients: 'الموكلون', sessions: 'الجلسات', tasks: 'الأعمال الإدارية',
     documents: 'المستندات', fees: 'الأتعاب', library: 'المكتبة القانونية',
     templates: 'صيغ الدعاوى', children: 'الأطفال'
   };
