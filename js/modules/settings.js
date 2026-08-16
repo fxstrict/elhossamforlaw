@@ -551,7 +551,7 @@ async function loadFromSheets(){
   _loadFromSheetsInProgress=true;
   try{
     showSyncIndicator(true);
-    var pairs=[['القضايا','cases'],['الجلسات','sessions'],['الموكلين','clients'],['الأطفال','children'],['المستندات','documents'],['المهام','tasks'],['الأتعاب','fees'],['رسائل_الموكل','clientMessages']];
+    var pairs=[['القضايا','cases'],['الجلسات','sessions'],['الموكلين','clients'],['الأطفال','children'],['المستندات','documents'],['الأعمال الإدارية','tasks'],['الأتعاب','fees'],['رسائل_الموكل','clientMessages']];
     var results=await Promise.all(pairs.map(async function(pair){
       var sh=pair[0],k=pair[1];
       try{

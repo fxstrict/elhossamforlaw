@@ -123,7 +123,10 @@
  *                         Repository file already loads its own
  *                         dependencies)
  *
- * GAS Sheet name: 'المهام'
+ * GAS Sheet name: 'الأعمال الإدارية' (ADMINISTRATIVE WORKS TRANSFORM —
+ * renamed in place from 'المهام'; same physical sheet tab, same
+ * رقم_المهمة id field — see Config/01_Database.gs
+ * migrateTasksSheetRename() for the one-time, zero-data-loss rename).
  *
  * Does NOT touch:
  *   - CSS / HTML structure
@@ -139,6 +142,16 @@
  */
 
 'use strict';
+
+// ADMINISTRATIVE WORKS TRANSFORM — defensive local escaping wrapper.
+// index.html loads cases.js (which defines the global escapeHtml())
+// before tasks.js, so in the live app this always delegates straight
+// through. But tasks.js must not *hard-depend* on that load order (it
+// is also loaded standalone by several Node test harnesses) — same
+// fallback pattern already used in js/modules/process-server-fields.js.
+function _twEsc(v) {
+  return (typeof escapeHtml === 'function') ? escapeHtml(v) : String(v == null ? '' : v);
+}
 
 // ================================================================
 // FIELDS & MAP — tasks slice only (unchanged)
@@ -423,6 +436,39 @@ function toggleTaskReasonFields() {
   reopenGroup.style.display = (status === 'pending' && hasCompletedBefore) ? '' : 'none';
 }
 
+/**
+ * _taskDocsCount(t) — عدد المستندات المرفقة بعمل إداري. عمود
+ * 'المستندات' مخزّن كنص JSON (نفس أسلوب 'أعمال_المحضرين'.المستندات
+ * حرفيًا — راجع ProcessServerFields.collect() في process-server-fields.js).
+ * @param {Object} t - سجل عمل إداري.
+ * @returns {number}
+ */
+function _taskDocsCount(t) {
+  if (!t || !t['المستندات']) return 0;
+  try {
+    var arr = typeof t['المستندات'] === 'string' ? JSON.parse(t['المستندات']) : t['المستندات'];
+    return Array.isArray(arr) ? arr.length : 0;
+  } catch (e) {
+    return 0;
+  }
+}
+
+// ================================================================
+// STATUS FILTER CHIPS — الكل / قيد التنفيذ / مكتمل (ADMINISTRATIVE
+// WORKS TRANSFORM). Mirrors filterPswStatus() in
+// js/modules/process-server-works.js exactly: same .ps-tab-group/
+// .ps-tab CSS classes (no new CSS), same toggle-active pattern.
+// ================================================================
+var _taskStatusFilter = 'all';
+
+function filterTaskStatus(status) {
+  _taskStatusFilter = status || 'all';
+  document.querySelectorAll('#page-tasks .ps-tab').forEach(function (btn) {
+    btn.classList.toggle('ps-tab-active', btn.getAttribute('data-ps-status') === _taskStatusFilter);
+  });
+  renderTasks();
+}
+
 // ================================================================
 // RENDER — عرض قائمة المهام
 // ================================================================
@@ -469,7 +515,11 @@ function renderTasks() {
 
   var queryModel = {};
   if (s) queryModel.search = s;
-  if (pr) queryModel.filter = { 'الأولوية': pr };
+  var statusFilterObj = (_taskStatusFilter === 'pending') ? { 'الحالة': 'pending' }
+    : (_taskStatusFilter === 'done') ? { 'الحالة': 'done' } : null;
+  if (pr && statusFilterObj) queryModel.filter = Object.assign({}, statusFilterObj, { 'الأولوية': pr });
+  else if (pr) queryModel.filter = { 'الأولوية': pr };
+  else if (statusFilterObj) queryModel.filter = statusFilterObj;
   var rows = tasksRepository.search(queryModel).items;
 
   var c  = document.getElementById('tasksListView');
@@ -533,15 +583,31 @@ function renderTasks() {
       // change needed, statusBadge() already conveys done/pending state.
       '<div style="flex:1;min-width:0;">' +
         '<div class="task-text ' + (done ? 'done' : '') + '">' +
-          (TASK_PRIORITY_ICONS[t['الأولوية']] || '') + '&nbsp;' + t['العنوان'] +
+          (TASK_PRIORITY_ICONS[t['الأولوية']] || '') + '&nbsp;' + _twEsc(t['العنوان'] || '') +
         '</div>' +
+        // ADMINISTRATIVE WORKS TRANSFORM — الموكل/القضية (additive،
+        // نفس .task-due class المستخدمة أصلاً — صفر CSS جديد).
+        (t['اسم_الموكل'] || t['رقم_القضية']
+          ? '<div style="display:flex;gap:9px;flex-wrap:wrap;margin-top:2px;">' +
+              (t['اسم_الموكل'] ? '<span class="task-due">&#128100; ' + _twEsc(t['اسم_الموكل']) + '</span>' : '') +
+              (t['رقم_القضية'] ? '<span class="task-due">&#9878; ' + _twEsc(t['رقم_القضية']) + '</span>' : '') +
+            '</div>'
+          : '') +
         '<div style="display:flex;gap:9px;flex-wrap:wrap;margin-top:3px;">' +
-          (t['رقم_القضية'] ? '<span class="task-due">&#9878; ' + t['رقم_القضية'] + '</span>' : '') +
           statusBadge(t['الحالة']) +
           (t['الموعد_النهائي']
             ? '<span class="task-due">' + urgencyBadge(t['الموعد_النهائي']) + ' ' + formatDate(t['الموعد_النهائي']) + '</span>'
             : '') +
+          (t['مكان_التنفيذ'] ? '<span class="task-due">&#128205; ' + _twEsc(t['مكان_التنفيذ']) + '</span>' : '') +
         '</div>' +
+        // "المطلوب" — صندوق ذهبي مميز، مطابق لمتطلبات التصميم (§4 من
+        // طلب التنفيذ: "إدخال اللون الذهبي المستخدم في النظام").
+        (t['المطلوب']
+          ? '<div class="task-required-box">' + _twEsc(t['المطلوب']) + '</div>'
+          : '') +
+        (_taskDocsCount(t) > 0
+          ? '<div class="task-due" style="margin-top:2px;">&#128206; ' + _taskDocsCount(t) + ' مستند' + (_taskDocsCount(t) > 1 ? 'ات' : '') + '</div>'
+          : '') +
         historyLine +
       '</div>' +
       '<div style="display:flex;gap:5px;flex-shrink:0;">' +
@@ -612,13 +678,28 @@ function renderTasks() {
 async function saveTask() {
   var t = document.getElementById('fTaskTitle').value.trim();
   if (!t) {
-    toast('يرجى إدخال عنوان المهمة', 'error');
+    toast('يرجى إدخال عنوان العمل الإداري', 'error');
+    return;
+  }
+
+  // ADMINISTRATIVE WORKS TRANSFORM — الموكل حقل إلزامي الآن (لم يكن
+  // موجودًا إطلاقًا في "المهام" القديمة). نفس رسالة/نمط التحقق
+  // المستخدم بالفعل في saveProcessServerWork() (process-server-works.js).
+  var clientId = document.getElementById('fTaskClientId') ? document.getElementById('fTaskClientId').value.trim() : '';
+  if (!clientId) {
+    toast('يرجى اختيار الموكل أولاً', 'error');
     return;
   }
 
   await ensureTasksRepositoryReady();
 
   var obj = collectForm('tasks');
+
+  if (window.AdministrativeWorkFields && typeof AdministrativeWorkFields.collect === 'function') {
+    var extendedDocs = AdministrativeWorkFields.collect();
+    Object.keys(extendedDocs).forEach(function (k) { obj[k] = extendedDocs[k]; });
+  }
+
   // Note: obj['رقم_المهمة'] is intentionally NOT stamped here — see file
   // header "IDENTIFIER GENERATION NOTE": TasksRepository.create()
   // generates it internally (only when absent), exactly replicating the
@@ -709,13 +790,13 @@ async function saveTask() {
   syncTasksMirror();
 
   if (idx >= 0) {
-    toast('تم التحديث', 'success');
+    toast('تم حفظ العمل بنجاح', 'success');
   } else {
-    toast('تمت الإضافة', 'success');
+    toast('تم حفظ العمل بنجاح', 'success');
   }
 
   saveLocal();
-  ApiService.syncRow('المهام', result.record, idx);   // replaces: if(API_URL)syncToSheets(...)
+  ApiService.syncRow('الأعمال الإدارية', result.record, idx);   // replaces: if(API_URL)syncToSheets(...)
   closeModal('modalTask');
   renderTasks();
   updateBadges();
@@ -738,6 +819,15 @@ function editTask(i) {
   if (fReopenReasonEl) fReopenReasonEl.value = '';
   fillForm('tasks', data.tasks[i]);
   toggleTaskReasonFields();
+
+  // ADMINISTRATIVE WORKS TRANSFORM — restore the client/case picker UI
+  // state and the documents repeat-rows from the stored record, same
+  // pattern as editProcessServerWork() (process-server-works.js).
+  syncTaskClientSelectorFromRecord(data.tasks[i]);
+  syncTaskCaseSelectorFromRecord(data.tasks[i]);
+  if (window.AdministrativeWorkFields && typeof AdministrativeWorkFields.fill === 'function') {
+    AdministrativeWorkFields.fill(data.tasks[i]);
+  }
 
   // PHASE 13.15 PART 2 — read-only "آخر إنجاز" / "آخر إعادة فتح" summary
   // shown just below the status field (#modalTask). Pure DOM display of
@@ -799,7 +889,7 @@ function editTask(i) {
     }
   }
 
-  document.getElementById('modalTaskTitle').textContent = 'تعديل المهمة';
+  document.getElementById('modalTaskTitle').textContent = 'تعديل عمل إداري';
   document.getElementById('modalTask').classList.add('open');
 }
 
@@ -817,7 +907,7 @@ function editTask(i) {
  * — the only reason this function is now `async`.
  */
 async function deleteTask(i) {
-  if (!(await confirmDialog('هل تريد حذف هذه المهمة؟'))) return;
+  if (!(await confirmDialog('هل تريد حذف هذا العمل الإداري؟'))) return;
 
   await ensureTasksRepositoryReady();
 
@@ -825,7 +915,7 @@ async function deleteTask(i) {
   if (!record) return;
 
   var id = record[TASKS_ID_FIELD];
-  ApiService.deleteData('المهام', i, id);
+  ApiService.deleteData('الأعمال الإدارية', i, id);
 
   var result = await tasksRepository.delete(id);
 
@@ -836,7 +926,7 @@ async function deleteTask(i) {
 
   syncTasksMirror();
   saveLocal();
-  toast('تم الحذف', 'info');
+  toast('تم حذف العمل بنجاح', 'info');
   renderTasks();
   updateBadges();
   // PHASE 16.5.1 — DIRTY PROPAGATION (additive only, see phase brief)
@@ -872,11 +962,11 @@ async function restoreTask(id) {
     return;
   }
 
-  ApiService.syncRow('المهام', result.record, 0);
+  ApiService.syncRow('الأعمال الإدارية', result.record, 0);
 
   syncTasksMirror();
   saveLocal();
-  toast('تم الاسترجاع', 'success');
+  toast('تم استرجاع العمل الإداري', 'success');
   renderTasks();
   updateBadges();
   // PHASE 16.5.1 — DIRTY PROPAGATION (additive only, see phase brief)
@@ -1037,6 +1127,171 @@ async function redoLastTaskAction() {
   }
 }
 
+// ================================================================
+// CLIENT SELECTOR (ADMINISTRATIVE WORKS TRANSFORM) — بنفس نمط
+// pswClientSelector* في js/modules/process-server-works.js حرفيًا
+// (نفس CSS classes: client-selector-box/panel/search/list/chips —
+// صفر CSS جديد). موكل واحد لكل عمل إداري (Single-select).
+// ================================================================
+var _taskSelectedClientId = '';
+
+function toggleTaskClientSelector(evt) {
+  if (evt) evt.stopPropagation();
+  var panel = document.getElementById('taskClientSelectorPanel');
+  if (!panel) return;
+  var willOpen = !panel.classList.contains('open');
+  document.querySelectorAll('.client-selector-panel').forEach(function (p) { p.classList.remove('open'); });
+  if (willOpen) {
+    panel.classList.add('open');
+    renderTaskClientSelectorList();
+    var search = document.getElementById('taskClientSelectorSearch');
+    if (search) { search.value = ''; search.focus(); }
+  }
+}
+
+function renderTaskClientSelectorList() {
+  var list = document.getElementById('taskClientSelectorList');
+  if (!list) return;
+  var q = (document.getElementById('taskClientSelectorSearch') ? document.getElementById('taskClientSelectorSearch').value : '').trim().toLowerCase();
+  var all = (data.clients || []).slice().sort(function (a, b) {
+    return String(a['الاسم'] || '').localeCompare(String(b['الاسم'] || ''), 'ar');
+  });
+  var filtered = q ? all.filter(function (c) {
+    return String(c['الاسم'] || '').toLowerCase().indexOf(q) !== -1 ||
+      String(c['الرقم_القومي'] || '').toLowerCase().indexOf(q) !== -1;
+  }) : all;
+
+  if (!filtered.length) {
+    list.innerHTML = '<div class="client-selector-empty">لا يوجد موكلين مطابقين — يمكنك إضافة موكل جديد من صفحة الموكلين.</div>';
+  } else {
+    list.innerHTML = filtered.map(function (c) {
+      var id = c['رقم_الموكل'];
+      var checked = _taskSelectedClientId === id;
+      return '<div class="client-selector-item' + (checked ? ' selected' : '') + '" onclick="selectTaskClient(\'' + id + '\')">' +
+        '<span>' + _twEsc(c['الاسم'] || '—') + (c['الهاتف'] ? ' <small>(' + _twEsc(c['الهاتف']) + ')</small>' : '') + '</span>' +
+      '</div>';
+    }).join('');
+  }
+}
+
+function selectTaskClient(id) {
+  _taskSelectedClientId = id;
+  var client = (data.clients || []).filter(function (c) { return c['رقم_الموكل'] === id; })[0];
+
+  var idEl = document.getElementById('fTaskClientId');
+  var nameEl = document.getElementById('fTaskClientNameHidden');
+  if (idEl) idEl.value = id;
+  if (nameEl) nameEl.value = client ? (client['الاسم'] || '') : '';
+
+  renderTaskClientSelectorChips();
+  populateTaskCaseDropdown(client ? client['الاسم'] : '');
+
+  var panel = document.getElementById('taskClientSelectorPanel');
+  if (panel) panel.classList.remove('open');
+}
+
+function removeTaskClient() {
+  _taskSelectedClientId = '';
+  var idEl = document.getElementById('fTaskClientId');
+  var nameEl = document.getElementById('fTaskClientNameHidden');
+  if (idEl) idEl.value = '';
+  if (nameEl) nameEl.value = '';
+  renderTaskClientSelectorChips();
+  populateTaskCaseDropdown('');
+}
+
+function renderTaskClientSelectorChips() {
+  var chips = document.getElementById('taskClientSelectorChips');
+  if (!chips) return;
+  if (!_taskSelectedClientId) {
+    chips.innerHTML = '<span class="client-selector-placeholder">اضغط لاختيار الموكل...</span>';
+    return;
+  }
+  var client = (data.clients || []).filter(function (c) { return c['رقم_الموكل'] === _taskSelectedClientId; })[0];
+  var label = client ? client['الاسم'] : _taskSelectedClientId;
+  chips.innerHTML = '<span class="client-chip">' + _twEsc(label) +
+    '<button type="button" class="client-chip-remove" onclick="event.stopPropagation();removeTaskClient()" title="إزالة">&times;</button></span>';
+}
+
+function syncTaskClientSelectorFromRecord(record) {
+  _taskSelectedClientId = record ? (record['رقم_الموكل'] || '') : '';
+  var idEl = document.getElementById('fTaskClientId');
+  var nameEl = document.getElementById('fTaskClientNameHidden');
+  if (idEl) idEl.value = _taskSelectedClientId;
+  if (nameEl) nameEl.value = record ? (record['اسم_الموكل'] || '') : '';
+  renderTaskClientSelectorChips();
+}
+
+function resetTaskClientSelector() {
+  _taskSelectedClientId = '';
+  renderTaskClientSelectorChips();
+  populateTaskCaseDropdown('');
+}
+
+if (typeof document !== 'undefined' && document.addEventListener) {
+  document.addEventListener('click', function () {
+    var panel = document.getElementById('taskClientSelectorPanel');
+    if (panel) panel.classList.remove('open');
+  });
+}
+
+// ================================================================
+// CASE SELECTOR (scoped to the chosen client) — نفس أسلوب مطابقة
+// الاسم النصي المستخدم في populatePswCaseDropdown() حرفيًا (القضايا
+// لا تملك عمود رقم_الموكل رسميًا — راجع تعليقات js/modules/clients.js).
+// ================================================================
+function populateTaskCaseDropdown(clientName) {
+  var sel = document.getElementById('fTaskCaseNum');
+  if (!sel) return;
+  var current = sel.value;
+  sel.innerHTML = '<option value="">-- بدون ربط بقضية محددة --</option>';
+
+  if (!clientName) {
+    sel.disabled = true;
+    return;
+  }
+  sel.disabled = false;
+
+  var name = clientName.trim();
+  var matchingCases = (data.cases || []).filter(function (c) {
+    var names = (typeof _splitClientNames === 'function') ? _splitClientNames(c['اسم_الموكل'] || '') : [(c['اسم_الموكل'] || '').trim()];
+    return names.indexOf(name) !== -1;
+  });
+
+  matchingCases.forEach(function (c) {
+    var num = c['رقم_القضية'] || '';
+    var title = c['عنوان_القضية'] || '';
+    var opt = document.createElement('option');
+    opt.value = num;
+    opt.textContent = num + (title ? ' — ' + title : '');
+    opt.setAttribute('data-case-title', title);
+    if (num === current) opt.selected = true;
+    sel.appendChild(opt);
+  });
+
+  if (!matchingCases.length) {
+    var noneOpt = document.createElement('option');
+    noneOpt.value = '';
+    noneOpt.textContent = '-- لا توجد قضايا مسجلة لهذا الموكل --';
+    noneOpt.disabled = true;
+    sel.appendChild(noneOpt);
+  }
+}
+
+function onTaskCaseChange() {
+  var sel = document.getElementById('fTaskCaseNum');
+  var titleEl = document.getElementById('fTaskCaseTitle');
+  if (!sel || !titleEl) return;
+  var opt = (sel.options && sel.options.length) ? sel.options[sel.selectedIndex] : null;
+  titleEl.value = (opt && opt.getAttribute) ? (opt.getAttribute('data-case-title') || '') : '';
+}
+
+function syncTaskCaseSelectorFromRecord(record) {
+  var sel = document.getElementById('fTaskCaseNum');
+  if (sel) sel.value = record ? (record['رقم_القضية'] || '') : '';
+  onTaskCaseChange();
+}
+
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     tasksUndoManager: tasksUndoManager,
@@ -1055,6 +1310,11 @@ if (typeof module !== 'undefined' && module.exports) {
     editTask: editTask,
     deleteTask: deleteTask,
     restoreTask: restoreTask,
-    toggleTask: toggleTask
+    toggleTask: toggleTask,
+    filterTaskStatus: filterTaskStatus,
+    selectTaskClient: selectTaskClient,
+    removeTaskClient: removeTaskClient,
+    populateTaskCaseDropdown: populateTaskCaseDropdown,
+    onTaskCaseChange: onTaskCaseChange
   };
 }
