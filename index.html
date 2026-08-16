@@ -246,7 +246,7 @@
 <link href="css/variables.css?v=42" rel="stylesheet">
 <link href="css/base.css?v=42" rel="stylesheet">
 <link href="css/layout.css?v=42" rel="stylesheet">
-<link href="css/components.css?v=42" rel="stylesheet">
+<link href="css/components.css?v=53" rel="stylesheet">
 <link href="css/responsive.css?v=42" rel="stylesheet">
 <link href="css/utilities.css?v=42" rel="stylesheet">
 <link href="css/skeleton.css?v=42" rel="stylesheet">
@@ -353,7 +353,7 @@
 <link rel="preload" as="script" href="js/modules/calendar.js?v=42" fetchpriority="low">
 <link rel="preload" as="script" href="js/modules/children.js?v=42" fetchpriority="low">
 <link rel="preload" as="script" href="js/modules/dashboard.js?v=42" fetchpriority="high">
-<link rel="preload" as="script" href="js/modules/tasks.js?v=42" fetchpriority="low">
+<link rel="preload" as="script" href="js/modules/tasks.js?v=53" fetchpriority="low">
 <link rel="preload" as="script" href="js/modules/documents.js?v=42" fetchpriority="low">
 <link rel="preload" as="script" href="js/modules/sessions.js?v=42" fetchpriority="low">
 <link rel="preload" as="script" href="js/core/HistoryPanel.js?v=42" fetchpriority="high">
@@ -365,6 +365,7 @@
      preload-priority convention as opponents.js/opponent-fields.js above. -->
 <link rel="preload" as="script" href="js/modules/process-server-works.js?v=42" fetchpriority="high">
 <link rel="preload" as="script" href="js/modules/process-server-fields.js?v=42" fetchpriority="high">
+<link rel="preload" as="script" href="js/modules/administrative-work-fields.js?v=53" fetchpriority="high">
 <link rel="preload" as="script" href="js/modules/client-messages.js?v=42" fetchpriority="low">
 <link rel="preload" as="script" href="js/modules/fees.js?v=42" fetchpriority="low">
 <link rel="preload" as="script" href="js/modules/library.js?v=42" fetchpriority="low">
@@ -597,8 +598,7 @@ style="color:var(--muted);font-size:12px;margin-top:4px;"> جارٍ تحميل
     <div class="nav-item" tabindex="0" role="link" onclick="navigate('documents')"><span class="nav-icon">&#128206;</span> المستندات <span class="nav-badge" id="badgeDocuments">0</span></div>
     <div class="nav-section-label">الإدارة</div>
     <div class="nav-item" tabindex="0" role="link"
-    onclick="navigate('tasks')"><span class="nav-icon">&#9989;</span> المهام
-     الادارية<span class="nav-badge" id="badgeTasks">0</span></div>
+    onclick="navigate('tasks')"><span class="nav-icon">&#9989;</span> الأعمال الإدارية<span class="nav-badge" id="badgeTasks">0</span></div>
     <div class="nav-item" tabindex="0" role="link" onclick="navigate('fees')"><span class="nav-icon">&#128176;</span> الأتعاب <span class="nav-badge" id="badgeFees">0</span></div>
     <div class="nav-section-label">الأدوات</div>
     <div class="nav-item" tabindex="0" role="link" onclick="navigate('calendar')"><span class="nav-icon">&#128467;</span> التقويم</div>
@@ -881,22 +881,26 @@ style="color:var(--muted);font-size:12px;margin-top:4px;"> جارٍ تحميل
   <div class="mobile-card-list list-container" id="documentsMobileList"></div>
 </div>
 
-<!-- TASKS -->
+<!-- ADMINISTRATIVE WORKS (الأعمال الإدارية) — تحويل وحدة "المهام" وفق
+     ADMINISTRATIVE_WORKS_PRE_IMPLEMENTATION_AUDIT.md. نفس الـid الجذري
+     "page-tasks"/"tasksListView"/"tasksEmpty"/"searchTasks" (لا يُغيَّر —
+     navigate('tasks') وكل استدعاءات renderTasks() تبقى كما هي)، فقط
+     النص المعروض والفلاتر الإضافية (Additive) تغيّرت. -->
 <div class="page" id="page-tasks">
-  <!-- PHASE 14.7 — Migration Phase 4. Dual-class (old + new) applied
-       on Toolbar and Empty State only — this page has no .card/
-       .table-wrap/.mobile-card-list elements (renderTasks() writes
-       custom markup directly into #tasksListView, same pattern as
-       Sessions in 14.6), so card-section/table-container/
-       list-container do not apply here. No old class removed, no
-       ID/attribute/event handler/JS selector changed. See docs
-       Phase 14.7 report. -->
   <div class="toolbar page-toolbar">
-    <div class="search-wrap"><span class="icon">&#128269;</span><input type="text" id="searchTasks" placeholder="بحث في المهام..." oninput="renderTasks()"></div>
+    <div class="search-wrap"><span class="icon">&#128269;</span><input type="text" id="searchTasks" placeholder="ابحث عن عمل، موكل، قضية..." oninput="renderTasks()"></div>
     <select id="filterTaskPriority" onchange="renderTasks()" style="width:auto;min-width:120px;"><option value="">كل الأولويات</option><option value="high">عاجلة</option><option value="medium">متوسطة</option><option value="low">عادية</option></select>
   </div>
+  <!-- فلاتر الحالة (الكل/قيد التنفيذ/مكتمل) — تعيد استخدام حرفيًا نفس
+       نمط .ps-tab-group/.ps-tab المستخدم بالفعل في "أعمال المحضرين"
+       (css/components.css) — صفر CSS جديد. -->
+  <div class="ps-tab-group">
+    <button type="button" class="ps-tab ps-tab-active" data-ps-status="all" onclick="filterTaskStatus('all')">&#8734; الكل</button>
+    <button type="button" class="ps-tab" data-ps-status="pending" onclick="filterTaskStatus('pending')">&#128203; قيد التنفيذ</button>
+    <button type="button" class="ps-tab" data-ps-status="done" onclick="filterTaskStatus('done')">&#10003; مكتمل</button>
+  </div>
   <div id="tasksListView"></div>
-  <div id="tasksEmpty" class="empty-state empty-container" style="display:none;"><div class="icon">&#9989;</div><h3>لا توجد مهام بعد</h3><p>أضف مهام متابعة للقضايا (مواعيد، إجراءات، أوراق مطلوبة) وحدد أولويتها.</p><button class="btn btn-primary" onclick="openAddModal()">&#65291; إضافة مهمة</button></div>
+  <div id="tasksEmpty" class="empty-state empty-container" style="display:none;"><div class="icon">&#128188;</div><h3>لا توجد أعمال إدارية تطابق بحثك</h3><p>حاول تغيير الفلتر أو البحث عن شيء آخر، أو أضف عملاً إداريًا جديدًا مرتبطًا بموكل وقضية.</p><button class="btn btn-primary" onclick="openAddModal()">&#65291; إضافة عمل إداري</button></div>
 </div>
 
 <!-- FEES -->
@@ -1608,42 +1612,87 @@ style="color:var(--muted);font-size:12px;margin-top:4px;"> جارٍ تحميل
   </div>
 </div>
 
+<!-- ADMINISTRATIVE WORKS TRANSFORM — نموذج إضافة/تعديل عمل إداري.
+     قرار معماري محسوم مع المستخدم: Modal (وليس صفحة كاملة منفصلة كما في
+     الصور المرجعية) — بنفس نمط كل نماذج المشروع، وبنفس بنية نموذج "أعمال
+     المحضرين" (modalProcessServerWork) حرفيًا: اختيار موكل (Bottom-Sheet
+     بحث مطابق لـ client-selector-*) -> قضية اختيارية مقصورة على قضايا
+     هذا الموكل -> تفاصيل العمل -> مستندات -> ظهور ببوابة الموكل. الـid
+     الجذري (modalTask/fTaskTitle/fTaskCaseNum/fTaskPriority/fTaskDue/
+     fTaskStatus/fTaskPortalVisible/fTaskNotes/fTaskCompletionReason*/
+     fTaskReopenReason*) بقي بلا تغيير بالكامل — الإضافات فقط جديدة. -->
 <div class="modal-overlay" id="modalTask">
-  <div class="modal">
-    <div class="modal-header"><div class="modal-title"><span class="icon">&#9989;</span><span id="modalTaskTitle">إضافة مهمة</span></div><button class="modal-close" onclick="closeModal('modalTask')">&#10005;</button></div>
-    <div class="modal-body"><div class="form-grid">
-      <div class="form-group full"><label>عنوان المهمة<span class="req">*</span></label><input type="text" id="fTaskTitle" placeholder="وصف المهمة بوضوح"></div>
-      <div class="form-group"><label>رقم القضية المرتبطة</label><input type="text" id="fTaskCaseNum" placeholder="اختياري"></div>
-      <div class="form-group"><label>الأولوية</label>
-        <select id="fTaskPriority"><option value="high">عاجلة</option><option value="medium" selected>متوسطة</option><option value="low">عادية</option></select>
+  <div class="modal modal-lg">
+    <div class="modal-header"><div class="modal-title"><span class="icon">&#9989;</span><span id="modalTaskTitle">إضافة عمل إداري جديد</span></div><button class="modal-close" onclick="closeModal('modalTask')">&#10005;</button></div>
+    <div class="modal-body">
+
+      <div class="repeat-card">
+        <div class="repeat-card-header">&#128100; اختيار الموكل</div>
+        <div class="form-group full client-selector-group">
+          <label>الموكل<span class="req">*</span></label>
+          <div class="client-selector-box" id="taskClientSelectorBox" onclick="toggleTaskClientSelector(event)">
+            <div class="client-selector-chips" id="taskClientSelectorChips"><span class="client-selector-placeholder">اضغط لاختيار الموكل...</span></div>
+            <span class="client-selector-arrow">&#9662;</span>
+          </div>
+          <div class="client-selector-panel" id="taskClientSelectorPanel" onclick="event.stopPropagation()">
+            <input type="text" id="taskClientSelectorSearch" class="client-selector-search" placeholder="بحث عن موكل بالاسم أو الرقم القومي..." oninput="renderTaskClientSelectorList()">
+            <div class="client-selector-list" id="taskClientSelectorList"></div>
+          </div>
+          <input type="hidden" id="fTaskClientId">
+          <input type="hidden" id="fTaskClientNameHidden">
+        </div>
+        <div class="form-group full">
+          <label>القضية (اختياري — تظهر فقط قضايا الموكل المختار)</label>
+          <select id="fTaskCaseNum" onchange="onTaskCaseChange()" disabled><option value="">-- اختر الموكل أولاً --</option></select>
+          <input type="hidden" id="fTaskCaseTitle">
+        </div>
       </div>
-      <div class="form-group"><label>الموعد النهائي</label><input type="date" id="fTaskDue"></div>
-      <div class="form-group"><label>الحالة</label>
-        <select id="fTaskStatus" onchange="toggleTaskReasonFields()"><option value="pending">معلقة</option><option value="done">مكتملة</option></select>
+
+      <div class="repeat-card u-mt-12">
+        <div class="repeat-card-header">&#128203; تفاصيل العمل</div>
+        <div class="form-grid">
+          <div class="form-group full"><label>عنوان/بيان العمل الإداري<span class="req">*</span></label><input type="text" id="fTaskTitle" placeholder="وصف العمل الإداري بوضوح"></div>
+          <div class="form-group"><label>الأولوية</label>
+            <select id="fTaskPriority"><option value="high">عاجلة</option><option value="medium" selected>متوسطة</option><option value="low">عادية</option></select>
+          </div>
+          <div class="form-group"><label>تاريخ التنفيذ<span class="req">*</span></label><input type="date" id="fTaskDue"></div>
+          <div class="form-group full"><label>مكان التنفيذ</label><input type="text" id="fTaskLocation" placeholder="اختياري"></div>
+          <div class="form-group full"><label>المطلوب<span class="req">*</span></label><textarea id="fTaskRequired" placeholder="ما هو المطلوب تنفيذه في هذا العمل الإداري..."></textarea></div>
+          <div class="form-group"><label>الحالة</label>
+            <select id="fTaskStatus" onchange="toggleTaskReasonFields()"><option value="pending">قيد التنفيذ</option><option value="done">مكتمل</option></select>
+          </div>
+          <div class="form-group"><label>ظاهر لبوابة الموكل؟</label>
+            <select id="fTaskPortalVisible"><option value="لا">لا</option><option value="نعم">نعم</option></select>
+          </div>
+          <!-- PHASE 13.15 PART 2 — read-only history summary (display only,
+               no input/textarea). Populated by editTask() in tasks.js from
+               the already-stored تاريخ_الإنجاز/وقت_الإنجاز/سبب_الإنجاز and
+               تاريخ_إعادة_الفتح/وقت_إعادة_الفتح/سبب_إعادة_الفتح fields; each
+               block is hidden entirely when it has no data. Unchanged. -->
+          <div class="form-group full" id="taskLastCompletionInfo" style="display:none;">
+            <label>آخر إنجاز</label>
+            <div><span id="taskLastCompletionWhen"></span></div>
+            <div id="taskLastCompletionReasonRow" style="display:none;margin-top:2px;"><small>السبب: <span id="taskLastCompletionReasonText"></span></small></div>
+          </div>
+          <div class="form-group full" id="taskLastReopenInfo" style="display:none;">
+            <label>آخر إعادة فتح</label>
+            <div><span id="taskLastReopenWhen"></span></div>
+            <div id="taskLastReopenReasonRow" style="display:none;margin-top:2px;"><small>السبب: <span id="taskLastReopenReasonText"></span></small></div>
+          </div>
+          <div class="form-group full" id="fTaskCompletionReasonGroup" style="display:none;"><label>سبب الإنجاز</label><textarea id="fTaskCompletionReason" placeholder="سبب إنجاز العمل..."></textarea></div>
+          <div class="form-group full" id="fTaskReopenReasonGroup" style="display:none;"><label>سبب إعادة الفتح</label><textarea id="fTaskReopenReason" placeholder="سبب إعادة فتح العمل..."></textarea></div>
+          <div class="form-group full"><label>ملاحظات</label><textarea id="fTaskNotes" placeholder="تفاصيل إضافية..."></textarea></div>
+        </div>
       </div>
-      <div class="form-group"><label>ظاهر لبوابة الموكل؟</label>
-        <select id="fTaskPortalVisible"><option value="لا">لا</option><option value="نعم">نعم</option></select>
+
+      <div class="repeat-card u-mt-12">
+        <div class="repeat-card-header">&#128206; المستندات <button type="button" class="btn btn-ghost btn-sm" onclick="AdministrativeWorkFields.addDocumentRow()">&#65291; إضافة مستند</button></div>
+        <div id="twDocumentsContainer"></div>
+        <p class="u-muted" style="font-size:12px;">تُرفع المستندات تلقائيًا داخل فولدر باسم الموكل، داخل فولدر "مستندات القضايا" بالنسخة الاحتياطية على Drive — نفس آلية أعمال المحضرين تمامًا.</p>
       </div>
-      <!-- PHASE 13.15 PART 2 — read-only history summary (display only,
-           no input/textarea). Populated by editTask() in tasks.js from
-           the already-stored تاريخ_الإنجاز/وقت_الإنجاز/سبب_الإنجاز and
-           تاريخ_إعادة_الفتح/وقت_إعادة_الفتح/سبب_إعادة_الفتح fields; each
-           block is hidden entirely when it has no data. -->
-      <div class="form-group full" id="taskLastCompletionInfo" style="display:none;">
-        <label>آخر إنجاز</label>
-        <div><span id="taskLastCompletionWhen"></span></div>
-        <div id="taskLastCompletionReasonRow" style="display:none;margin-top:2px;"><small>السبب: <span id="taskLastCompletionReasonText"></span></small></div>
-      </div>
-      <div class="form-group full" id="taskLastReopenInfo" style="display:none;">
-        <label>آخر إعادة فتح</label>
-        <div><span id="taskLastReopenWhen"></span></div>
-        <div id="taskLastReopenReasonRow" style="display:none;margin-top:2px;"><small>السبب: <span id="taskLastReopenReasonText"></span></small></div>
-      </div>
-      <div class="form-group full" id="fTaskCompletionReasonGroup" style="display:none;"><label>سبب الإنجاز</label><textarea id="fTaskCompletionReason" placeholder="سبب إنجاز المهمة..."></textarea></div>
-      <div class="form-group full" id="fTaskReopenReasonGroup" style="display:none;"><label>سبب إعادة الفتح</label><textarea id="fTaskReopenReason" placeholder="سبب إعادة فتح المهمة..."></textarea></div>
-      <div class="form-group full"><label>ملاحظات</label><textarea id="fTaskNotes" placeholder="تفاصيل إضافية..."></textarea></div>
-    </div></div>
-    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal('modalTask')">إلغاء</button><button class="btn btn-primary" onclick="saveTask()">&#128190; حفظ المهمة</button></div>
+
+    </div>
+    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal('modalTask')">إلغاء</button><button class="btn btn-primary" onclick="saveTask()">&#128190; حفظ العمل الإداري</button></div>
   </div>
 </div>
 
@@ -2064,7 +2113,7 @@ function navigate(page){
   if(window.innerWidth<=768){document.getElementById('sidebar').classList.remove('open');document.getElementById('sidebarOverlay').classList.remove('open');}
 }
 function toggleSidebar(){document.getElementById('sidebar').classList.toggle('open');document.getElementById('sidebarOverlay').classList.toggle('open');}
-function openAddModal(){var m={cases:'Case',sessions:'Session',clients:'Client',tasks:'Task',opponents:'Opponent',processServerWorks:'ProcessServerWork'};var k=m[currentPage];if(!k){toast('اختر قسماً أولاً','info');return;}editIdx[currentPage]=-1;resetForm(currentPage);var titles={cases:'إضافة قضية جديدة',sessions:'إضافة جلسة',clients:'إضافة موكل',tasks:'إضافة مهمة',opponents:'إضافة خصم جديد',processServerWorks:'إضافة عمل محضرين جديد'};document.getElementById('modal'+k+'Title').textContent=titles[currentPage];document.getElementById('modal'+k).classList.add('open');if(currentPage==='sessions')populateCaseDropdown('fSessionCaseNum');if(currentPage==='clients'&&window.ClientFields){ClientFields.reset();switchClientFormTab('basic');}if(currentPage==='opponents'&&window.OpponentFields){OpponentFields.reset();}if(currentPage==='processServerWorks'){if(window.ProcessServerFields)ProcessServerFields.reset();if(typeof resetPswClientSelector==='function')resetPswClientSelector();}}
+function openAddModal(){var m={cases:'Case',sessions:'Session',clients:'Client',tasks:'Task',opponents:'Opponent',processServerWorks:'ProcessServerWork'};var k=m[currentPage];if(!k){toast('اختر قسماً أولاً','info');return;}editIdx[currentPage]=-1;resetForm(currentPage);var titles={cases:'إضافة قضية جديدة',sessions:'إضافة جلسة',clients:'إضافة موكل',tasks:'إضافة عمل إداري جديد',opponents:'إضافة خصم جديد',processServerWorks:'إضافة عمل محضرين جديد'};document.getElementById('modal'+k+'Title').textContent=titles[currentPage];document.getElementById('modal'+k).classList.add('open');if(currentPage==='sessions')populateCaseDropdown('fSessionCaseNum');if(currentPage==='clients'&&window.ClientFields){ClientFields.reset();switchClientFormTab('basic');}if(currentPage==='opponents'&&window.OpponentFields){OpponentFields.reset();}if(currentPage==='processServerWorks'){if(window.ProcessServerFields)ProcessServerFields.reset();if(typeof resetPswClientSelector==='function')resetPswClientSelector();}if(currentPage==='tasks'){if(window.AdministrativeWorkFields)AdministrativeWorkFields.reset();if(typeof resetTaskClientSelector==='function')resetTaskClientSelector();}}
 function openAddDocModal(){editIdx.documents=-1;resetForm('documents');document.getElementById('modalDocTitle').textContent='إضافة مستند';document.getElementById('modalDocument').classList.add('open');populateCaseDropdown('fDocCaseNum');}
 function openAddFeeModal(){editIdx.fees=-1;resetForm('fees');document.getElementById('modalFeeTitle').textContent='تسجيل أتعاب';document.getElementById('modalFee').classList.add('open');populateCaseDropdown('fFeeCaseNum');}
 function openAddLibModal(){editIdx.library=-1;resetForm('library');document.getElementById('modalLibTitle').textContent='إضافة كتاب';document.getElementById('modalLibrary').classList.add('open');}
@@ -2123,7 +2172,7 @@ var FIELDS={
   processServerWorks:['fPswClientId','fPswClientNameHidden','fPswCaseNum','fPswCaseTitle','fPswAnnounceNature','fPswNumber','fPswCourt','fPswPen','fPswStatus','fPswDeliveryDate','fPswReceiptDate','fPswSessionDate','fPswNotes','fPswPortalVisibility'],
   children:['fChildCaseNum','fChildName','fChildBirth','fChildAge','fChildSchool','fChildAddress','fChildCustody','fChildAlimony','fChildNotes'],
   documents:['fDocCaseNum','fDocName','fDocType','fDocDate','fDocDriveUrl','fDocPortalVisible','fDocNotes'],
-  tasks:['fTaskTitle','fTaskCaseNum','fTaskPriority','fTaskDue','fTaskStatus','fTaskPortalVisible','fTaskNotes','fTaskCompletionReason','fTaskReopenReason'],
+  tasks:['fTaskTitle','fTaskClientId','fTaskClientNameHidden','fTaskCaseNum','fTaskCaseTitle','fTaskPriority','fTaskDue','fTaskLocation','fTaskRequired','fTaskStatus','fTaskPortalVisible','fTaskNotes','fTaskCompletionReason','fTaskReopenReason'],
   fees:['fFeeCaseNum','fFeeClient','fFeeType','fFeeAmount','fFeeDate','fFeeMethod','fFeeNotes'],
   library:['fLibTitle','fLibType','fLibCat','fLibUrl','fLibDesc'],
   templates:['fTplTitle','fTplType','fTplCat','fTplUrl','fTplDesc'],
@@ -2137,7 +2186,7 @@ var MAP={
   processServerWorks:{fPswClientId:'رقم_الموكل',fPswClientNameHidden:'اسم_الموكل',fPswCaseNum:'رقم_القضية',fPswCaseTitle:'عنوان_القضية',fPswAnnounceNature:'طبيعة_الاعلان',fPswNumber:'رقم_المحضرين',fPswCourt:'المحكمة',fPswPen:'قلم_المحضرين',fPswStatus:'الحالة',fPswDeliveryDate:'تاريخ_التسليم',fPswReceiptDate:'تاريخ_الاستلام',fPswSessionDate:'تاريخ_الجلسة',fPswNotes:'الملاحظات',fPswPortalVisibility:'ظهور_في_بوابة_الموكل'},
   children:{fChildCaseNum:'رقم_القضية',fChildName:'الاسم',fChildBirth:'تاريخ_الميلاد',fChildAge:'السن',fChildSchool:'المدرسة',fChildAddress:'محل_الإقامة',fChildCustody:'الحضانة_الحالية',fChildAlimony:'النفقة_الحالية',fChildNotes:'ملاحظات'},
   documents:{fDocCaseNum:'رقم_القضية',fDocName:'اسم_المستند',fDocType:'نوع_المستند',fDocDate:'تاريخ_الإيداع',fDocDriveUrl:'رابط_Drive',fDocPortalVisible:'ظاهر_للموكل',fDocNotes:'الملاحظات'},
-  tasks:{fTaskTitle:'العنوان',fTaskCaseNum:'رقم_القضية',fTaskPriority:'الأولوية',fTaskDue:'الموعد_النهائي',fTaskStatus:'الحالة',fTaskPortalVisible:'ظاهر_للموكل',fTaskNotes:'الملاحظات',fTaskCompletionReason:'سبب_الإنجاز',fTaskReopenReason:'سبب_إعادة_الفتح'},
+  tasks:{fTaskTitle:'العنوان',fTaskClientId:'رقم_الموكل',fTaskClientNameHidden:'اسم_الموكل',fTaskCaseNum:'رقم_القضية',fTaskCaseTitle:'عنوان_القضية',fTaskPriority:'الأولوية',fTaskDue:'الموعد_النهائي',fTaskLocation:'مكان_التنفيذ',fTaskRequired:'المطلوب',fTaskStatus:'الحالة',fTaskPortalVisible:'ظاهر_للموكل',fTaskNotes:'الملاحظات',fTaskCompletionReason:'سبب_الإنجاز',fTaskReopenReason:'سبب_إعادة_الفتح'},
   fees:{fFeeCaseNum:'رقم_القضية',fFeeClient:'اسم_الموكل',fFeeType:'نوع_الأتعاب',fFeeAmount:'المبلغ',fFeeDate:'تاريخ_الاستلام',fFeeMethod:'طريقة_الدفع',fFeeNotes:'الملاحظات'},
   library:{fLibTitle:'العنوان',fLibType:'النوع',fLibCat:'القسم',fLibUrl:'الرابط',fLibDesc:'الوصف'},
   templates:{fTplTitle:'العنوان',fTplType:'النوع',fTplCat:'القسم',fTplUrl:'الرابط',fTplDesc:'الوصف'},
@@ -2321,7 +2370,7 @@ window.addEventListener('DOMContentLoaded',function(){
 <script src="js/modules/calendar.js?v=42"></script>
 <script src="js/modules/children.js?v=42"></script>
 <script src="js/modules/dashboard.js?v=42"></script>
-<script src="js/modules/tasks.js?v=42"></script>
+<script src="js/modules/tasks.js?v=53"></script>
 <script src="js/modules/documents.js?v=42"></script>
 <script src="js/modules/sessions.js?v=42"></script>
 
@@ -2415,6 +2464,7 @@ window.addEventListener('DOMContentLoaded',function(){
 <script src="js/modules/opponent-fields.js?v=42"></script>
 <script src="js/modules/process-server-works.js?v=42"></script>
 <script src="js/modules/process-server-fields.js?v=42"></script>
+<script src="js/modules/administrative-work-fields.js?v=53"></script>
 <script src="js/modules/client-messages.js?v=42"></script>
 <script src="js/modules/fees.js?v=42"></script>
 <script src="js/modules/library.js?v=42"></script>

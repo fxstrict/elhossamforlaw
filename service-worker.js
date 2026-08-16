@@ -238,8 +238,9 @@
 // networkFirstShell() (always fresh), and its only change was to a
 // small inline <script> block (bootLoadFromSheets() call sites), not a
 // cached file reference.
-var SW_VERSION = 'v52'; // RANK 1 FIX (Android Fixed-Surface Reduction) —
-                         // css/components.css?v=42 is listed in PRECACHE_URLS below and
+var SW_VERSION = 'v53'; // ADMINISTRATIVE WORKS TRANSFORM — "المهام" -> "الأعمال الإدارية".
+                         // RANK 1 FIX (Android Fixed-Surface Reduction) —
+                         // css/components.css?v=53 is listed in PRECACHE_URLS below and
                          // served cacheFirstIn(SHELL_CACHE), which is keyed by SW_VERSION
                          // (see SHELL_CACHE definition a few lines down), so an already-
                          // installed client keeps serving its OLD cached copy of that file
@@ -378,7 +379,7 @@ var PRECACHE_URLS = [
   'css/variables.css?v=42',
   'css/base.css?v=42',
   'css/layout.css?v=42',
-  'css/components.css?v=42',
+  'css/components.css?v=53',
   'css/responsive.css?v=42',
   'css/utilities.css?v=42',
   'css/skeleton.css?v=42',
@@ -465,7 +466,7 @@ var PRECACHE_URLS = [
   'js/modules/calendar.js?v=42',
   'js/modules/children.js?v=42',
   'js/modules/dashboard.js?v=42',
-  'js/modules/tasks.js?v=42',
+  'js/modules/tasks.js?v=53',
   'js/modules/documents.js?v=42',
   'js/modules/sessions.js?v=42',
   'js/core/HistoryPanel.js?v=42',
@@ -475,6 +476,7 @@ var PRECACHE_URLS = [
   'js/modules/opponent-fields.js?v=42',
   'js/modules/process-server-works.js?v=42',
   'js/modules/process-server-fields.js?v=42',
+  'js/modules/administrative-work-fields.js?v=53',
   'js/modules/client-messages.js?v=42',
   'js/modules/fees.js?v=42',
   'js/modules/library.js?v=42',
