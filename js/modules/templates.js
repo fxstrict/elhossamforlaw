@@ -4,6 +4,20 @@
  * ================================================================
  * Contains ALL Templates-related functions extracted from index.html.
  *
+ * PHASE 39 — DATABASE SURFACE ENTITIES SYNC FIX
+ * ----------------------------------------------------------------
+ * Per DATABASE_SURFACE_ENTITIES_PRE_IMPLEMENTATION_AUDIT.md finding F-1
+ * ("HIGH — Templates never synced"), this module WAS local-only (no
+ * ApiService call anywhere below). saveTemplate()/deleteTemplate()/
+ * restoreTemplate() now call ApiService.syncRow()/deleteData(), mirroring
+ * fees.js's proven call shape exactly (same Sheet name 'الصيغ' and
+ * idField 'id' already defined in SHEET_DEFS — no backend/Sheet change
+ * required). The corresponding pull-list entry was added to
+ * js/modules/settings.js's loadFromSheets(). Any note below claiming
+ * Templates "never syncs"/"has no GAS backend sync" describes the
+ * PRE-PHASE-39 state and is preserved for historical/audit traceability
+ * only.
+ *
  * PHASE 10 — SUB-PHASE 10.4 — Restore Rollout
  * ----------------------------------------------------------------
  * Additive-only addition on top of PHASE 9.7 below: a new
@@ -443,6 +457,13 @@ async function saveTemplate() {
   }
 
   saveLocal();
+  // PHASE 39 — DATABASE SURFACE ENTITIES SYNC FIX (F-1): Templates was
+  // confirmed local-only (no ApiService call anywhere in this file) by
+  // DATABASE_SURFACE_ENTITIES_PRE_IMPLEMENTATION_AUDIT.md §6. This call
+  // mirrors saveFee()'s exact shape (js/modules/fees.js) — the Sheet
+  // ('الصيغ') and its idField ('id') already exist in SHEET_DEFS and
+  // require no backend change (§14/§25/§26 of the audit).
+  ApiService.syncRow('الصيغ', result.record, idx);
   closeModal('modalTemplate');
   renderTemplates();
   // PHASE 16.5.1 — DIRTY PROPAGATION (additive only, see phase brief)
@@ -485,6 +506,11 @@ async function deleteTemplate(i) {
   if (!record) return;
 
   var id = record[TEMPLATES_ID_FIELD];
+  // PHASE 39 — DATABASE SURFACE ENTITIES SYNC FIX (F-1): mirrors
+  // deleteFee()'s exact call shape — see saveTemplate() above for full
+  // rationale/citation.
+  ApiService.deleteData('الصيغ', i, id);
+
   var result = await templatesRepository.delete(id);
 
   if (!result || !result.success) {
@@ -532,6 +558,11 @@ async function restoreTemplate(id) {
     toast('حدث خطأ أثناء الاسترجاع', 'error');
     return;
   }
+
+  // PHASE 39 — DATABASE SURFACE ENTITIES SYNC FIX (F-1): mirrors
+  // restoreFee()'s exact call shape (rowIndex 0 — same convention used
+  // by restoreFee/restoreCase/restoreDocument for a restore-by-id push).
+  ApiService.syncRow('الصيغ', result.record, 0);
 
   syncTemplatesMirror();
   saveLocal();

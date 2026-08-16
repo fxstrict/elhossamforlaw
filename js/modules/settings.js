@@ -551,7 +551,25 @@ async function loadFromSheets(){
   _loadFromSheetsInProgress=true;
   try{
     showSyncIndicator(true);
-    var pairs=[['القضايا','cases'],['الجلسات','sessions'],['الموكلين','clients'],['الأطفال','children'],['المستندات','documents'],['الأعمال الإدارية','tasks'],['الأتعاب','fees'],['رسائل_الموكل','clientMessages']];
+    // PHASE 39 — DATABASE SURFACE ENTITIES SYNC FIX (F-1/F-2/F-3/F-4):
+    // per DATABASE_SURFACE_ENTITIES_PRE_IMPLEMENTATION_AUDIT.md §25/§26,
+    // this is the ONE live pull-list array the app actually uses at boot
+    // (ApiService.loadAllSheets() in js/api/api.js is separate, dead
+    // code with zero callers — NOT edited here, per the audit's
+    // lower-risk recommendation, §36). Four entities are added, each
+    // already having a real Sheet + idField in SHEET_DEFS and a real
+    // entity-Repository (no backend/schema change required, §14/§27–31):
+    //   - 'الصيغ'          -> 'templates'         (Repository: templatesRepository)
+    //   - 'المكتبة'        -> 'library'            (Repository: libraryRepository)
+    //   - 'الخصوم'         -> 'opponents'          (push already existed — F-3, this closes the pull gap)
+    //   - 'أعمال_المحضرين' -> 'processServerWorks' (push already existed — F-4, this closes the pull gap)
+    // Each key resolves via _persistEntityViaRepository()'s existing
+    // `window[key+'Repository']` / `window[key+'RepositoryReadyPromise']`
+    // naming convention (already true today for all four — no rename
+    // needed) and the same 'merge' importMode ("FIX P2") used by every
+    // other entry, so a local soft-delete or not-yet-synced record
+    // cannot be overwritten by this pull.
+    var pairs=[['القضايا','cases'],['الجلسات','sessions'],['الموكلين','clients'],['الأطفال','children'],['المستندات','documents'],['الأعمال الإدارية','tasks'],['الأتعاب','fees'],['رسائل_الموكل','clientMessages'],['الصيغ','templates'],['المكتبة','library'],['الخصوم','opponents'],['أعمال_المحضرين','processServerWorks']];
     var results=await Promise.all(pairs.map(async function(pair){
       var sh=pair[0],k=pair[1];
       try{

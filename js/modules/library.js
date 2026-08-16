@@ -4,6 +4,20 @@
  * ================================================================
  * Contains ALL Library-related functions extracted from index.html.
  *
+ * PHASE 39 — DATABASE SURFACE ENTITIES SYNC FIX
+ * ----------------------------------------------------------------
+ * Per DATABASE_SURFACE_ENTITIES_PRE_IMPLEMENTATION_AUDIT.md finding F-2
+ * ("HIGH — Library never synced"), this module WAS local-only (no
+ * ApiService call anywhere below). saveLibBook()/deleteLibBook()/
+ * restoreLibBook() now call ApiService.syncRow()/deleteData(), mirroring
+ * fees.js's proven call shape exactly (same Sheet name 'المكتبة' and
+ * idField 'id' already defined in SHEET_DEFS — no backend/Sheet change
+ * required). The corresponding pull-list entry was added to
+ * js/modules/settings.js's loadFromSheets(). Any note below claiming
+ * Library "never syncs"/"has no GAS backend sync" describes the
+ * PRE-PHASE-39 state and is preserved for historical/audit traceability
+ * only.
+ *
  * PHASE 10 — SUB-PHASE 10.4 — Restore Rollout
  * ----------------------------------------------------------------
  * Additive-only addition on top of PHASE 9.6 below: a new
@@ -592,6 +606,10 @@ async function saveLibBook() {
   }
 
   saveLocal();
+  // PHASE 39 — DATABASE SURFACE ENTITIES SYNC FIX (F-2): mirrors
+  // saveTemplate()/saveFee()'s exact call shape — see file header for
+  // full rationale/citation.
+  ApiService.syncRow('المكتبة', result.record, idx);
   closeModal('modalLibrary');
   renderLibrary();
   // PHASE 16.5.1 — DIRTY PROPAGATION (additive only, see phase brief)
@@ -635,6 +653,10 @@ async function deleteLibBook(i) {
   if (!record) return;
 
   var id = record[LIBRARY_ID_FIELD];
+  // PHASE 39 — DATABASE SURFACE ENTITIES SYNC FIX (F-2): mirrors
+  // deleteTemplate()/deleteFee()'s exact call shape.
+  ApiService.deleteData('المكتبة', i, id);
+
   var result = await libraryRepository.delete(id);
 
   if (!result || !result.success) {
@@ -683,6 +705,10 @@ async function restoreLibBook(id) {
     toast('حدث خطأ أثناء الاسترجاع', 'error');
     return;
   }
+
+  // PHASE 39 — DATABASE SURFACE ENTITIES SYNC FIX (F-2): mirrors
+  // restoreTemplate()/restoreFee()'s exact call shape (rowIndex 0).
+  ApiService.syncRow('المكتبة', result.record, 0);
 
   syncLibraryMirror();
   saveLocal();
