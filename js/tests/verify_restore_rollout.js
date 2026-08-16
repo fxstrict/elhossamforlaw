@@ -279,6 +279,8 @@ const MODULES = [
   },
   {
     label: 'Library',
+    expectsSync: true,
+    syncSheet: 'المكتبة',
     modulePath: 'library.js',
     repoPath: 'LibraryRepository.js',
     dataKey: 'library',
@@ -299,6 +301,8 @@ const MODULES = [
   },
   {
     label: 'Templates',
+    expectsSync: true,
+    syncSheet: 'الصيغ',
     modulePath: 'templates.js',
     repoPath: 'TemplatesRepository.js',
     dataKey: 'templates',
@@ -635,11 +639,19 @@ async function runModuleSuite(cfg) {
   // restoreSession()/restoreTask()/restoreDocument()/restoreFee() now
   // call ApiService.syncRow() to sync the restore to Google Sheets —
   // previously a local-only restore that could be silently lost again
-  // on the next Sheets read. restoreLibBook()/restoreTemplate()/
-  // restoreChild() are unchanged (their delete paths never synced to
-  // begin with — library/templates never sync at all; children.js uses
-  // a separate legacy sync path — out of scope for this fix, see
-  // DATABASE_SYNC_FINAL_REPORT.md §D).
+  // on the next Sheets read.
+  // PHASE 39 — DATABASE SURFACE ENTITIES SYNC FIX (F-1/F-2): restoreLibBook()/
+  // restoreTemplate() now ALSO call ApiService.syncRow(), closing the
+  // "Library/Templates never synced" gap
+  // (DATABASE_SURFACE_ENTITIES_PRE_IMPLEMENTATION_AUDIT.md findings
+  // F-1/F-2) — both entities are reclassified `expectsSync: true` above
+  // (TEST ENCODES OLD BUG: this table previously marked them
+  // sync-exempt, which was accurate pre-Phase-39 but encoded the bug
+  // rather than the intended contract). restoreChild() remains
+  // unchanged (children.js uses a separate legacy sync path — out of
+  // scope for this fix, see DATABASE_SYNC_FINAL_REPORT.md §D and
+  // DATABASE_SURFACE_ENTITIES_PRE_IMPLEMENTATION_AUDIT.md §9.3/§16,
+  // finding F-6, UNVERIFIED).
   {
     const sandbox = makeSandbox({});
     setGlobals(sandbox.sandboxGlobals);

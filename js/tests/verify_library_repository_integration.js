@@ -176,6 +176,8 @@ async function main() {
     toastLog = [];
     closeModalLog = [];
     saveLocalCalls = { count: 0 };
+    var syncRowLog = [];
+    var deleteDataLog = [];
 
     sandboxGlobals = {
       localStorage: fakeStorage,
@@ -199,6 +201,17 @@ async function main() {
       uid: function () { return 'test-uid-' + Math.random().toString(36).slice(2, 8); },
       collectForm: function () { return sandboxGlobals.__nextFormValue || {}; },
       fillForm: function (type, obj) { sandboxGlobals.__lastFilled = obj; },
+      // PHASE 39 — DATABASE SURFACE ENTITIES SYNC FIX (F-2): library.js's
+      // saveLibBook()/deleteLibBook()/restoreLibBook() now call
+      // ApiService.syncRow()/deleteData() (see file header there, and
+      // DATABASE_SURFACE_ENTITIES_PRE_IMPLEMENTATION_AUDIT.md finding
+      // F-2). This stub is required so those calls resolve instead of
+      // throwing "ApiService is not defined" inside this sandbox — same
+      // shape as verify_fees_repository_integration.js's stub.
+      ApiService: {
+        syncRow: function (sheet, obj, idx) { syncRowLog.push({ sheet: sheet, obj: obj, idx: idx }); },
+        deleteData: function (sheet, idx, id) { deleteDataLog.push({ sheet: sheet, idx: idx, id: id }); }
+      },
       saveLocal: function () { saveLocalCalls.count++; },
       confirm: function () { return true; },
       confirmDialog: __confirmDialogStub,
@@ -441,12 +454,30 @@ async function main() {
       assert.ok(!libModule.libraryRepository.exists(deletedId), 'but exists()/getAll()/get() all correctly hide it');
     });
 
-    // ---- Pre-existing behaviour preserved: no ApiService call in any live function body ----
-    check('library.js: saveLibBook()/deleteLibBook() bodies contain no ApiService.* call (matches the original — Library never synced)', () => {
+    // ---- PHASE 39 — DATABASE SURFACE ENTITIES SYNC FIX (F-2) ----
+    // TEST ENCODES OLD BUG: this check previously asserted that
+    // saveLibBook()/deleteLibBook() contain NO ApiService call, treating
+    // the confirmed "Library never synced" gap
+    // (DATABASE_SURFACE_ENTITIES_PRE_IMPLEMENTATION_AUDIT.md finding
+    // F-2 — HIGH severity, device-loss/reinstall = total data loss) as
+    // correct, expected behaviour. That was accurate for the pre-Phase-39
+    // code but encoded the bug rather than the intended contract. Updated
+    // to assert the new, intended behaviour instead: library.js now
+    // calls ApiService.syncRow()/deleteData() with the same call shape
+    // proven by fees.js (see saveLibBook()/deleteLibBook()'s own PHASE 39
+    // comments).
+    check('library.js: saveLibBook()/deleteLibBook() bodies DO call ApiService.* (PHASE 39 fix for F-2 — closes the "Library never synced" gap)', () => {
       const saveSrc = libModule.saveLibBook.toString();
       const deleteSrc = libModule.deleteLibBook.toString();
-      assert.strictEqual(saveSrc.indexOf('ApiService'), -1);
-      assert.strictEqual(deleteSrc.indexOf('ApiService'), -1);
+      assert.notStrictEqual(saveSrc.indexOf('ApiService.syncRow'), -1);
+      assert.notStrictEqual(deleteSrc.indexOf('ApiService.deleteData'), -1);
+    });
+
+    check('library.js: ApiService.syncRow()/deleteData() were actually invoked during this run\'s save/delete flows, targeting sheet \'المكتبة\'', () => {
+      assert.ok(syncRowLog.length >= 1, 'expected at least one ApiService.syncRow() call from the save flows above');
+      assert.ok(syncRowLog.every(function (c) { return c.sheet === 'المكتبة'; }));
+      assert.ok(deleteDataLog.length >= 1, 'expected at least one ApiService.deleteData() call from the delete flow above');
+      assert.ok(deleteDataLog.every(function (c) { return c.sheet === 'المكتبة'; }));
     });
   }
 
