@@ -236,7 +236,7 @@ const MODULES = [
   {
     label: 'Tasks',
     expectsSync: true,
-    syncSheet: 'المهام',
+    syncSheet: 'الأعمال الإدارية',
     modulePath: 'tasks.js',
     repoPath: 'TasksRepository.js',
     dataKey: 'tasks',
@@ -248,9 +248,9 @@ const MODULES = [
     deleteFn: 'deleteTask',
     restoreFn: 'restoreTask',
     hasUpdateBadges: true,
-    successToast: 'تم الاسترجاع',
+    successToast: 'تم استرجاع العمل الإداري',
     errorToast: 'حدث خطأ أثناء الاسترجاع',
-    deleteToast: 'تم الحذف',
+    deleteToast: 'تم حذف العمل بنجاح',
     sample: function (id, extra) { return Object.assign({ 'رقم_المهمة': id, 'العنوان': 'مهمة تجريبية' }, extra || {}); },
     searchField: 'العنوان',
     searchValue: 'مهمة تجريبية'

@@ -240,8 +240,16 @@ async function main() {
     // ---- CREATE via saveTask() ----
     await checkAsync('saveTask(): create path (editIdx.tasks = -1) inserts a new record via Repository.create(), id auto-generated', async () => {
       fakeElements['fTaskTitle'].value = 'مراجعة العقد';
+      // ADMINISTRATIVE WORKS TRANSFORM — الموكل أصبح حقلاً إلزاميًا
+      // (saveTask() الآن يتحقق من document.getElementById('fTaskClientId')
+      // قبل المتابعة — راجع ADMINISTRATIVE_WORKS_PRE_IMPLEMENTATION_AUDIT.md
+      // §7). كل استدعاء saveTask() في هذا الملف يحتاج قيمة هنا الآن.
+      fakeElements['fTaskClientId'] = makeFakeElement();
+      fakeElements['fTaskClientId'].value = 'C-1';
       sandboxGlobals.__nextFormValue = {
         'العنوان': 'مراجعة العقد',
+        'رقم_الموكل': 'C-1',
+        'اسم_الموكل': 'أحمد علي',
         'رقم_القضية': '2026-10',
         'الأولوية': 'high',
         'الموعد_النهائي': '2026-08-15',
@@ -257,9 +265,9 @@ async function main() {
       assert.strictEqual(rec['العنوان'], 'مراجعة العقد');
       assert.ok(rec[taskModule.TASKS_ID_FIELD], 'a رقم_المهمة id must have been generated');
       assert.ok(rec['تاريخ_الإنشاء'], 'تاريخ_الإنشاء must have been stamped');
-      assert.strictEqual(toastLog[toastLog.length - 1].msg, 'تمت الإضافة');
+      assert.strictEqual(toastLog[toastLog.length - 1].msg, 'تم حفظ العمل بنجاح');
       assert.strictEqual(saveLocalCalls.count, 1);
-      assert.strictEqual(syncRowLog[syncRowLog.length - 1].sheet, 'المهام');
+      assert.strictEqual(syncRowLog[syncRowLog.length - 1].sheet, 'الأعمال الإدارية');
       assert.strictEqual(closeModalLog[closeModalLog.length - 1], 'modalTask');
       assert.strictEqual(badgeCalls.count, 1);
     });
@@ -268,6 +276,8 @@ async function main() {
     await checkAsync('saveTask(): create a second record with a different priority', async () => {
       sandboxGlobals.__nextFormValue = {
         'العنوان': 'إعداد مذكرة الدفاع',
+        'رقم_الموكل': 'C-1',
+        'اسم_الموكل': 'أحمد علي',
         'رقم_القضية': '2026-11',
         'الأولوية': 'low',
         'الموعد_النهائي': '2026-09-01',
@@ -366,7 +376,7 @@ async function main() {
 
       assert.strictEqual(sandboxGlobals.editIdx.tasks, secondTaskIndex);
       assert.strictEqual(sandboxGlobals.__lastFilled['العنوان'], 'إعداد مذكرة الدفاع');
-      assert.strictEqual(fakeElements['modalTaskTitle'].textContent, 'تعديل المهمة');
+      assert.strictEqual(fakeElements['modalTaskTitle'].textContent, 'تعديل عمل إداري');
       assert.ok(fakeElements['modalTask'].classList.contains('open'));
     });
 
@@ -376,6 +386,8 @@ async function main() {
       fakeElements['fTaskTitle'].value = 'إعداد مذكرة الدفاع (محدّثة)';
       sandboxGlobals.__nextFormValue = {
         'العنوان': 'إعداد مذكرة الدفاع (محدّثة)',
+        'رقم_الموكل': 'C-1',
+        'اسم_الموكل': 'أحمد علي',
         'رقم_القضية': '2026-11',
         'الأولوية': 'medium',
         'الموعد_النهائي': '2026-09-05',
@@ -389,7 +401,7 @@ async function main() {
       assert.strictEqual(sandboxGlobals.data.tasks[secondTaskIndex]['العنوان'], 'إعداد مذكرة الدفاع (محدّثة)');
       assert.strictEqual(sandboxGlobals.data.tasks[secondTaskIndex][taskModule.TASKS_ID_FIELD], idBefore,
         'Repository.update() preserves the existing id — same array position, same identity');
-      assert.strictEqual(toastLog[toastLog.length - 1].msg, 'تم التحديث');
+      assert.strictEqual(toastLog[toastLog.length - 1].msg, 'تم حفظ العمل بنجاح');
     });
 
     // ---- toggleTask(): flips الحالة, no ApiService sync, same array position ----
@@ -428,7 +440,7 @@ async function main() {
 
       assert.strictEqual(sandboxGlobals.data.tasks.length, beforeCount - 1);
       assert.ok(!sandboxGlobals.data.tasks.some(function (t) { return t[taskModule.TASKS_ID_FIELD] === deletedId; }));
-      assert.strictEqual(toastLog[toastLog.length - 1].msg, 'تم الحذف');
+      assert.strictEqual(toastLog[toastLog.length - 1].msg, 'تم حذف العمل بنجاح');
 
       // Confirm this is a SOFT delete under the hood (Repository config,
       // unchanged by this phase) but that this is NOT observable through

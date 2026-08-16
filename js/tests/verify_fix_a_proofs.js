@@ -57,7 +57,7 @@ function loadModule(filePath) {
 
 // Real MAP.tasks / FIELDS.tasks exactly as defined in index.html, so
 // collectForm/fillForm behave exactly like production.
-const MAP = { tasks: { fTaskTitle: 'العنوان', fTaskCaseNum: 'رقم_القضية', fTaskPriority: 'الأولوية', fTaskDue: 'الموعد_النهائي', fTaskStatus: 'الحالة', fTaskNotes: 'الملاحظات', fTaskCompletionReason: 'سبب_الإنجاز', fTaskReopenReason: 'سبب_إعادة_الفتح' } };
+const MAP = { tasks: { fTaskTitle: 'العنوان', fTaskClientId: 'رقم_الموكل', fTaskClientNameHidden: 'اسم_الموكل', fTaskCaseNum: 'رقم_القضية', fTaskPriority: 'الأولوية', fTaskDue: 'الموعد_النهائي', fTaskStatus: 'الحالة', fTaskNotes: 'الملاحظات', fTaskCompletionReason: 'سبب_الإنجاز', fTaskReopenReason: 'سبب_إعادة_الفتح' } };
 
 async function main() {
   const tasksJsPath = path.join(__dirname, '..', 'modules', 'tasks.js');
@@ -129,6 +129,12 @@ async function main() {
     if (!fakeElements[id]) fakeElements[id] = makeFakeElement();
     fakeElements[id].value = v;
   }
+
+  // ADMINISTRATIVE WORKS TRANSFORM — الموكل أصبح حقلاً إلزاميًا في
+  // saveTask() (راجع ADMINISTRATIVE_WORKS_PRE_IMPLEMENTATION_AUDIT.md
+  // §7). fakeElements مشترك بين كل الإثباتات الأربعة أدناه، فتعيينه مرة
+  // واحدة هنا يكفي.
+  setField('fTaskClientId', 'C-1');
 
   // ================================================================
   // إثبات 1 — pending -> done يحفظ السبب
