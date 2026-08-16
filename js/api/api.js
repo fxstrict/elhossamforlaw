@@ -141,7 +141,7 @@ const ApiService = {
       ['الموكلين',  'clients'],
       ['الأطفال',   'children'],
       ['المستندات', 'documents'],
-      ['المهام',    'tasks'],
+      ['الأعمال الإدارية', 'tasks'],
       ['الأتعاب',   'fees']
     ];
 
