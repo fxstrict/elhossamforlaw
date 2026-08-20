@@ -62,7 +62,15 @@
   // already-provisioned database only gains the one new store on next
   // open. No conflict with 'clients'/'cases'/'opponents'/any other
   // store: purely additive, own store name, own keyPath, own indexes.
-  var DB_VERSION = 5;
+  // CASES_RELATIONSHIP_FINANCIAL: bumped 5 -> 6 to add the 'caseClients'
+  // (ID-based Case<->Client junction, decision §3-C) and 'expenses'
+  // (3-level Client/Case/Office expenses, decision §3-G) object stores
+  // (see SCHEMA_VERSIONS version 6 step below). Existing stores/indexes
+  // from versions 1-5 are untouched — ensureStore() is existence-guarded,
+  // so an already-provisioned database only gains the two new stores on
+  // next open. No conflict with 'clients'/'cases'/'opponents'/any other
+  // store: purely additive, own store names, own keyPaths, own indexes.
+  var DB_VERSION = 6;
 
   // ----------------------------------------------------------------
   // Index definitions per store. Only indexes an existing Repository/
@@ -301,12 +309,50 @@
     }
   ];
 
+  // ----------------------------------------------------------------
+  // V6_STORE_DEFINITIONS — CASES_RELATIONSHIP_FINANCIAL: two new
+  // stores. 'caseClients' backs the new 'قضية_موكلين' GAS sheet
+  // (Config/00_Config.gs SHEET_DEFS) and the new
+  // js/repositories/CaseClientsRepository.js — the real ID-based
+  // Case<->Client junction (decision §3-C), keyPath 'id' since the
+  // junction row itself has no natural single-column key (mirrors
+  // 'auditLog'/'loginLog' -> 'id' precedent above, not 'clients'/
+  // 'opponents' -> natural-key precedent, because this is a relationship
+  // record, not an entity record). 'expenses' backs the new
+  // 'المصروفات' GAS sheet and js/repositories/ExpensesRepository.js
+  // (decision §3-G), same 'id' keyPath rationale. Purely additive: does
+  // not touch 'clients', 'cases', 'opponents', 'processServerWorks', or
+  // any other store/index.
+  // ----------------------------------------------------------------
+  var V6_STORE_DEFINITIONS = [
+    {
+      name: 'caseClients',
+      keyPath: 'id',
+      autoIncrement: false,
+      indexes: [
+        { name: 'caseNum', keyPath: 'رقم_القضية', unique: false },
+        { name: 'clientId', keyPath: 'رقم_الموكل', unique: false }
+      ].concat(COMMON_AUDIT_INDEXES)
+    },
+    {
+      name: 'expenses',
+      keyPath: 'id',
+      autoIncrement: false,
+      indexes: [
+        { name: 'scope', keyPath: 'النطاق', unique: false },
+        { name: 'clientId', keyPath: 'رقم_الموكل', unique: false },
+        { name: 'caseNum', keyPath: 'رقم_القضية', unique: false },
+        { name: 'searchText', keyPath: 'searchText', unique: false }
+      ].concat(COMMON_AUDIT_INDEXES)
+    }
+  ];
+
   /**
    * STORE_DEFINITIONS — every store name the CURRENT (latest) schema
    * version defines (version 1 stores + every additive version's new
    * stores). Used by getStoreNames()/getStoreDefinition() below.
    */
-  var STORE_DEFINITIONS = V1_STORE_DEFINITIONS.concat(V2_STORE_DEFINITIONS).concat(V3_STORE_DEFINITIONS).concat(V4_STORE_DEFINITIONS).concat(V5_STORE_DEFINITIONS);
+  var STORE_DEFINITIONS = V1_STORE_DEFINITIONS.concat(V2_STORE_DEFINITIONS).concat(V3_STORE_DEFINITIONS).concat(V4_STORE_DEFINITIONS).concat(V5_STORE_DEFINITIONS).concat(V6_STORE_DEFINITIONS);
 
   /**
    * SCHEMA_VERSIONS — ordered upgrade steps. Version 1 was the original
@@ -344,6 +390,11 @@
       version: 5,
       description: 'PHASE 38 — Process Server Works Module (أعمال المحضرين): adds the processServerWorks object store.',
       stores: V5_STORE_DEFINITIONS
+    },
+    {
+      version: 6,
+      description: 'CASES_RELATIONSHIP_FINANCIAL: adds the caseClients (Case<->Client junction) and expenses (3-level Expenses) object stores.',
+      stores: V6_STORE_DEFINITIONS
     }
   ];
 

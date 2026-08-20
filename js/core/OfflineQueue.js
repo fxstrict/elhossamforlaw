@@ -177,3 +177,13 @@ const OfflineQueue = (function () {
 
   return { enqueue: enqueue, replay: replay, size: size };
 })();
+
+// CASES_RELATIONSHIP_FINANCIAL — guarded Node export, added purely so
+// this file becomes require()-able for testing (no OfflineQueue test
+// file existed before this phase — a real, pre-existing coverage gap,
+// not something this phase broke). Every other js/core/*.js file in
+// this codebase already has this exact dual-export pattern; changes
+// nothing in the browser (typeof module is undefined there).
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = { OfflineQueue: OfflineQueue };
+}
