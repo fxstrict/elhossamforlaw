@@ -533,6 +533,16 @@ async function saveSession() {
   await ensureSessionsRepositoryReady();
 
   var obj = collectForm('sessions');
+  // CASES_RELATIONSHIP_FINANCIAL — قرار §3-J: منع حفظ جلسة "يتيمة" بلا
+  // قضية (الخيار الفارغ "-- اختر القضية --" فى populateCaseDropdown()
+  // كان يمر بلا رفض). يُفحص هنا على obj['رقم_القضية'] بعد collectForm()
+  // — نفس الحقل الذى سيُحفظ فعليًا (SESSIONS_MAP: fSessionCaseNum ->
+  // رقم_القضية) — بدلًا من قراءة DOM خام مستقلة لعنصر fSessionCaseNum،
+  // تجنبًا لازدواج مصدر الحقيقة.
+  if (!obj['رقم_القضية']) {
+    toast('يرجى اختيار القضية المرتبطة بالجلسة', 'error');
+    return;
+  }
   obj['الوقت'] = sanitizeTime(obj['الوقت']);
   // Note: obj['رقم_الجلسة'] is intentionally NOT stamped here — see file
   // header "IDENTIFIER GENERATION NOTE": SessionsRepository.create()

@@ -668,6 +668,12 @@ function removeCaseOpponent(id) {
   renderOpponentSelectorList();
 }
 
+/**
+ * renderOpponentSelectorChips — redraws the selected-opponent card list.
+ * CASES_RELATIONSHIP_FINANCIAL قرار §3-D + الصور المرجعية: كل خصم
+ * مُضاف يعرض الصفة (بلا حقل أتعاب — الأتعاب للموكلين فقط، قرار §3-F).
+ * نفس أسلوب clients.js's renderClientSelectorChips() بالضبط.
+ */
 function renderOpponentSelectorChips() {
   var chips = document.getElementById('opponentSelectorChips');
   if (!chips) return;
@@ -675,12 +681,46 @@ function renderOpponentSelectorChips() {
     chips.innerHTML = '<span class="client-selector-placeholder">اختر خصماً واحداً أو أكثر من القائمة...</span>';
     return;
   }
+
+  var preserved = {};
+  chips.querySelectorAll('[data-opponent-role-id]').forEach(function (el) {
+    preserved[el.getAttribute('data-opponent-role-id')] = el.value;
+  });
+
+  var rolesEl = document.getElementById('fCaseOpponentRoles');
+  var storedRoles = {};
+  try { storedRoles = rolesEl && rolesEl.value ? JSON.parse(rolesEl.value) : {}; } catch (e) { storedRoles = {}; }
+
   chips.innerHTML = _caseSelectedOpponentIds.map(function (id) {
     var o = (data.opponents || []).filter(function (x) { return x[OPPONENTS_ID_FIELD] === id; })[0];
     var label = o ? o['الاسم'] : id;
-    return '<span class="client-selector-chip">' + escapeHtml(label) +
-      '<button type="button" onclick="event.stopPropagation();removeCaseOpponent(\'' + id + '\')">&times;</button></span>';
+    var savedRole = preserved[id] || storedRoles[id] || '';
+    return '<div class="client-role-card">' +
+      '<div class="client-role-card-head">' +
+        '<button type="button" class="client-chip-remove" onclick="event.stopPropagation();removeCaseOpponent(\'' + id + '\')" title="إزالة">&times;</button>' +
+        '<span class="client-selector-item-name">' + escapeHtml(label) + '</span>' +
+      '</div>' +
+      '<div class="client-role-card-fields" style="grid-template-columns:1fr;">' +
+        '<input type="text" placeholder="الصفة *" data-opponent-role-id="' + escapeHtml(id) + '" value="' + escapeHtml(savedRole) + '">' +
+      '</div></div>';
   }).join('');
+}
+
+/**
+ * getOpponentRoles — reads every currently-typed الصفة value from the
+ * opponent role-cards and returns a plain {id: role} map (only ids
+ * with a non-empty role are included).
+ * @returns {Object<string,string>}
+ */
+function getOpponentRoles() {
+  var out = {};
+  var chips = document.getElementById('opponentSelectorChips');
+  if (!chips) return out;
+  chips.querySelectorAll('[data-opponent-role-id]').forEach(function (el) {
+    var v = el.value.trim();
+    if (v) out[el.getAttribute('data-opponent-role-id')] = v;
+  });
+  return out;
 }
 
 /**
@@ -696,6 +736,10 @@ function _syncCaseOpponentField() {
   var hidden = document.getElementById('fCaseOpponents');
   if (hidden) hidden.value = JSON.stringify(_caseSelectedOpponentIds);
   renderOpponentSelectorChips();
+
+  // CASES_RELATIONSHIP_FINANCIAL قرار §3-D: صفات_الخصوم (JSON id->صفة).
+  var rolesHidden = document.getElementById('fCaseOpponentRoles');
+  if (rolesHidden) rolesHidden.value = JSON.stringify(getOpponentRoles());
 
   if (_caseSelectedOpponentIds.length === 1) {
     var o = (data.opponents || []).filter(function (x) { return x[OPPONENTS_ID_FIELD] === _caseSelectedOpponentIds[0]; })[0];
@@ -734,6 +778,13 @@ function syncCaseOpponentSelectorFromField(caseRecord) {
   }
   var hidden = document.getElementById('fCaseOpponents');
   if (hidden) hidden.value = JSON.stringify(_caseSelectedOpponentIds);
+
+  // CASES_RELATIONSHIP_FINANCIAL قرار §3-D: استعادة صفات_الخصوم أيضًا،
+  // وإلا يبقى #fCaseOpponentRoles فارغًا حتى مع وجود بيانات محفوظة فعلاً.
+  var rolesRaw = caseRecord ? caseRecord['صفات_الخصوم'] : null;
+  var rolesHidden = document.getElementById('fCaseOpponentRoles');
+  if (rolesHidden) rolesHidden.value = rolesRaw || '{}';
+
   renderOpponentSelectorChips();
 }
 
@@ -762,6 +813,8 @@ if (typeof resetForm === 'function') {
       _caseSelectedOpponentIds = [];
       var hidden = document.getElementById('fCaseOpponents');
       if (hidden) hidden.value = '[]';
+      var rolesHidden = document.getElementById('fCaseOpponentRoles');
+      if (rolesHidden) rolesHidden.value = '{}';
       renderOpponentSelectorChips();
     }
     return r;
@@ -783,6 +836,11 @@ if (typeof saveCase === 'function') {
   saveCase = async function () {
     var hidden = document.getElementById('fCaseOpponents');
     if (hidden) hidden.value = JSON.stringify(_caseSelectedOpponentIds);
+    // CASES_RELATIONSHIP_FINANCIAL قرار §3-D: مزامنة صفات_الخصوم وقت
+    // الحفظ الفعلي أيضًا — وليس فقط عند toggle (checkbox) — كي لا يُفقد
+    // تعديل الصفة إن كتبه المستخدم دون تبديل أي اختيار بعده.
+    var rolesHidden = document.getElementById('fCaseOpponentRoles');
+    if (rolesHidden) rolesHidden.value = JSON.stringify(getOpponentRoles());
     return _origSaveCaseForOpponents.apply(this, arguments);
   };
 }
@@ -794,6 +852,7 @@ if (typeof saveCase === 'function') {
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     opponentsRepository: opponentsRepository,
+    ensureOpponentsRepositoryReady: ensureOpponentsRepositoryReady,
     renderOpponents: renderOpponents,
     saveOpponent: saveOpponent,
     editOpponent: editOpponent,
@@ -806,6 +865,8 @@ if (typeof module !== 'undefined' && module.exports) {
     toggleCaseOpponent: toggleCaseOpponent,
     removeCaseOpponent: removeCaseOpponent,
     syncCaseOpponentSelectorFromField: syncCaseOpponentSelectorFromField,
-    renderOpponentSelectorList: renderOpponentSelectorList
+    renderOpponentSelectorList: renderOpponentSelectorList,
+    renderOpponentSelectorChips: renderOpponentSelectorChips,
+    getOpponentRoles: getOpponentRoles
   };
 }

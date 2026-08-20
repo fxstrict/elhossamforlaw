@@ -490,8 +490,13 @@ function renderDocuments() {
 async function saveDocument() {
   var c = document.getElementById('fDocCaseNum').value.trim();
   var n = document.getElementById('fDocName').value.trim();
-  if (!c || !n) {
-    toast('يرجى ملء رقم القضية واسم المستند', 'error');
+  // CASES_RELATIONSHIP_FINANCIAL قرار §3-L: "لا تجبر المستخدم على إنشاء
+  // قضية" لمستند خاص بموكل. رقم القضية لم يعد إلزاميًا وحده — يكفي
+  // أحد الحقلين (قضية أو موكل)، مطابقًا تمامًا لتحقق DocumentsRepository.
+  var clientIdEl = document.getElementById('fDocClientId');
+  var clientId = clientIdEl ? clientIdEl.value.trim() : '';
+  if ((!c && !clientId) || !n) {
+    toast(!n ? 'يرجى إدخال اسم المستند' : 'يرجى اختيار قضية أو موكل للمستند', 'error');
     return;
   }
 
@@ -548,8 +553,94 @@ function editDocument(i) {
   editIdx.documents = i;
   populateCaseDropdown('fDocCaseNum', data.documents[i]['رقم_القضية']);
   fillForm('documents', data.documents[i]);
+  // CASES_RELATIONSHIP_FINANCIAL قرار §3-L: استعادة اختيار الموكل عند التعديل.
+  syncDocClientSelectorFromRecord(data.documents[i]);
   document.getElementById('modalDocTitle').textContent = 'تعديل المستند';
   document.getElementById('modalDocument').classList.add('open');
+}
+
+// ================================================================
+// CASES_RELATIONSHIP_FINANCIAL قرار §3-L — CLIENT SELECTOR: بنفس نمط
+// tasks.js's taskClientSelector* حرفيًا (نفس CSS classes:
+// client-selector-box/panel/search/list/chips — صفر CSS جديد). موكل
+// واحد لكل مستند (Single-select)، بلا cascade لقائمة القضايا (مستقلة
+// عن بعضها هنا، خلافًا لـ tasks.js).
+// ================================================================
+var _docSelectedClientId = '';
+
+function toggleDocClientSelector(evt) {
+  if (evt) evt.stopPropagation();
+  var panel = document.getElementById('docClientSelectorPanel');
+  if (!panel) return;
+  var willOpen = !panel.classList.contains('open');
+  document.querySelectorAll('.client-selector-panel').forEach(function (p) { p.classList.remove('open'); });
+  if (willOpen) {
+    panel.classList.add('open');
+    renderDocClientSelectorList();
+    var search = document.getElementById('docClientSelectorSearch');
+    if (search) { search.value = ''; search.focus(); }
+  }
+}
+
+function renderDocClientSelectorList() {
+  var list = document.getElementById('docClientSelectorList');
+  if (!list) return;
+  var q = (document.getElementById('docClientSelectorSearch') ? document.getElementById('docClientSelectorSearch').value : '').trim().toLowerCase();
+  var all = (data.clients || []).slice().sort(function (a, b) {
+    return String(a['الاسم'] || '').localeCompare(String(b['الاسم'] || ''), 'ar');
+  });
+  var filtered = q ? all.filter(function (c) {
+    return String(c['الاسم'] || '').toLowerCase().indexOf(q) !== -1 ||
+      String(c['الرقم_القومي'] || '').toLowerCase().indexOf(q) !== -1;
+  }) : all;
+
+  if (!filtered.length) {
+    list.innerHTML = '<div class="client-selector-empty">لا يوجد موكلين مطابقين — يمكنك إضافة موكل جديد من صفحة الموكلين.</div>';
+  } else {
+    list.innerHTML = filtered.map(function (c) {
+      var id = c['رقم_الموكل'];
+      var checked = _docSelectedClientId === id;
+      return '<div class="client-selector-item' + (checked ? ' selected' : '') + '" onclick="selectDocClient(\'' + id + '\')">' +
+        '<span>' + escapeHtml(c['الاسم'] || '—') + (c['الهاتف'] ? ' <small>(' + escapeHtml(c['الهاتف']) + ')</small>' : '') + '</span>' +
+      '</div>';
+    }).join('');
+  }
+}
+
+function selectDocClient(id) {
+  _docSelectedClientId = id;
+  var idEl = document.getElementById('fDocClientId');
+  if (idEl) idEl.value = id;
+  renderDocClientSelectorChips();
+  var panel = document.getElementById('docClientSelectorPanel');
+  if (panel) panel.classList.remove('open');
+}
+
+function removeDocClient() {
+  _docSelectedClientId = '';
+  var idEl = document.getElementById('fDocClientId');
+  if (idEl) idEl.value = '';
+  renderDocClientSelectorChips();
+}
+
+function renderDocClientSelectorChips() {
+  var chips = document.getElementById('docClientSelectorChips');
+  if (!chips) return;
+  if (!_docSelectedClientId) {
+    chips.innerHTML = '<span class="client-selector-placeholder">اضغط لاختيار الموكل...</span>';
+    return;
+  }
+  var client = (data.clients || []).filter(function (c) { return c['رقم_الموكل'] === _docSelectedClientId; })[0];
+  var label = client ? client['الاسم'] : _docSelectedClientId;
+  chips.innerHTML = '<span class="client-chip">' + escapeHtml(label) +
+    '<button type="button" class="client-chip-remove" onclick="event.stopPropagation();removeDocClient()" title="إزالة">&times;</button></span>';
+}
+
+function syncDocClientSelectorFromRecord(record) {
+  _docSelectedClientId = record ? (record['رقم_الموكل'] || '') : '';
+  var idEl = document.getElementById('fDocClientId');
+  if (idEl) idEl.value = _docSelectedClientId;
+  renderDocClientSelectorChips();
 }
 
 /**
@@ -770,6 +861,10 @@ if (typeof module !== 'undefined' && module.exports) {
     saveDocument: saveDocument,
     editDocument: editDocument,
     deleteDocument: deleteDocument,
-    restoreDocument: restoreDocument
+    restoreDocument: restoreDocument,
+    selectDocClient: selectDocClient,
+    removeDocClient: removeDocClient,
+    renderDocClientSelectorChips: renderDocClientSelectorChips,
+    syncDocClientSelectorFromRecord: syncDocClientSelectorFromRecord
   };
 }

@@ -669,11 +669,43 @@ async function saveCase() {
     return;
   }
 
+  // CASES_RELATIONSHIP_FINANCIAL قرار §3-E: القضية لا يمكن أن تكون
+  // "درجة سابقة" لنفسها. populateCaseDropdown('fCaseParentCase', ...)
+  // لا يستبعد القضية الحالية من قائمتها الخاصة بها (نفس الدالة
+  // المشتركة مع sessions.js) — الحماية هنا بدلاً من تعديل تلك الدالة
+  // المشتركة.
+  var parentCaseEl = document.getElementById('fCaseParentCase');
+  var parentCaseNum = parentCaseEl ? parentCaseEl.value.trim() : '';
+  if (parentCaseNum && parentCaseNum === num) {
+    toast('لا يمكن ربط القضية بنفسها كدرجة سابقة', 'error');
+    return;
+  }
+
   await ensureCasesRepositoryReady();
 
   var obj = collectForm('cases');
   obj['تاريخ_الإنشاء'] = obj['تاريخ_الإنشاء'] || new Date().toISOString();
   obj['آخر_تحديث']     = new Date().toISOString();
+
+  // CASES_RELATIONSHIP_FINANCIAL قرار §3-E: اشتقاق مجموعة_تقاضي —
+  // معرّف مشترك بين كل درجات نفس السلسلة (راجع تعليق SHEET_DEFS فى
+  // Config/00_Config.gs). عند الربط بدرجة سابقة: نرث مجموعتها (أو
+  // نُنشئ واحدة من رقم_القضية الخاص بها إن لم تكن قد انضمت لسلسلة من
+  // قبل، ونُحدّثها هى نفسها بنفس القيمة كى تشترك الدرجتان فى نفس
+  // المجموعة من الآن). بدون ربط: تُحفظ أى قيمة مجموعة سابقة كما هى
+  // (تعديل قضية موجودة ضمن سلسلة بالفعل)، ولا تُخترع مجموعة جديدة
+  // لقضية غير مرتبطة بأي سلسلة.
+  if (parentCaseNum) {
+    var parentIdx = data.cases.findIndex(function (c) { return c['رقم_القضية'] === parentCaseNum; });
+    var parentCase = parentIdx >= 0 ? data.cases[parentIdx] : null;
+    if (parentCase) {
+      var group = parentCase['مجموعة_تقاضي'] || parentCase['رقم_القضية'];
+      obj['مجموعة_تقاضي'] = group;
+      if (!parentCase['مجموعة_تقاضي']) {
+        await casesRepository.update(parentCase[CASES_ID_FIELD], { 'مجموعة_تقاضي': group });
+      }
+    }
+  }
 
   var idx = editIdx.cases;
   var result;
@@ -715,14 +747,38 @@ async function saveCase() {
 }
 
 /**
+ * switchCaseFormTab — CASES_RELATIONSHIP_FINANCIAL: نفس نمط
+ * switchClientFormTab() (js/modules/client-fields.js) بالضبط — لا
+ * معمارية جديدة. تبديل التبويب النشط داخل نموذج إضافة/تعديل القضية.
+ * @param {string} tabId — 'info' | 'stage' | 'parties' | 'other'
+ */
+function switchCaseFormTab(tabId) {
+  var panes = document.querySelectorAll('.case-form-pane');
+  for (var i = 0; i < panes.length; i++) panes[i].style.display = 'none';
+  var pane = document.getElementById('casePane-' + tabId);
+  if (pane) pane.style.display = '';
+
+  var btns = document.querySelectorAll('#caseFormTabs .tab-btn');
+  for (var j = 0; j < btns.length; j++) {
+    btns[j].classList.toggle('active', btns[j].getAttribute('data-case-tab') === tabId);
+  }
+}
+
+/**
  * editCase — فتح نموذج تعديل قضية موجودة.
- * Unchanged, 100% synchronous (audit §16.1 binding constraint —
+ * Stays 100% synchronous (audit §16.1 binding constraint —
  * js/modules/clients.js wraps this function again and depends on its
- * DOM effects being visible the instant it returns).
+ * DOM effects being visible the instant it returns). CASES_RELATIONSHIP_FINANCIAL
+ * added one line (populateCaseDropdown() call below) — still a plain
+ * synchronous DOM/data.cases read, the constraint is preserved.
  */
 function editCase(i) {
   editIdx.cases = i;
   fillForm('cases', data.cases[i]);
+  // CASES_RELATIONSHIP_FINANCIAL قرار §3-E: تعبئة قائمة "ربط بدرجة سابقة"
+  // واختيار القيمة الحالية — نفس نمط fillForm أعلاه تمامًا، متزامن بالكامل.
+  populateCaseDropdown('fCaseParentCase', data.cases[i]['قضية_أصل'] || '');
+  switchCaseFormTab('info'); // دائمًا يبدأ التعديل من أول تبويب، نفس سلوك switchClientFormTab الافتراضي
   document.getElementById('modalCaseTitle').textContent = 'تعديل القضية';
   document.getElementById('modalCase').classList.add('open');
 }
@@ -1132,6 +1188,45 @@ function viewCase(i) {
 }
 
 /**
+ * getLitigationChain — returns the ordered (root -> leaf) list of case
+ * records belonging to the same litigation-stage chain as `caseNum`
+ * (CASES_RELATIONSHIP_FINANCIAL قرار §3-E: "يجب أن تظهر سلسلة القضايا
+ * مترابطة: ابتدائي ← استئناف ← نقض"). Assumes a single linear chain
+ * per group (matches every example in the decision text — no branching
+ * support needed). Returns just [caseRecord] when the case has no
+ * مجموعة_تقاضي (not part of any chain) or isn't found at all.
+ * @param {string} caseNum
+ * @returns {Array<object>}
+ */
+function getLitigationChain(caseNum) {
+  var c = (data.cases || []).find(function (x) { return x['رقم_القضية'] === caseNum; });
+  if (!c) return [];
+  var group = c['مجموعة_تقاضي'];
+  if (!group) return [c];
+
+  var members = data.cases.filter(function (x) { return x['مجموعة_تقاضي'] === group; });
+  var byNum = {};
+  members.forEach(function (m) { byNum[m['رقم_القضية']] = m; });
+
+  var root = members.find(function (m) { return !m['قضية_أصل'] || !byNum[m['قضية_أصل']]; }) || members[0];
+
+  var chain = [root];
+  var seen = {};
+  seen[root['رقم_القضية']] = true;
+  var current = root;
+  // Linear walk, not recursive — bounded by members.length so a data
+  // anomaly (e.g. a cycle) can never infinite-loop this.
+  while (chain.length < members.length) {
+    var next = members.find(function (m) { return m['قضية_أصل'] === current['رقم_القضية'] && !seen[m['رقم_القضية']]; });
+    if (!next) break;
+    chain.push(next);
+    seen[next['رقم_القضية']] = true;
+    current = next;
+  }
+  return chain;
+}
+
+/**
  * buildCaseReport — builds the full HTML report string for a case.
  * Used by viewCase() and quickPrintCase().
  */
@@ -1180,6 +1275,40 @@ function buildCaseReport(c, sessions, docs, children) {
           vf('الجلسة القادمة', formatDate(c['تاريخ_الجلسة_القادمة'])) +
           vf('أتعاب المحاماة', c['أتعاب_المحاماة'] ? c['أتعاب_المحاماة'] + ' ج.م' : '');
   html += '</div></div>';
+
+  // CASES_RELATIONSHIP_FINANCIAL قرار §3-E: سلسلة درجات التقاضي — يعيد
+  // استخدام .client-chip الموجودة (css/components.css) بدلاً من إضافة
+  // CSS جديد، مع تمييز بسيط inline للدرجة الحالية فقط.
+  var chain = getLitigationChain(c['رقم_القضية']);
+  if (chain.length > 1) {
+    html += '<div class="view-section"><div class="view-section-title">&#9878; سلسلة درجات التقاضي</div><div>';
+    html += chain.map(function (stageCase, idx) {
+      var isCurrent = stageCase['رقم_القضية'] === c['رقم_القضية'];
+      var label = (stageCase['درجة_التقاضي'] || ('درجة ' + (idx + 1))) + ' — ' + (stageCase['رقم_القضية'] || '');
+      var style = isCurrent ? ' style="font-weight:700;border-color:var(--gold, #C9A84C);"' : '';
+      return '<span class="client-chip"' + style + '>' + escapeHtml(label) + '</span>';
+    }).join(' <span style="color:#999;">&#8592;</span> ');
+    html += '</div></div>';
+  }
+
+  // CASES_RELATIONSHIP_FINANCIAL قرار §18/§3-G: صافي عائد القضية —
+  // إجمالي أتعاب القضية - مصروفات القضية. يُستدعي getCaseNet() من
+  // js/modules/financial-reports.js (كان مبنيًا ومُختبرًا لكن غير
+  // مُستخدم فى أي واجهة إطلاقًا حتى هذا الإصلاح).
+  if (typeof getCaseNet === 'function') {
+    var caseNet = getCaseNet(c['رقم_القضية']);
+    if (caseNet.totalFees || caseNet.totalExpenses) {
+      html += '<div class="view-section"><div class="view-section-title">&#128202; صافي عائد القضية</div>';
+      html += '<div class="hsm-table-scroll"><table style="width:100%;min-width:320px;font-size:12px;border-collapse:collapse;">' +
+        '<tr><td style="padding:7px 10px;border:1px solid #e8e0d0;">إجمالي الأتعاب</td>' +
+          '<td style="padding:7px 10px;border:1px solid #e8e0d0;font-weight:700;color:#1ab46c;">' + caseNet.totalFees.toLocaleString('ar-EG') + ' ج.م</td></tr>' +
+        '<tr><td style="padding:7px 10px;border:1px solid #e8e0d0;">إجمالي المصروفات</td>' +
+          '<td style="padding:7px 10px;border:1px solid #e8e0d0;font-weight:700;color:#c0392b;">' + caseNet.totalExpenses.toLocaleString('ar-EG') + ' ج.م</td></tr>' +
+        '<tr style="background:#f0f8f4;"><td style="padding:8px 10px;border:1px solid #e8e0d0;font-weight:900;">صافي العائد</td>' +
+          '<td style="padding:8px 10px;border:1px solid #e8e0d0;font-weight:900;color:' + (caseNet.net >= 0 ? '#1ab46c' : '#c0392b') + ';">' + caseNet.net.toLocaleString('ar-EG') + ' ج.م</td></tr>' +
+        '</table></div></div>';
+    }
+  }
 
   // الموكل
   html += '<div class="view-section"><div class="view-section-title">&#128100; بيانات الموكل (' + f(c['نوع_الموكل']) + ')</div><div class="view-grid">';
@@ -1706,6 +1835,8 @@ if (typeof module !== 'undefined' && module.exports) {
     getCaseStats: getCaseStats,
     viewCase: viewCase,
     buildCaseReport: buildCaseReport,
+    getLitigationChain: getLitigationChain,
+    switchCaseFormTab: switchCaseFormTab,
     quickPrintCase: quickPrintCase,
     quickCaseQR: quickCaseQR,
     toggleChildrenSection: toggleChildrenSection,
