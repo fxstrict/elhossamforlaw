@@ -333,6 +333,9 @@
 <link rel="preload" as="script" href="js/repositories/CasesRepository.js?v=42" fetchpriority="high">
 <link rel="preload" as="script" href="js/repositories/ClientsRepository.js?v=42" fetchpriority="high">
 <link rel="preload" as="script" href="js/repositories/OpponentsRepository.js?v=42" fetchpriority="high">
+<!-- CASES_RELATIONSHIP_FINANCIAL. Same preload-priority convention as OpponentsRepository.js just above. -->
+<link rel="preload" as="script" href="js/repositories/CaseClientsRepository.js?v=1" fetchpriority="high">
+<link rel="preload" as="script" href="js/repositories/ExpensesRepository.js?v=1" fetchpriority="high">
 <!-- PHASE 38 — Process Server Works Module (أعمال المحضرين). Same
      preload-priority convention as OpponentsRepository.js just above. -->
 <link rel="preload" as="script" href="js/repositories/ProcessServerWorksRepository.js?v=42" fetchpriority="high">
@@ -600,6 +603,7 @@ style="color:var(--muted);font-size:12px;margin-top:4px;"> جارٍ تحميل
     <div class="nav-item" tabindex="0" role="link"
     onclick="navigate('tasks')"><span class="nav-icon">&#9989;</span> الأعمال الإدارية<span class="nav-badge" id="badgeTasks">0</span></div>
     <div class="nav-item" tabindex="0" role="link" onclick="navigate('fees')"><span class="nav-icon">&#128176;</span> الأتعاب <span class="nav-badge" id="badgeFees">0</span></div>
+    <div class="nav-item" tabindex="0" role="link" onclick="navigate('expenses')"><span class="nav-icon">&#128181;</span> المصروفات <span class="nav-badge" id="badgeExpenses">0</span></div>
     <div class="nav-section-label">الأدوات</div>
     <div class="nav-item" tabindex="0" role="link" onclick="navigate('calendar')"><span class="nav-icon">&#128467;</span> التقويم</div>
     <div class="nav-item" tabindex="0" role="link" onclick="navigate('library')"><span class="nav-icon">&#128218;</span> المكتبة القانونية</div>
@@ -926,6 +930,23 @@ style="color:var(--muted);font-size:12px;margin-top:4px;"> جارٍ تحميل
   <div class="mobile-card-list list-container" id="feesMobileList"></div>
 </div>
 
+<!-- CASES_RELATIONSHIP_FINANCIAL قرار §3-G -->
+<div class="page" id="page-expenses">
+  <div class="toolbar page-toolbar">
+    <div class="search-wrap"><span class="icon">&#128269;</span><input type="text" id="searchExpenses" placeholder="بحث في المصروفات..." oninput="renderExpenses()"></div>
+    <button class="btn btn-primary btn-sm" onclick="openAddExpenseModal()">&#65291; تسجيل مصروف</button>
+  </div>
+  <div class="stats-grid" style="margin-bottom:18px;">
+    <div class="stat-card" style="cursor:default;"><div class="stat-icon">&#128181;</div><div class="stat-num" id="expensesTotalNum">0</div><div class="stat-label">إجمالي المصروفات (ج.م)</div></div>
+    <div class="stat-card" style="cursor:default;"><div class="stat-icon">&#128203;</div><div class="stat-num" id="expensesCountNum">0</div><div class="stat-label">عدد العمليات</div></div>
+  </div>
+  <div class="card card-section"><div class="card-body u-p-0">
+    <div class="table-wrap table-container"><table><thead><tr><th>النطاق</th><th>المرتبط به</th><th>التصنيف</th><th>المبلغ</th><th>التاريخ</th><th>الحالة</th><th>ملاحظات</th><th>إجراءات</th></tr></thead><tbody id="expensesTableBody"></tbody></table></div>
+    <div id="expensesEmpty" class="empty-state empty-container" style="display:none;"><div class="icon">&#128181;</div><h3>لا توجد مصروفات مسجلة بعد</h3><p>سجّل مصروفات الموكلين/القضايا/المكتب لمتابعة الإجمالي وحساب صافي العائد.</p><button class="btn btn-primary" onclick="openAddExpenseModal()">&#65291; تسجيل مصروف</button></div>
+  </div></div>
+  <div class="mobile-card-list list-container" id="expensesMobileList"></div>
+</div>
+
 <!-- CALENDAR -->
 <div class="page" id="page-calendar">
   <div style="max-width:700px;">
@@ -1182,110 +1203,159 @@ style="color:var(--muted);font-size:12px;margin-top:4px;"> جارٍ تحميل
 <div class="modal-overlay" id="modalCase">
   <div class="modal modal-wide">
     <div class="modal-header"><div class="modal-title"><span class="icon">&#9878;</span><span id="modalCaseTitle">إضافة قضية</span></div><button class="modal-close" onclick="closeModal('modalCase')">&#10005;</button></div>
-    <div class="modal-body"><div class="form-grid">
-      <div class="section-divider full"><h4>&#128203; البيانات الأساسية</h4></div>
-      <div class="form-group"><label>رقم قيد الدعوى بالمحكمة<span class="req">*</span></label><input type="text" id="fCaseNum" placeholder="2025/1234"></div>
-      <div class="form-group"><label>رقم الدائرة</label><input type="text" id="fCaseCircuit" placeholder="مثال: 5"></div>
-      <div class="form-group"><label>رقم القاعة</label><input type="text" id="fCaseRoom" placeholder="مثال: 3"></div>
-      <div class="form-group"><label>رقم الملف داخل المكتب</label><input type="text" id="fCaseDocketNum" placeholder="مثال: أي رقم كودي"></div>
-      <div class="form-group"><label>نوع الدعوى<span class="req">*</span></label>
-        <select id="fCaseType"><option value="">اختر...</option>
-          <optgroup label="أحوال شخصية">
-            <option>أحوال شخصية — زوجة</option><option>أحوال شخصية — زوج</option>
-            <option>طلاق للضرر</option><option>خلع</option><option>نفقة زوجية</option>
-            <option>نفقة صغار</option><option>رؤية أطفال</option><option>حضانة</option>
-            <option>تمكين مسكن</option><option>إسقاط حضانة</option><option>تخفيض نفقة</option>
-            <option>طاعة</option><option>إثبات نسب</option>
-          </optgroup>
-          <optgroup label="فروع أخرى">
-            <option>مدني</option><option>جنائي</option><option>تجاري</option>
-            <option>عمالي</option><option>إداري</option><option>عقاري</option>
-            <option>جنح</option><option>استئناف</option><option>نقض</option>
-          </optgroup>
-        </select>
-      </div>
-      <div class="form-group"><label>المحكمة</label><input type="text"
-      id="fCaseCourt" placeholder="محكمة استئناف الاسكندرية "></div>
-      <div class="form-group full"><label>عنوان القضية<span class="req">*</span></label><input type="text" id="fCaseTitle" placeholder="وصف مختصر للقضية"></div>
-      <div class="form-group"><label>حالة القضية</label>
-        <select id="fCaseStatus"><option>نشطة</option><option>معلقة</option><option>منتهية</option><option>مُحالة</option><option>مُرجأة</option></select>
-      </div>
-      <div class="form-group"><label>تاريخ القيد</label><input type="date" id="fCaseDate"></div>
-      <div class="form-group"><label>تاريخ الجلسة القادمة</label><input type="date" id="fCaseNextSession"></div>
-      <div class="form-group"><label>أتعاب المحاماة (ج.م)</label><input type="number" id="fCaseFees" placeholder="0"></div>
+    <!-- CASES_RELATIONSHIP_FINANCIAL — تبويبات مطابقة للصور المرجعية،
+         بإعادة استخدام حرفي لنمط .section-tabs/.tab-btn/switchXFormTab()
+         الموجود فعلاً (#clientFormTabs/switchClientFormTab) — لا معمارية
+         جديدة. كل حقل/id/onclick محفوظ دون أي تغيير — فقط إعادة تجميع
+         بصري + غلاف تبويبات. تبويبا "المستندات/محضرين/عمل اداري/جلسة"
+         المستقلة فى الصور المرجعية (تدفقات إنشاء كيانات فرعية مضمّنة)
+         متروكة لمرحلة لاحقة عمدًا — تحويلها بعجالة الآن كان سيعنى بناء
+         تدفقات غير مُختبرة بالكامل؛ حقول القضية الفعلية كلها هنا. -->
+    <div class="section-tabs case-form-tabs" id="caseFormTabs">
+      <button type="button" class="tab-btn active" data-case-tab="info" onclick="switchCaseFormTab('info')">&#128203; المعلومات</button>
+      <button type="button" class="tab-btn" data-case-tab="stage" onclick="switchCaseFormTab('stage')">&#127963; الدرجة</button>
+      <button type="button" class="tab-btn" data-case-tab="parties" onclick="switchCaseFormTab('parties')">&#128101; الأطراف</button>
+      <button type="button" class="tab-btn" data-case-tab="other" onclick="switchCaseFormTab('other')">&#128220; أخرى</button>
+    </div>
+    <div class="modal-body">
 
-      <div class="section-divider full"><h4>&#128100; بيانات الموكل</h4></div>
-      <div class="form-group"><label>نوع الموكل</label>
-        <select id="fCaseClientType"><option> شخص طبيعى</option><option>شخص اعتباري</option></select>
-      </div>
-      <div class="form-group full client-selector-group">
-        <label>اسم الموكل (يمكن اختيار أكثر من موكل)<span class="req">*</span></label>
-        <div class="client-selector-box" id="clientSelectorBox" onclick="toggleClientSelector(event)">
-          <div class="client-selector-chips" id="clientSelectorChips"><span class="client-selector-placeholder">اختر موكلاً واحداً أو أكثر من القائمة...</span></div>
-          <span class="client-selector-arrow">&#9662;</span>
+      <!-- ============== تبويب 1: المعلومات ============== -->
+      <div class="case-form-pane" id="casePane-info">
+        <div class="form-grid">
+          <div class="form-group"><label>رقم قيد الدعوى بالمحكمة<span class="req">*</span></label><input type="text" id="fCaseNum" placeholder="2025/1234"></div>
+          <div class="form-group"><label>نوع الدعوى<span class="req">*</span></label>
+            <select id="fCaseType"><option value="">اختر...</option>
+              <optgroup label="أحوال شخصية">
+                <option>أحوال شخصية — زوجة</option><option>أحوال شخصية — زوج</option>
+                <option>طلاق للضرر</option><option>خلع</option><option>نفقة زوجية</option>
+                <option>نفقة صغار</option><option>رؤية أطفال</option><option>حضانة</option>
+                <option>تمكين مسكن</option><option>إسقاط حضانة</option><option>تخفيض نفقة</option>
+                <option>طاعة</option><option>إثبات نسب</option>
+              </optgroup>
+              <optgroup label="فروع أخرى">
+                <option>مدني</option><option>جنائي</option><option>تجاري</option>
+                <option>عمالي</option><option>إداري</option><option>عقاري</option>
+                <option>جنح</option><option>استئناف</option><option>نقض</option>
+              </optgroup>
+            </select>
+          </div>
+          <div class="form-group full"><label>عنوان القضية<span class="req">*</span></label><input type="text" id="fCaseTitle" placeholder="وصف مختصر للقضية"></div>
+          <div class="form-group"><label>حالة القضية</label>
+            <select id="fCaseStatus"><option>نشطة</option><option>معلقة</option><option>منتهية</option><option>مُحالة</option><option>مُرجأة</option></select>
+          </div>
+          <div class="form-group"><label>تاريخ القيد</label><input type="date" id="fCaseDate"></div>
+          <div class="form-group"><label>تاريخ الجلسة القادمة</label><input type="date" id="fCaseNextSession"></div>
+          <div class="form-group"><label>أتعاب المحاماة (ج.م)</label><input type="number" id="fCaseFees" placeholder="0"></div>
         </div>
-        <div class="client-selector-panel" id="clientSelectorPanel" onclick="event.stopPropagation()">
-          <input type="text" id="clientSelectorSearch" class="client-selector-search" placeholder="بحث عن موكل بالاسم..." oninput="renderClientSelectorList()">
-          <div class="client-selector-list" id="clientSelectorList"></div>
+      </div>
+
+      <!-- ============== تبويب 2: الدرجة ============== -->
+      <div class="case-form-pane" id="casePane-stage" style="display:none;">
+        <div class="form-grid">
+          <!-- CASES_RELATIONSHIP_FINANCIAL قرار §3-E: درجات التقاضي — كل درجة سجل Case مستقل، مرتبط بسابقه عبر قضية_أصل -->
+          <div class="form-group"><label>درجة التقاضي</label>
+            <select id="fCaseStage"><option value="">اختر...</option>
+              <option>ابتدائي</option><option>استئناف</option><option>نقض</option><option>تنفيذ</option>
+            </select>
+          </div>
+          <div class="form-group"><label>ربط بدرجة سابقة (اختياري)</label>
+            <select id="fCaseParentCase"><option value="">-- بدون --</option></select>
+          </div>
+          <div class="form-group"><label>رقم الدعوى</label><input type="text" id="fCaseDocketNum" placeholder="مثال: أي رقم كودي"></div>
+          <div class="form-group"><label>رقم الدائرة</label><input type="text" id="fCaseCircuit" placeholder="مثال: 5"></div>
+          <div class="form-group"><label>رقم القاعة</label><input type="text" id="fCaseRoom" placeholder="مثال: 3"></div>
+          <div class="form-group"><label>المحكمة</label><input type="text"
+          id="fCaseCourt" placeholder="محكمة استئناف الاسكندرية "></div>
         </div>
-        <input type="hidden" id="fCaseClient">
       </div>
-      <div class="form-group"><label>الرقم القومي</label><input type="text" id="fCaseClientNID" placeholder="14 رقم" maxlength="14"></div>
-      <div class="form-group"><label>هاتف الموكل</label><input type="tel" id="fCaseClientPhone" placeholder="01xxxxxxxxx"></div>
-      <div class="form-group"><label>عنوان الموكل</label><input type="text" id="fCaseClientAddr" placeholder="المحافظة — المدينة"></div>
-      <div class="form-group"><label>وظيفة الموكل</label><input type="text" id="fCaseClientJob" placeholder="اختياري"></div>
-      <div class="form-group"><label>جهة عمل الموكل</label><input type="text" id="fCaseClientEmployer" placeholder="اختياري"></div>
 
-      <div class="section-divider full"><h4>&#128100; بيانات الخصم</h4></div>
-      <div class="form-group full client-selector-group">
-        <label>اسم الخصم (يمكن اختيار أكثر من خصم)</label>
-        <div class="client-selector-box" id="opponentSelectorBox" onclick="toggleOpponentSelector(event)">
-          <div class="client-selector-chips" id="opponentSelectorChips"><span class="client-selector-placeholder">اختر خصماً واحداً أو أكثر من القائمة...</span></div>
-          <span class="client-selector-arrow">&#9662;</span>
+      <!-- ============== تبويب 3: الأطراف ============== -->
+      <div class="case-form-pane" id="casePane-parties" style="display:none;">
+        <div class="form-grid">
+          <div class="section-divider full"><h4>&#128100; بيانات الموكل</h4></div>
+          <div class="form-group"><label>نوع الموكل</label>
+            <select id="fCaseClientType"><option> شخص طبيعى</option><option>شخص اعتباري</option></select>
+          </div>
+          <div class="form-group full client-selector-group">
+            <label>اسم الموكل (يمكن اختيار أكثر من موكل)<span class="req">*</span></label>
+            <div class="client-selector-box" id="clientSelectorBox" onclick="toggleClientSelector(event)">
+              <div class="client-selector-chips" id="clientSelectorChips"><span class="client-selector-placeholder">اختر موكلاً واحداً أو أكثر من القائمة...</span></div>
+              <span class="client-selector-arrow">&#9662;</span>
+            </div>
+            <div class="client-selector-panel" id="clientSelectorPanel" onclick="event.stopPropagation()">
+              <input type="text" id="clientSelectorSearch" class="client-selector-search" placeholder="بحث عن موكل بالاسم..." oninput="renderClientSelectorList()">
+              <div class="client-selector-list" id="clientSelectorList"></div>
+            </div>
+            <input type="hidden" id="fCaseClient">
+            <!-- CASES_RELATIONSHIP_FINANCIAL قرار §3-C: رقم_الموكل ID array (JSON) — إضافي بحت، لا يمس fCaseClient أعلاه -->
+            <input type="hidden" id="fCaseClients">
+          </div>
+          <div class="form-group"><label>الرقم القومي</label><input type="text" id="fCaseClientNID" placeholder="14 رقم" maxlength="14"></div>
+          <div class="form-group"><label>هاتف الموكل</label><input type="tel" id="fCaseClientPhone" placeholder="01xxxxxxxxx"></div>
+          <div class="form-group"><label>عنوان الموكل</label><input type="text" id="fCaseClientAddr" placeholder="المحافظة — المدينة"></div>
+          <div class="form-group"><label>وظيفة الموكل</label><input type="text" id="fCaseClientJob" placeholder="اختياري"></div>
+          <div class="form-group"><label>جهة عمل الموكل</label><input type="text" id="fCaseClientEmployer" placeholder="اختياري"></div>
+
+          <div class="section-divider full"><h4>&#128100; بيانات الخصم</h4></div>
+          <div class="form-group full client-selector-group">
+            <label>اسم الخصم (يمكن اختيار أكثر من خصم)</label>
+            <div class="client-selector-box" id="opponentSelectorBox" onclick="toggleOpponentSelector(event)">
+              <div class="client-selector-chips" id="opponentSelectorChips"><span class="client-selector-placeholder">اختر خصماً واحداً أو أكثر من القائمة...</span></div>
+              <span class="client-selector-arrow">&#9662;</span>
+            </div>
+            <div class="client-selector-panel" id="opponentSelectorPanel" onclick="event.stopPropagation()">
+              <input type="text" id="opponentSelectorSearch" class="client-selector-search" placeholder="بحث عن خصم بالاسم..." oninput="renderOpponentSelectorList()">
+              <div class="client-selector-list" id="opponentSelectorList"></div>
+            </div>
+            <input type="hidden" id="fCaseOpponents">
+            <!-- CASES_RELATIONSHIP_FINANCIAL قرار §3-D: صفة لكل خصم (JSON id->صفة) — إضافي بحت -->
+            <input type="hidden" id="fCaseOpponentRoles">
+          </div>
+          <div class="form-group"><label>اسم الخصم (نص حر — يُملأ تلقائياً عند اختيار خصم واحد)</label><input type="text" id="fCaseOpponent" placeholder="الاسم الكامل"></div>
+          <div class="form-group"><label>الرقم القومي للخصم</label><input type="text" id="fCaseOpponentNID" placeholder="اختياري" maxlength="14"></div>
+          <div class="form-group"><label>هاتف الخصم</label><input type="tel" id="fCaseOpponentPhone" placeholder="اختياري"></div>
+          <div class="form-group"><label>عنوان الخصم</label><input type="text" id="fCaseOpponentAddr" placeholder="اختياري"></div>
+          <div class="form-group"><label>وظيفة الخصم</label><input type="text" id="fCaseOpponentJob" placeholder="اختياري"></div>
+          <div class="form-group"><label>جهة عمل الخصم</label><input type="text" id="fCaseOpponentEmployer" placeholder="اختياري"></div>
         </div>
-        <div class="client-selector-panel" id="opponentSelectorPanel" onclick="event.stopPropagation()">
-          <input type="text" id="opponentSelectorSearch" class="client-selector-search" placeholder="بحث عن خصم بالاسم..." oninput="renderOpponentSelectorList()">
-          <div class="client-selector-list" id="opponentSelectorList"></div>
+      </div>
+
+      <!-- ============== تبويب 4: أخرى ============== -->
+      <div class="case-form-pane" id="casePane-other" style="display:none;">
+        <div class="form-grid">
+          <div class="section-divider full"><h4>&#128141; بيانات الزواج (أحوال شخصية)</h4></div>
+          <div class="form-group"><label>تاريخ عقد الزواج</label><input type="date" id="fCaseMarriageDate"></div>
+          <div class="form-group"><label>رقم وثيقة الزواج</label><input type="text" id="fCaseMarriageDoc" placeholder="رقم العقد"></div>
+          <div class="form-group"><label>مكتب التوثيق / المأذون</label><input type="text" id="fCaseNotaryOffice" placeholder="اسم المأذون"></div>
+          <div class="form-group"><label>وجود قائمة منقولات</label>
+            <select id="fCaseHasInventory"><option value="">—</option><option>نعم</option><option>لا</option></select>
+          </div>
+          <div class="form-group"><label>وجود أطفال</label>
+            <select id="fCaseHasChildren" onchange="toggleChildrenSection()"><option value="">—</option><option>نعم</option><option>لا</option></select>
+          </div>
+          <div class="section-divider full" id="childrenSectionDiv" style="display:none;"><h4>&#128118; بيانات الأطفال</h4>
+            <div id="childrenRows"></div>
+            <button type="button" class="btn btn-ghost btn-sm" onclick="addChildRow()" style="margin-top:6px;">&#65291; إضافة طفل</button>
+            <input type="hidden" id="fCaseChildrenData" value="[]">
+          </div>
+
+          <div class="section-divider full"><h4>&#128220; تفاصيل القضية والإجراءات</h4></div>
+          <div class="form-group full"><label>الطلبات القانونية</label><textarea id="fCaseDemands" placeholder="الطلبات المقدمة بالتفصيل..."></textarea></div>
+          <div class="form-group full"><label>الدفوع القانونية</label><textarea id="fCaseDefenses" placeholder="الدفوع والاعتراضات..."></textarea></div>
+          <div class="form-group full"><label>إجراءات الدعوى</label><textarea id="fCaseProcedures" placeholder="القيد، الإعلان، التحقيق..."></textarea></div>
+          <div class="form-group full"><label>قرارات المحكمة</label><textarea id="fCaseDecisions" placeholder="القرارات الصادرة حتى الآن..."></textarea></div>
+
+          <div class="section-divider full"><h4>&#128296; التنفيذ</h4></div>
+          <div class="form-group"><label>تاريخ الحكم النهائي</label><input type="date" id="fCaseJudgmentDate"></div>
+          <div class="form-group"><label>رقم التنفيذ</label><input type="text" id="fCaseEnforcement" placeholder="رقم محضر التنفيذ"></div>
+          <div class="form-group full"><label>إجراءات التنفيذ ونتائجه</label><textarea id="fCaseEnforcementDetails" placeholder="ما تم تنفيذه..."></textarea></div>
+
+          <div class="section-divider full"><h4>&#128221; ملاحظات المحامي</h4></div>
+          <div class="form-group full"><label>ملاحظات عامة</label><textarea id="fCaseNotes" placeholder="ملاحظات خاصة بالقضية..."></textarea></div>
         </div>
-        <input type="hidden" id="fCaseOpponents">
-      </div>
-      <div class="form-group"><label>اسم الخصم (نص حر — يُملأ تلقائياً عند اختيار خصم واحد)</label><input type="text" id="fCaseOpponent" placeholder="الاسم الكامل"></div>
-      <div class="form-group"><label>الرقم القومي للخصم</label><input type="text" id="fCaseOpponentNID" placeholder="اختياري" maxlength="14"></div>
-      <div class="form-group"><label>هاتف الخصم</label><input type="tel" id="fCaseOpponentPhone" placeholder="اختياري"></div>
-      <div class="form-group"><label>عنوان الخصم</label><input type="text" id="fCaseOpponentAddr" placeholder="اختياري"></div>
-      <div class="form-group"><label>وظيفة الخصم</label><input type="text" id="fCaseOpponentJob" placeholder="اختياري"></div>
-      <div class="form-group"><label>جهة عمل الخصم</label><input type="text" id="fCaseOpponentEmployer" placeholder="اختياري"></div>
-
-      <div class="section-divider full"><h4>&#128141; بيانات الزواج (أحوال شخصية)</h4></div>
-      <div class="form-group"><label>تاريخ عقد الزواج</label><input type="date" id="fCaseMarriageDate"></div>
-      <div class="form-group"><label>رقم وثيقة الزواج</label><input type="text" id="fCaseMarriageDoc" placeholder="رقم العقد"></div>
-      <div class="form-group"><label>مكتب التوثيق / المأذون</label><input type="text" id="fCaseNotaryOffice" placeholder="اسم المأذون"></div>
-      <div class="form-group"><label>وجود قائمة منقولات</label>
-        <select id="fCaseHasInventory"><option value="">—</option><option>نعم</option><option>لا</option></select>
-      </div>
-      <div class="form-group"><label>وجود أطفال</label>
-        <select id="fCaseHasChildren" onchange="toggleChildrenSection()"><option value="">—</option><option>نعم</option><option>لا</option></select>
-      </div>
-      <div class="section-divider full" id="childrenSectionDiv" style="display:none;"><h4>&#128118; بيانات الأطفال</h4>
-        <div id="childrenRows"></div>
-        <button type="button" class="btn btn-ghost btn-sm" onclick="addChildRow()" style="margin-top:6px;">&#65291; إضافة طفل</button>
-        <input type="hidden" id="fCaseChildrenData" value="[]">
       </div>
 
-      <div class="section-divider full"><h4>&#128220; تفاصيل القضية والإجراءات</h4></div>
-      <div class="form-group full"><label>الطلبات القانونية</label><textarea id="fCaseDemands" placeholder="الطلبات المقدمة بالتفصيل..."></textarea></div>
-      <div class="form-group full"><label>الدفوع القانونية</label><textarea id="fCaseDefenses" placeholder="الدفوع والاعتراضات..."></textarea></div>
-      <div class="form-group full"><label>إجراءات الدعوى</label><textarea id="fCaseProcedures" placeholder="القيد، الإعلان، التحقيق..."></textarea></div>
-      <div class="form-group full"><label>قرارات المحكمة</label><textarea id="fCaseDecisions" placeholder="القرارات الصادرة حتى الآن..."></textarea></div>
-
-      <div class="section-divider full"><h4>&#128296; التنفيذ</h4></div>
-      <div class="form-group"><label>تاريخ الحكم النهائي</label><input type="date" id="fCaseJudgmentDate"></div>
-      <div class="form-group"><label>رقم التنفيذ</label><input type="text" id="fCaseEnforcement" placeholder="رقم محضر التنفيذ"></div>
-      <div class="form-group full"><label>إجراءات التنفيذ ونتائجه</label><textarea id="fCaseEnforcementDetails" placeholder="ما تم تنفيذه..."></textarea></div>
-
-      <div class="section-divider full"><h4>&#128221; ملاحظات المحامي</h4></div>
-      <div class="form-group full"><label>ملاحظات عامة</label><textarea id="fCaseNotes" placeholder="ملاحظات خاصة بالقضية..."></textarea></div>
-    </div></div>
+    </div>
     <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal('modalCase')">إلغاء</button><button class="btn btn-primary" onclick="saveCase()">&#128190; حفظ القضية</button></div>
   </div>
 </div>
@@ -1592,10 +1662,25 @@ style="color:var(--muted);font-size:12px;margin-top:4px;"> جارٍ تحميل
   <div class="modal">
     <div class="modal-header"><div class="modal-title"><span class="icon">&#128206;</span><span id="modalDocTitle">إضافة مستند</span></div><button class="modal-close" onclick="closeModal('modalDocument')">&#10005;</button></div>
     <div class="modal-body"><div class="form-grid">
-      <div class="form-group"><label>رقم القضية<span class="req">*</span></label>
+      <!-- CASES_RELATIONSHIP_FINANCIAL قرار §3-L: "إذا كان المستند خاصًا
+           بموكل بدون قضية، لا تجبر المستخدم على إنشاء قضية." رقم القضية
+           لم يعد إلزاميًا وحده — يكفي أحد الحقلين (قضية أو موكل). -->
+      <div class="form-group"><label>رقم القضية (اختياري إن اخترت موكلًا)</label>
         <select id="fDocCaseNum" style="width:100%;">
           <option value="">-- اختر القضية --</option>
         </select>
+      </div>
+      <div class="form-group full client-selector-group">
+        <label>الموكل (اختياري إن اخترت قضية)</label>
+        <div class="client-selector-box" id="docClientSelectorBox" onclick="toggleDocClientSelector(event)">
+          <div class="client-selector-chips" id="docClientSelectorChips"><span class="client-selector-placeholder">اضغط لاختيار الموكل...</span></div>
+          <span class="client-selector-arrow">&#9662;</span>
+        </div>
+        <div class="client-selector-panel" id="docClientSelectorPanel" onclick="event.stopPropagation()">
+          <input type="text" id="docClientSelectorSearch" class="client-selector-search" placeholder="بحث عن موكل بالاسم أو الرقم القومي..." oninput="renderDocClientSelectorList()">
+          <div class="client-selector-list" id="docClientSelectorList"></div>
+        </div>
+        <input type="hidden" id="fDocClientId">
       </div>
       <div class="form-group"><label>اسم المستند<span class="req">*</span></label><input type="text" id="fDocName" placeholder="مثال: عقد الزواج"></div>
       <div class="form-group"><label>نوع المستند</label>
@@ -1742,6 +1827,38 @@ style="color:var(--muted);font-size:12px;margin-top:4px;"> جارٍ تحميل
   </div>
 </div>
 
+<!-- CASES_RELATIONSHIP_FINANCIAL قرار §3-G: نظام المصروفات — 3 مستويات (موكل/قضية/مكتب) عبر عمود النطاق الواحد -->
+<div class="modal-overlay" id="modalExpense">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title"><span class="icon">&#128181;</span><span id="modalExpenseTitle">تسجيل مصروف</span></div><button class="modal-close" onclick="closeModal('modalExpense')">&#10005;</button></div>
+    <div class="modal-body"><div class="form-grid">
+      <div class="form-group"><label>النطاق<span class="req">*</span></label>
+        <select id="fExpenseScope" onchange="toggleExpenseScopeFields(this.value)">
+          <option value="">-- اختر --</option>
+          <option value="موكل">مصروف موكل</option>
+          <option value="قضية">مصروف قضية</option>
+          <option value="مكتب">مصروف مكتب</option>
+        </select>
+      </div>
+      <div class="form-group" id="expenseClientFieldGroup" style="display:none;"><label>الموكل<span class="req">*</span></label>
+        <select id="fExpenseClientId" style="width:100%;"><option value="">-- اختر الموكل --</option></select>
+      </div>
+      <div class="form-group" id="expenseCaseFieldGroup" style="display:none;"><label>القضية<span class="req">*</span></label>
+        <select id="fExpenseCaseNum" style="width:100%;"><option value="">-- اختر القضية --</option></select>
+      </div>
+      <div class="form-group"><label>المبلغ (ج.م)<span class="req">*</span></label><input type="number" id="fExpenseAmount" placeholder="0" min="0"></div>
+      <div class="form-group"><label>التصنيف<span class="req">*</span></label><input type="text" id="fExpenseCategory" placeholder="مثال: رسوم إعلان، إيجار، انتقال"></div>
+      <div class="form-group"><label>المصدر</label><input type="text" id="fExpenseSource" placeholder="اختياري"></div>
+      <div class="form-group"><label>التاريخ</label><input type="date" id="fExpenseDate"></div>
+      <div class="form-group"><label>الحالة</label>
+        <select id="fExpenseStatus"><option>مدفوع</option><option>معلق</option></select>
+      </div>
+      <div class="form-group full"><label>ملاحظات</label><textarea id="fExpenseNotes" placeholder="ملاحظات..." style="min-height:60px;"></textarea></div>
+    </div></div>
+    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal('modalExpense')">إلغاء</button><button class="btn btn-primary" onclick="saveExpense()">&#128190; حفظ</button></div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modalLibrary">
   <div class="modal">
     <div class="modal-header"><div class="modal-title"><span class="icon">&#128218;</span><span id="modalLibTitle">إضافة كتاب</span></div><button class="modal-close" onclick="closeModal('modalLibrary')">&#10005;</button></div>
@@ -1870,6 +1987,9 @@ style="color:var(--muted);font-size:12px;margin-top:4px;"> جارٍ تحميل
 <script src="js/repositories/LibraryRepository.js?v=42"></script>
 <script src="js/repositories/TemplatesRepository.js?v=42"></script>
 <script src="js/repositories/SettingsRepository.js?v=42"></script>
+<!-- CASES_RELATIONSHIP_FINANCIAL: two new repositories this phase added — js/modules/clients.js (CaseClientsRepository) and js/modules/financial-reports.js (ExpensesRepository) both hard-require these classes to exist as globals at their own module-load time; without these tags the app would crash the moment clients.js loads. -->
+<script src="js/repositories/CaseClientsRepository.js?v=1"></script>
+<script src="js/repositories/ExpensesRepository.js?v=1"></script>
 <script src="js/repositories/SettingsRepositoryWiring.js?v=42"></script>
 <!-- OFFICE PROFILE — office identity data (office name, lawyer name,
      address, branches, phones, WhatsApp) that replaces the hardcoded
@@ -1972,7 +2092,7 @@ function toast(msg,type){
 }
 function showLoading(v){document.getElementById('loadingOverlay').classList.toggle('show',v);}
 
-var PAGE_TITLES={dashboard:'لوحة التحكم',cases:'القضايا',sessions:'الجلسات',clients:'الموكلون',opponents:'الخصوم',processServerWorks:'أعمال المحضرين',children:'الأطفال',documents:'المستندات',tasks:'المهام',fees:'الأتعاب',calendar:'التقويم',library:'المكتبة القانونية',templates:'صيغ الدعاوى',settings:'الإعدادات'};
+var PAGE_TITLES={dashboard:'لوحة التحكم',cases:'القضايا',sessions:'الجلسات',clients:'الموكلون',opponents:'الخصوم',processServerWorks:'أعمال المحضرين',children:'الأطفال',documents:'المستندات',tasks:'المهام',fees:'الأتعاب',expenses:'المصروفات',calendar:'التقويم',library:'المكتبة القانونية',templates:'صيغ الدعاوى',settings:'الإعدادات'};
 var ADDABLE=['cases','sessions','clients','tasks','opponents','processServerWorks'];
 
 function navigate(page){
@@ -2013,7 +2133,7 @@ function navigate(page){
   // and the calendar branch's calYear/calMonth reset still runs
   // unconditionally, same as before — only its renderCalendar() call is
   // now guarded, same as every other render call.
-  var __vcTrackedPages=['dashboard','cases','sessions','clients','opponents','processServerWorks','children','documents','tasks','fees','calendar','library','templates'];
+  var __vcTrackedPages=['dashboard','cases','sessions','clients','opponents','processServerWorks','children','documents','tasks','fees','expenses','calendar','library','templates'];
   var __vcNeedsRender=true;
   if(__vcTrackedPages.indexOf(page)>=0&&window.ApplicationShell&&typeof ApplicationShell.isDirty==='function'){
     try{__vcNeedsRender=ApplicationShell.isDirty(page);}catch(__vcErr){__vcNeedsRender=true;}
@@ -2103,6 +2223,7 @@ function navigate(page){
   else if(page==='documents'){if(__vcNeedsRender)__vcRunRender('documents',renderDocuments);}
   else if(page==='tasks'){if(__vcNeedsRender)__vcRunRender('tasks',renderTasks);}
   else if(page==='fees'){if(__vcNeedsRender)__vcRunRender('fees',renderFees);}
+  else if(page==='expenses'){if(__vcNeedsRender)__vcRunRender('expenses',renderExpenses);}
   else if(page==='calendar'){var n=new Date();calYear=n.getFullYear();calMonth=n.getMonth();if(__vcNeedsRender)__vcRunRender('calendar',renderCalendar);}
   else if(page==='library'){if(__vcNeedsRender)__vcRunRender('library',renderLibrary);}
   else if(page==='templates'){if(__vcNeedsRender)__vcRunRender('templates',renderTemplates);}
@@ -2113,9 +2234,17 @@ function navigate(page){
   if(window.innerWidth<=768){document.getElementById('sidebar').classList.remove('open');document.getElementById('sidebarOverlay').classList.remove('open');}
 }
 function toggleSidebar(){document.getElementById('sidebar').classList.toggle('open');document.getElementById('sidebarOverlay').classList.toggle('open');}
-function openAddModal(){var m={cases:'Case',sessions:'Session',clients:'Client',tasks:'Task',opponents:'Opponent',processServerWorks:'ProcessServerWork'};var k=m[currentPage];if(!k){toast('اختر قسماً أولاً','info');return;}editIdx[currentPage]=-1;resetForm(currentPage);var titles={cases:'إضافة قضية جديدة',sessions:'إضافة جلسة',clients:'إضافة موكل',tasks:'إضافة عمل إداري جديد',opponents:'إضافة خصم جديد',processServerWorks:'إضافة عمل محضرين جديد'};document.getElementById('modal'+k+'Title').textContent=titles[currentPage];document.getElementById('modal'+k).classList.add('open');if(currentPage==='sessions')populateCaseDropdown('fSessionCaseNum');if(currentPage==='clients'&&window.ClientFields){ClientFields.reset();switchClientFormTab('basic');}if(currentPage==='opponents'&&window.OpponentFields){OpponentFields.reset();}if(currentPage==='processServerWorks'){if(window.ProcessServerFields)ProcessServerFields.reset();if(typeof resetPswClientSelector==='function')resetPswClientSelector();}if(currentPage==='tasks'){if(window.AdministrativeWorkFields)AdministrativeWorkFields.reset();if(typeof resetTaskClientSelector==='function')resetTaskClientSelector();}}
-function openAddDocModal(){editIdx.documents=-1;resetForm('documents');document.getElementById('modalDocTitle').textContent='إضافة مستند';document.getElementById('modalDocument').classList.add('open');populateCaseDropdown('fDocCaseNum');}
+function openAddModal(){var m={cases:'Case',sessions:'Session',clients:'Client',tasks:'Task',opponents:'Opponent',processServerWorks:'ProcessServerWork'};var k=m[currentPage];if(!k){toast('اختر قسماً أولاً','info');return;}editIdx[currentPage]=-1;resetForm(currentPage);var titles={cases:'إضافة قضية جديدة',sessions:'إضافة جلسة',clients:'إضافة موكل',tasks:'إضافة عمل إداري جديد',opponents:'إضافة خصم جديد',processServerWorks:'إضافة عمل محضرين جديد'};document.getElementById('modal'+k+'Title').textContent=titles[currentPage];document.getElementById('modal'+k).classList.add('open');if(currentPage==='sessions')populateCaseDropdown('fSessionCaseNum');if(currentPage==='cases'){populateCaseDropdown('fCaseParentCase');if(typeof switchCaseFormTab==='function')switchCaseFormTab('info');}if(currentPage==='clients'&&window.ClientFields){ClientFields.reset();switchClientFormTab('basic');}if(currentPage==='opponents'&&window.OpponentFields){OpponentFields.reset();}if(currentPage==='processServerWorks'){if(window.ProcessServerFields)ProcessServerFields.reset();if(typeof resetPswClientSelector==='function')resetPswClientSelector();}if(currentPage==='tasks'){if(window.AdministrativeWorkFields)AdministrativeWorkFields.reset();if(typeof resetTaskClientSelector==='function')resetTaskClientSelector();}}
+function openAddDocModal(){editIdx.documents=-1;resetForm('documents');document.getElementById('modalDocTitle').textContent='إضافة مستند';document.getElementById('modalDocument').classList.add('open');populateCaseDropdown('fDocCaseNum');if(typeof syncDocClientSelectorFromRecord==='function')syncDocClientSelectorFromRecord(null);}
 function openAddFeeModal(){editIdx.fees=-1;resetForm('fees');document.getElementById('modalFeeTitle').textContent='تسجيل أتعاب';document.getElementById('modalFee').classList.add('open');populateCaseDropdown('fFeeCaseNum');}
+// CASES_RELATIONSHIP_FINANCIAL قرار §3-G
+function openAddExpenseModal(){editIdx.expenses=-1;resetForm('expenses');document.getElementById('modalExpenseTitle').textContent='تسجيل مصروف';document.getElementById('modalExpense').classList.add('open');populateCaseDropdown('fExpenseCaseNum');if(typeof populateExpenseClientDropdown==='function')populateExpenseClientDropdown();toggleExpenseScopeFields('');}
+function toggleExpenseScopeFields(scope){
+  var clientGroup=document.getElementById('expenseClientFieldGroup');
+  var caseGroup=document.getElementById('expenseCaseFieldGroup');
+  if(clientGroup)clientGroup.style.display=(scope==='موكل')?'':'none';
+  if(caseGroup)caseGroup.style.display=(scope==='قضية')?'':'none';
+}
 function openAddLibModal(){editIdx.library=-1;resetForm('library');document.getElementById('modalLibTitle').textContent='إضافة كتاب';document.getElementById('modalLibrary').classList.add('open');}
 function openAddTemplateModal(){editIdx.templates=-1;resetForm('templates');document.getElementById('modalTplTitle').textContent='إضافة صيغة دعوى';document.getElementById('modalTemplate').classList.add('open');}
 function openDriveModal(){document.getElementById('fDriveUrl').value=DRIVE_URL;document.getElementById('modalDrive').classList.add('open');}
@@ -2165,29 +2294,31 @@ function confirmDialog(message, title){
 }
 
 var FIELDS={
-  cases:['fCaseNum','fCaseCircuit','fCaseRoom','fCaseDocketNum','fCaseType','fCaseCourt','fCaseTitle','fCaseClientType','fCaseClient','fCaseClientNID','fCaseClientPhone','fCaseClientAddr','fCaseClientJob','fCaseClientEmployer','fCaseOpponents','fCaseOpponent','fCaseOpponentNID','fCaseOpponentPhone','fCaseOpponentAddr','fCaseOpponentJob','fCaseOpponentEmployer','fCaseStatus','fCaseDate','fCaseNextSession','fCaseFees','fCaseMarriageDate','fCaseMarriageDoc','fCaseNotaryOffice','fCaseHasInventory','fCaseHasChildren','fCaseDemands','fCaseDefenses','fCaseProcedures','fCaseDecisions','fCaseJudgmentDate','fCaseEnforcement','fCaseEnforcementDetails','fCaseNotes'],
+  cases:['fCaseNum','fCaseCircuit','fCaseRoom','fCaseDocketNum','fCaseType','fCaseCourt','fCaseTitle','fCaseStage','fCaseParentCase','fCaseClientType','fCaseClient','fCaseClientNID','fCaseClientPhone','fCaseClientAddr','fCaseClientJob','fCaseClientEmployer','fCaseOpponents','fCaseOpponentRoles','fCaseOpponent','fCaseOpponentNID','fCaseOpponentPhone','fCaseOpponentAddr','fCaseOpponentJob','fCaseOpponentEmployer','fCaseStatus','fCaseDate','fCaseNextSession','fCaseFees','fCaseMarriageDate','fCaseMarriageDoc','fCaseNotaryOffice','fCaseHasInventory','fCaseHasChildren','fCaseDemands','fCaseDefenses','fCaseProcedures','fCaseDecisions','fCaseJudgmentDate','fCaseEnforcement','fCaseEnforcementDetails','fCaseNotes'],
   sessions:['fSessionCaseNum','fSessionCaseTitle','fSessionCaseType','fSessionCourt','fSessionCircuit','fSessionRoom','fSessionDate','fSessionTime','fSessionJudge','fSessionStatus','fSessionWhat','fSessionDecision','fSessionNextDate','fSessionNotes'],
   clients:['fClientName','fClientType','fClientNID','fClientPower','fClientPhone','fClientEmail','fClientAddress','fClientJob','fClientEmployer','fClientMarital','fClientNotes','fClientNationality','fClientPassport','fClientBirthDate','fClientGender','fClientCompanyType','fClientCompanyActivity','fClientGoverningLaw','fClientRegNumber','fClientRegDateFrom','fClientRegDateTo','fClientUnifiedNumber','fClientTaxNumber','fClientCreateAccount'],
   opponents:['fOpponentName','fOpponentType','fOpponentNID','fOpponentNationality','fOpponentPassport','fOpponentJob','fOpponentEmployer'],
   processServerWorks:['fPswClientId','fPswClientNameHidden','fPswCaseNum','fPswCaseTitle','fPswAnnounceNature','fPswNumber','fPswCourt','fPswPen','fPswStatus','fPswDeliveryDate','fPswReceiptDate','fPswSessionDate','fPswNotes','fPswPortalVisibility'],
   children:['fChildCaseNum','fChildName','fChildBirth','fChildAge','fChildSchool','fChildAddress','fChildCustody','fChildAlimony','fChildNotes'],
-  documents:['fDocCaseNum','fDocName','fDocType','fDocDate','fDocDriveUrl','fDocPortalVisible','fDocNotes'],
+  documents:['fDocCaseNum','fDocClientId','fDocName','fDocType','fDocDate','fDocDriveUrl','fDocPortalVisible','fDocNotes'],
   tasks:['fTaskTitle','fTaskClientId','fTaskClientNameHidden','fTaskCaseNum','fTaskCaseTitle','fTaskPriority','fTaskDue','fTaskLocation','fTaskRequired','fTaskStatus','fTaskPortalVisible','fTaskNotes','fTaskCompletionReason','fTaskReopenReason'],
   fees:['fFeeCaseNum','fFeeClient','fFeeType','fFeeAmount','fFeeDate','fFeeMethod','fFeeNotes'],
+  expenses:['fExpenseScope','fExpenseClientId','fExpenseCaseNum','fExpenseAmount','fExpenseCategory','fExpenseSource','fExpenseDate','fExpenseStatus','fExpenseNotes'],
   library:['fLibTitle','fLibType','fLibCat','fLibUrl','fLibDesc'],
   templates:['fTplTitle','fTplType','fTplCat','fTplUrl','fTplDesc'],
   clientMessages:['fMsgClientId','fMsgCaseNum','fMsgType','fMsgText','fMsgAttachUrl','fMsgAttachName','fMsgPortalVisible']
 };
 var MAP={
-  cases:{fCaseNum:'رقم_القضية',fCaseCircuit:'رقم_الدائرة',fCaseRoom:'رقم_القاعة',fCaseDocketNum:'رقم_الدعوى',fCaseType:'نوع_الدعوى',fCaseCourt:'المحكمة',fCaseTitle:'عنوان_القضية',fCaseClientType:'نوع_الموكل',fCaseClient:'اسم_الموكل',fCaseClientNID:'رقم_قومي_الموكل',fCaseClientPhone:'هاتف_الموكل',fCaseClientAddr:'عنوان_الموكل',fCaseClientJob:'عمل_الموكل',fCaseClientEmployer:'جهة_عمل_الموكل',fCaseOpponents:'رقم_الخصوم',fCaseOpponent:'اسم_الخصم',fCaseOpponentNID:'رقم_قومي_الخصم',fCaseOpponentPhone:'هاتف_الخصم',fCaseOpponentAddr:'عنوان_الخصم',fCaseOpponentJob:'عمل_الخصم',fCaseOpponentEmployer:'جهة_عمل_الخصم',fCaseStatus:'الحالة',fCaseDate:'تاريخ_القيد',fCaseNextSession:'تاريخ_الجلسة_القادمة',fCaseFees:'أتعاب_المحاماة',fCaseMarriageDate:'تاريخ_عقد_الزواج',fCaseMarriageDoc:'رقم_وثيقة_الزواج',fCaseNotaryOffice:'مكتب_التوثيق',fCaseHasInventory:'وجود_قائمة_منقولات',fCaseHasChildren:'وجود_أطفال',fCaseDemands:'الطلبات_القانونية',fCaseDefenses:'الدفوع_القانونية',fCaseProcedures:'إجراءات_الدعوى',fCaseDecisions:'قرارات_المحكمة',fCaseJudgmentDate:'تاريخ_الحكم',fCaseEnforcement:'رقم_التنفيذ',fCaseEnforcementDetails:'إجراءات_التنفيذ',fCaseNotes:'الملاحظات'},
+  cases:{fCaseNum:'رقم_القضية',fCaseCircuit:'رقم_الدائرة',fCaseRoom:'رقم_القاعة',fCaseDocketNum:'رقم_الدعوى',fCaseType:'نوع_الدعوى',fCaseCourt:'المحكمة',fCaseTitle:'عنوان_القضية',fCaseStage:'درجة_التقاضي',fCaseParentCase:'قضية_أصل',fCaseClientType:'نوع_الموكل',fCaseClient:'اسم_الموكل',fCaseClientNID:'رقم_قومي_الموكل',fCaseClientPhone:'هاتف_الموكل',fCaseClientAddr:'عنوان_الموكل',fCaseClientJob:'عمل_الموكل',fCaseClientEmployer:'جهة_عمل_الموكل',fCaseOpponents:'رقم_الخصوم',fCaseOpponentRoles:'صفات_الخصوم',fCaseOpponent:'اسم_الخصم',fCaseOpponentNID:'رقم_قومي_الخصم',fCaseOpponentPhone:'هاتف_الخصم',fCaseOpponentAddr:'عنوان_الخصم',fCaseOpponentJob:'عمل_الخصم',fCaseOpponentEmployer:'جهة_عمل_الخصم',fCaseStatus:'الحالة',fCaseDate:'تاريخ_القيد',fCaseNextSession:'تاريخ_الجلسة_القادمة',fCaseFees:'أتعاب_المحاماة',fCaseMarriageDate:'تاريخ_عقد_الزواج',fCaseMarriageDoc:'رقم_وثيقة_الزواج',fCaseNotaryOffice:'مكتب_التوثيق',fCaseHasInventory:'وجود_قائمة_منقولات',fCaseHasChildren:'وجود_أطفال',fCaseDemands:'الطلبات_القانونية',fCaseDefenses:'الدفوع_القانونية',fCaseProcedures:'إجراءات_الدعوى',fCaseDecisions:'قرارات_المحكمة',fCaseJudgmentDate:'تاريخ_الحكم',fCaseEnforcement:'رقم_التنفيذ',fCaseEnforcementDetails:'إجراءات_التنفيذ',fCaseNotes:'الملاحظات'},
   sessions:{fSessionCaseNum:'رقم_القضية',fSessionCaseTitle:'عنوان_القضية',fSessionCaseType:'نوع_الدعوى',fSessionCourt:'المحكمة',fSessionCircuit:'رقم_الدائرة',fSessionRoom:'رقم_القاعة',fSessionDate:'التاريخ',fSessionTime:'الوقت',fSessionJudge:'القاضي',fSessionStatus:'الحالة',fSessionWhat:'ما_تم_في_الجلسة',fSessionDecision:'القرار',fSessionNextDate:'التأجيل_إلى',fSessionNotes:'الملاحظات'},
   clients:{fClientName:'الاسم',fClientType:'النوع',fClientNID:'الرقم_القومي',fClientPower:'رقم_التوكيل',fClientPhone:'الهاتف',fClientEmail:'البريد',fClientAddress:'العنوان',fClientJob:'الوظيفة',fClientEmployer:'جهة_العمل',fClientMarital:'الحالة_الاجتماعية',fClientNotes:'ملاحظات',fClientNationality:'الجنسية',fClientPassport:'رقم_جواز_السفر',fClientBirthDate:'تاريخ_الميلاد',fClientGender:'الجنس',fClientCompanyType:'نوع_الشركة',fClientCompanyActivity:'نشاط_الشركة',fClientGoverningLaw:'القانون_التابع_له',fClientRegNumber:'رقم_السجل',fClientRegDateFrom:'تاريخ_بداية_السجل',fClientRegDateTo:'تاريخ_نهاية_السجل',fClientUnifiedNumber:'الرقم_الموحد',fClientTaxNumber:'الرقم_الضريبي',fClientCreateAccount:'حساب_مفعل'},
   opponents:{fOpponentName:'الاسم',fOpponentType:'النوع',fOpponentNID:'الرقم_القومي',fOpponentNationality:'الجنسية',fOpponentPassport:'رقم_جواز_السفر',fOpponentJob:'الوظيفة',fOpponentEmployer:'جهة_العمل'},
   processServerWorks:{fPswClientId:'رقم_الموكل',fPswClientNameHidden:'اسم_الموكل',fPswCaseNum:'رقم_القضية',fPswCaseTitle:'عنوان_القضية',fPswAnnounceNature:'طبيعة_الاعلان',fPswNumber:'رقم_المحضرين',fPswCourt:'المحكمة',fPswPen:'قلم_المحضرين',fPswStatus:'الحالة',fPswDeliveryDate:'تاريخ_التسليم',fPswReceiptDate:'تاريخ_الاستلام',fPswSessionDate:'تاريخ_الجلسة',fPswNotes:'الملاحظات',fPswPortalVisibility:'ظهور_في_بوابة_الموكل'},
   children:{fChildCaseNum:'رقم_القضية',fChildName:'الاسم',fChildBirth:'تاريخ_الميلاد',fChildAge:'السن',fChildSchool:'المدرسة',fChildAddress:'محل_الإقامة',fChildCustody:'الحضانة_الحالية',fChildAlimony:'النفقة_الحالية',fChildNotes:'ملاحظات'},
-  documents:{fDocCaseNum:'رقم_القضية',fDocName:'اسم_المستند',fDocType:'نوع_المستند',fDocDate:'تاريخ_الإيداع',fDocDriveUrl:'رابط_Drive',fDocPortalVisible:'ظاهر_للموكل',fDocNotes:'الملاحظات'},
+  documents:{fDocCaseNum:'رقم_القضية',fDocClientId:'رقم_الموكل',fDocName:'اسم_المستند',fDocType:'نوع_المستند',fDocDate:'تاريخ_الإيداع',fDocDriveUrl:'رابط_Drive',fDocPortalVisible:'ظاهر_للموكل',fDocNotes:'الملاحظات'},
   tasks:{fTaskTitle:'العنوان',fTaskClientId:'رقم_الموكل',fTaskClientNameHidden:'اسم_الموكل',fTaskCaseNum:'رقم_القضية',fTaskCaseTitle:'عنوان_القضية',fTaskPriority:'الأولوية',fTaskDue:'الموعد_النهائي',fTaskLocation:'مكان_التنفيذ',fTaskRequired:'المطلوب',fTaskStatus:'الحالة',fTaskPortalVisible:'ظاهر_للموكل',fTaskNotes:'الملاحظات',fTaskCompletionReason:'سبب_الإنجاز',fTaskReopenReason:'سبب_إعادة_الفتح'},
   fees:{fFeeCaseNum:'رقم_القضية',fFeeClient:'اسم_الموكل',fFeeType:'نوع_الأتعاب',fFeeAmount:'المبلغ',fFeeDate:'تاريخ_الاستلام',fFeeMethod:'طريقة_الدفع',fFeeNotes:'الملاحظات'},
+  expenses:{fExpenseScope:'النطاق',fExpenseClientId:'رقم_الموكل',fExpenseCaseNum:'رقم_القضية',fExpenseAmount:'المبلغ',fExpenseCategory:'التصنيف',fExpenseSource:'المصدر',fExpenseDate:'التاريخ',fExpenseStatus:'الحالة',fExpenseNotes:'الملاحظات'},
   library:{fLibTitle:'العنوان',fLibType:'النوع',fLibCat:'القسم',fLibUrl:'الرابط',fLibDesc:'الوصف'},
   templates:{fTplTitle:'العنوان',fTplType:'النوع',fTplCat:'القسم',fTplUrl:'الرابط',fTplDesc:'الوصف'},
   clientMessages:{fMsgClientId:'رقم_الموكل',fMsgCaseNum:'رقم_القضية',fMsgType:'نوع_الرسالة',fMsgText:'نص_الرسالة',fMsgAttachUrl:'رابط_مرفق',fMsgAttachName:'اسم_المرفق',fMsgPortalVisible:'ظاهر_للموكل'}
@@ -2461,6 +2592,8 @@ window.addEventListener('DOMContentLoaded',function(){
 <script src="js/modules/clients.js?v=42"></script>
 <script src="js/modules/client-fields.js?v=42"></script>
 <script src="js/modules/opponents.js?v=42"></script>
+<script src="js/modules/financial-reports.js?v=1"></script>
+<script src="js/modules/expenses.js?v=1"></script>
 <script src="js/modules/opponent-fields.js?v=42"></script>
 <script src="js/modules/process-server-works.js?v=42"></script>
 <script src="js/modules/process-server-fields.js?v=42"></script>
