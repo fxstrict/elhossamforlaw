@@ -91,6 +91,24 @@ function makeFakeElement() {
       add: function (c) { this._classes[c] = true; },
       remove: function (c) { delete this._classes[c]; },
       contains: function (c) { return !!this._classes[c]; }
+    },
+    querySelectorAll: function () { return []; } // no real child elements on this stub; matches real Element.querySelectorAll's empty-NodeList shape closely enough for .forEach() callers
+  };
+}
+
+/**
+ * CASES_RELATIONSHIP_FINANCIAL: a fake <input data-client-role-id="..."
+ * data-client-role-field="..."> element — used by getCaseClientRole()
+ * tests below, registered into sandboxGlobals.__roleInputRegistry so
+ * document.querySelectorAll('[data-client-role-id]') can actually find it.
+ */
+function makeFakeRoleInput(clientId, field, value) {
+  return {
+    value: value || '',
+    getAttribute: function (attr) {
+      if (attr === 'data-client-role-id') return clientId;
+      if (attr === 'data-client-role-field') return field;
+      return null;
     }
   };
 }
@@ -171,7 +189,15 @@ function makeSandbox(seedStorage) {
         if (!fakeElements[id]) fakeElements[id] = makeFakeElement();
         return fakeElements[id];
       },
-      addEventListener: function (evt, fn) { clickListeners.push({ evt: evt, fn: fn }); }
+      addEventListener: function (evt, fn) { clickListeners.push({ evt: evt, fn: fn }); },
+      // CASES_RELATIONSHIP_FINANCIAL: real, controllable registry-based
+      // querySelectorAll — needed to test getCaseClientRole()'s live DOM
+      // reading (previously untestable: the file's other querySelectorAll
+      // stubs always return []).
+      querySelectorAll: function (selector) {
+        if (selector === '[data-client-role-id]') return sandboxGlobals.__roleInputRegistry || [];
+        return [];
+      }
     },
     toast: function (msg, type) { toastLog.push({ msg: msg, type: type }); },
     updateBadges: function () { badgeCalls.count++; },
@@ -185,6 +211,7 @@ function makeSandbox(seedStorage) {
     collectForm: function () { return sandboxGlobals.__nextFormValue || {}; },
     fillForm: function (type, obj) { sandboxGlobals.__lastFilled = obj; },
     resetForm: function (type) { sandboxGlobals.__lastResetType = type; },
+    saveCase: function () { sandboxGlobals.__saveCaseCalls = (sandboxGlobals.__saveCaseCalls || 0) + 1; return Promise.resolve({ success: true }); },
     ApiService: {
       syncRow: function (sheet, obj, idx) { syncRowLog.push({ sheet: sheet, obj: obj, idx: idx }); },
       deleteData: function (sheet, idx) { deleteDataLog.push({ sheet: sheet, idx: idx }); },
@@ -484,6 +511,33 @@ async function main() {
       assert.ok(html.indexOf('أتعاب أولى') !== -1);
     });
 
+    // CASES_RELATIONSHIP_FINANCIAL قرار §18/§3-G: صافي عائد الموكل wiring.
+    // getClientNet() itself is fully tested against the real Repository
+    // engine in verify_financial_reports.js — this test only proves
+    // buildClientReport() correctly detects and calls it (the
+    // `typeof getClientNet === 'function'` guard), using a controlled
+    // stub rather than loading the full financial-reports.js module here.
+    check('buildClientReport(c): calls getClientNet() when present and renders the صافي عائد الموكل section', () => {
+      sandboxGlobals.getClientNet = function (clientId) {
+        return { totalFees: 12000, totalExpenses: 3000, net: 9000 };
+      };
+      global.getClientNet = sandboxGlobals.getClientNet;
+
+      const html = clientsModule.buildClientReport(sandboxGlobals.data.clients.filter(function (c) { return c[clientsModule.CLIENTS_ID_FIELD] === secondClientId; })[0]);
+
+      assert.ok(html.indexOf('صافي عائد الموكل') !== -1);
+      assert.ok(html.indexOf('١٢٬٠٠٠') !== -1 || html.indexOf('12,000') !== -1 || html.indexOf('12000') !== -1, 'expected totalFees to appear in the rendered HTML in some locale digit form');
+
+      delete sandboxGlobals.getClientNet;
+      delete global.getClientNet;
+    });
+
+    check('buildClientReport(c): renders WITHOUT the صافي عائد الموكل section when getClientNet is absent (backward compat — confirms the guard, not just its positive path)', () => {
+      assert.strictEqual(typeof global.getClientNet, 'undefined');
+      const html = clientsModule.buildClientReport(sandboxGlobals.data.clients.filter(function (c) { return c[clientsModule.CLIENTS_ID_FIELD] === secondClientId; })[0]);
+      assert.ok(html.indexOf('صافي عائد الموكل') === -1);
+    });
+
     // ---- genClientQR(): no-ops with a toast when portal_token is absent ----
     // NOTE: prior to the portal_token fix, saveClient() never stamped a
     // portal_token on create — so this same "second client" (created via
@@ -612,18 +666,28 @@ async function main() {
       fakeElements['fCaseClientJob'] = makeFakeElement();
       fakeElements['fCaseClientEmployer'] = makeFakeElement();
       fakeElements['fCaseClient'] = makeFakeElement();
+      fakeElements['fCaseClients'] = makeFakeElement();
 
-      clientsModule.toggleCaseClient('أحمد محمود', true);
+      // CASES_RELATIONSHIP_FINANCIAL قرار §3-C: toggleCaseClient الآن id-based
+      // (كان name سابقًا) — نفس أسلوب resolving secondClientId أعلاه فى هذا
+      // الملف نفسه.
+      const ahmed = sandboxGlobals.data.clients.filter(c => c['الاسم'] === 'أحمد محمود')[0];
+      const ahmedId = ahmed[clientsModule.CLIENTS_ID_FIELD];
+
+      clientsModule.toggleCaseClient(ahmedId, true);
 
       assert.strictEqual(fakeElements['fCaseClientNID'].value, '29001011234567');
       assert.strictEqual(fakeElements['fCaseClientPhone'].value, '01000000001');
       assert.strictEqual(fakeElements['fCaseClient'].value, 'أحمد محمود');
+      assert.strictEqual(fakeElements['fCaseClients'].value, JSON.stringify([ahmedId]));
 
-      clientsModule.toggleCaseClient('أحمد محمود', false); // cleanup selection state
+      clientsModule.toggleCaseClient(ahmedId, false); // cleanup selection state
     });
 
-    check('syncCaseClientSelectorFromField(): round-trips picker state from #fCaseClient (regression checklist §10 item 11)', () => {
+    check('syncCaseClientSelectorFromField(): round-trips picker state from #fCaseClient when no قضية_موكلين rows exist yet (legacy-case fallback, regression checklist §10 item 11)', () => {
       fakeElements['fCaseClient'].value = 'أحمد محمود، سارة عبد الله (محدثة)';
+      fakeElements['fCaseNum'] = makeFakeElement();
+      fakeElements['fCaseNum'].value = ''; // no case id -> no caseClients lookup, legacy fallback path
       fakeElements['clientSelectorChips'] = makeFakeElement();
 
       clientsModule.syncCaseClientSelectorFromField();
@@ -631,6 +695,99 @@ async function main() {
       assert.ok(fakeElements['clientSelectorChips'].innerHTML.indexOf('أحمد محمود') !== -1);
       assert.ok(fakeElements['clientSelectorChips'].innerHTML.indexOf('سارة عبد الله (محدثة)') !== -1);
     });
+
+    // ================================================================
+    // CASES_RELATIONSHIP_FINANCIAL: _reconcileCaseClientsAfterSave()
+    // (previously completely untested — the actual logic that persists
+    // Case<->Client relationships to قضية_موكلين). Exercised via the
+    // real saveCase() wrap chain, not called directly, so the full
+    // wiring (sync -> original save -> reconcile) is proven end-to-end.
+    //
+    // Each scenario below explicitly resets _caseSelectedClientIds
+    // (via toggleCaseClient(..., false) for whatever was selected
+    // before it) when moving to a DIFFERENT رقم_القضية — exactly what
+    // resetForm()/editCase() do in production when the modal switches
+    // to a new/different case; skipping that reset here would leave a
+    // previous scenario's selection bleeding into the next one.
+    // ================================================================
+    await (async () => {
+      await clientsModule.ensureCaseClientsRepositoryReady();
+      const ahmed = sandboxGlobals.data.clients.filter(c => c['الاسم'] === 'أحمد محمود')[0];
+      const ahmedId = ahmed[clientsModule.CLIENTS_ID_FIELD];
+      const sarah = sandboxGlobals.data.clients.filter(c => c['الاسم'].indexOf('سارة') === 0)[0];
+      const sarahId = sarah[clientsModule.CLIENTS_ID_FIELD];
+
+      // The preceding syncCaseClientSelectorFromField() test (legacy-fallback
+      // path) leaves BOTH أحمد محمود and سارة عبد الله selected and does not
+      // clean up afterward — reset explicitly so this block starts from a
+      // known, empty selection state.
+      clientsModule.toggleCaseClient(ahmedId, false);
+      clientsModule.toggleCaseClient(sarahId, false);
+
+      await checkAsync('saveCase(): creates a قضية_موكلين row with the TYPED الصفة/أتعاب for a newly-selected client', async () => {
+        fakeElements['fCaseNum'].value = '2025/9001';
+        clientsModule.toggleCaseClient(ahmedId, true);
+        sandboxGlobals.__roleInputRegistry = [
+          makeFakeRoleInput(ahmedId, 'الصفة', 'مدّعي'),
+          makeFakeRoleInput(ahmedId, 'أتعاب_العلاقة', '5000')
+        ];
+
+        await clientsModule.saveCase();
+
+        const rows = clientsModule.caseClientsRepository.getByCase('2025/9001');
+        assert.strictEqual(rows.length, 1);
+        assert.strictEqual(rows[0]['الصفة'], 'مدّعي');
+        assert.strictEqual(rows[0]['أتعاب_العلاقة'], '5000');
+      });
+
+      await checkAsync('saveCase(): falls back to the default الصفة when nothing was typed for a newly-selected client (different case, different client)', async () => {
+        // Switching to a DIFFERENT case's form — deselect ahmedId first,
+        // exactly like editCase()/resetForm() would when the modal moves
+        // to a different/new case (see block comment above).
+        clientsModule.toggleCaseClient(ahmedId, false);
+        fakeElements['fCaseNum'].value = '2025/9002';
+        clientsModule.toggleCaseClient(sarahId, true);
+        sandboxGlobals.__roleInputRegistry = []; // nothing typed
+
+        await clientsModule.saveCase();
+
+        const rows = clientsModule.caseClientsRepository.getByCase('2025/9002');
+        assert.strictEqual(rows.length, 1);
+        assert.strictEqual(rows[0]['الصفة'], 'موكل بالقضية');
+      });
+
+      await checkAsync('saveCase(): updates an ALREADY-linked client\'s الصفة in place (not a duplicate row) when a new value is typed', async () => {
+        // Back to the first case's form — deselect sarahId (2025/9002's
+        // client, not relevant here), reselect ahmedId (already linked to
+        // 2025/9001 from the first check above).
+        clientsModule.toggleCaseClient(sarahId, false);
+        fakeElements['fCaseNum'].value = '2025/9001';
+        clientsModule.toggleCaseClient(ahmedId, true);
+        sandboxGlobals.__roleInputRegistry = [makeFakeRoleInput(ahmedId, 'الصفة', 'مدّعى عليه بعد التعديل')];
+
+        await clientsModule.saveCase();
+
+        const rows = clientsModule.caseClientsRepository.getByCase('2025/9001');
+        assert.strictEqual(rows.length, 1, 'must still be exactly one row, not a duplicate');
+        assert.strictEqual(rows[0]['الصفة'], 'مدّعى عليه بعد التعديل');
+      });
+
+      await checkAsync('saveCase(): soft-deletes the قضية_موكلين row when a client is deselected', async () => {
+        // Still on 2025/9001's form (fCaseNum unchanged from the previous
+        // scenario) — deselect ahmedId, the only client currently selected.
+        clientsModule.toggleCaseClient(ahmedId, false); // deselect
+        sandboxGlobals.__roleInputRegistry = [];
+
+        await clientsModule.saveCase();
+
+        const rows = clientsModule.caseClientsRepository.getByCase('2025/9001');
+        assert.strictEqual(rows.length, 0);
+      });
+
+      sandboxGlobals.__roleInputRegistry = [];
+      clientsModule.toggleCaseClient(sarahId, false); // cleanup selection state for subsequent tests
+      fakeElements['fCaseNum'].value = '';
+    })();
 
     // ---- printClientsReport(): lists every client, same column order (regression checklist §10 item 13) ----
     check('printClientsReport(): builds a print document listing every current (non-deleted) client', () => {

@@ -108,36 +108,53 @@ async function main() {
     assert.strictEqual(b[0]['المحكمة'], 'محكمة الأسرة');
   });
 
-  // 4. Validation — two required fields (التاريخ, الوقت) — NOT رقم_القضية
-  check('validate() rejects a record missing both required fields', () => {
+  // 4. Validation — CASES_RELATIONSHIP_FINANCIAL قرار §3-J: ثلاثة حقول
+  // إلزامية الآن — التاريخ، الوقت، رقم_القضية (كانت رقم_القضية سابقًا
+  // غير إلزامية عمدًا لمطابقة saveSession() القديم؛ هذا القرار يُلغي
+  // ذلك التوثيق صراحةً لمنع حفظ جلسة "يتيمة" بلا قضية).
+  check('validate() rejects a record missing all three required fields', () => {
     const r = repo.validate({ 'المحكمة': 'محكمة الجيزة' });
     assert.strictEqual(r.valid, false);
-    assert.strictEqual(r.errors.length, 2);
+    assert.strictEqual(r.errors.length, 3);
     const fields = r.errors.map(e => e.field).sort();
-    assert.deepStrictEqual(fields, ['التاريخ', 'الوقت'].sort());
+    assert.deepStrictEqual(fields, ['التاريخ', 'الوقت', 'رقم_القضية'].sort());
   });
 
-  check('validate() rejects a record missing only التاريخ', () => {
-    const r = repo.validate({ 'الوقت': '10:00' });
+  check('validate() rejects a record missing only التاريخ (الوقت + رقم_القضية present)', () => {
+    const r = repo.validate({ 'الوقت': '10:00', 'رقم_القضية': '2026-100' });
     assert.strictEqual(r.valid, false);
     assert.strictEqual(r.errors.length, 1);
     assert.strictEqual(r.errors[0].field, 'التاريخ');
   });
 
-  check('validate() rejects a record missing only الوقت', () => {
-    const r = repo.validate({ 'التاريخ': '2026-02-01' });
+  check('validate() rejects a record missing only الوقت (التاريخ + رقم_القضية present)', () => {
+    const r = repo.validate({ 'التاريخ': '2026-02-01', 'رقم_القضية': '2026-100' });
     assert.strictEqual(r.valid, false);
     assert.strictEqual(r.errors.length, 1);
     assert.strictEqual(r.errors[0].field, 'الوقت');
   });
 
-  check('validate() accepts a record with both required fields non-empty, EVEN with رقم_القضية absent (matches actual saveSession(), a documented deviation from Data_Schema_Specification §4.4)', () => {
+  // TEST ENCODES OLD BUG — this case previously asserted `r.valid === true`
+  // for a record with رقم_القضية absent, documenting a real pre-existing
+  // gap (saveSession() didn't check the case-selector's empty placeholder
+  // option, letting an "orphan" session be saved). CASES_RELATIONSHIP_FINANCIAL
+  // decision §3-J explicitly closes this gap; the test now asserts the
+  // corrected (rejecting) behavior, verified against the same baseline
+  // comparison methodology used for every other change in this phase.
+  check('validate() rejects a record missing only رقم_القضية (التاريخ + الوقت present) — decision §3-J, was previously valid=true (TEST ENCODES OLD BUG, now fixed)', () => {
     const r = repo.validate({ 'التاريخ': '2026-02-01', 'الوقت': '10:00' });
+    assert.strictEqual(r.valid, false);
+    assert.strictEqual(r.errors.length, 1);
+    assert.strictEqual(r.errors[0].field, 'رقم_القضية');
+  });
+
+  check('validate() accepts a record with all three required fields non-empty', () => {
+    const r = repo.validate({ 'التاريخ': '2026-02-01', 'الوقت': '10:00', 'رقم_القضية': '2026-100' });
     assert.strictEqual(r.valid, true);
   });
 
-  check('validate() rejects whitespace-only required fields (matches saveSession()\'s empty-string check)', () => {
-    const r = repo.validate({ 'التاريخ': '   ', 'الوقت': '10:00' });
+  check('validate() rejects whitespace-only التاريخ (matches saveSession()\'s empty-string check)', () => {
+    const r = repo.validate({ 'التاريخ': '   ', 'الوقت': '10:00', 'رقم_القضية': '2026-100' });
     assert.strictEqual(r.valid, false);
     assert.strictEqual(r.errors[0].field, 'التاريخ');
   });

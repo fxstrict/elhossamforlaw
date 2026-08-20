@@ -101,7 +101,12 @@ function makeFakeElement() {
       _classes: {},
       add: function (c) { this._classes[c] = true; },
       remove: function (c) { delete this._classes[c]; },
-      contains: function (c) { return !!this._classes[c]; }
+      contains: function (c) { return !!this._classes[c]; },
+      toggle: function (c, force) {
+        var on = force !== undefined ? force : !this._classes[c];
+        if (on) this._classes[c] = true; else delete this._classes[c];
+        return on;
+      }
     },
     children: [],
     querySelectorAll: function () { return []; },
@@ -184,7 +189,8 @@ function makeSandbox(seedStorage) {
         if (!fakeElements[id]) fakeElements[id] = makeFakeElement();
         return fakeElements[id];
       },
-      createElement: function () { return makeFakeElement(); }
+      createElement: function () { return makeFakeElement(); },
+      querySelectorAll: function () { return []; }
     },
     toast: function (msg, type) { toastLog.push({ msg: msg, type: type }); },
     updateBadges: function () { badgeCalls.count++; },
@@ -369,6 +375,154 @@ async function main() {
       assert.strictEqual(sandboxGlobals.data.cases.length, 2);
     });
 
+    // ---- CASES_RELATIONSHIP_FINANCIAL قرار §3-E: self-reference guard ----
+    await checkAsync('saveCase(): rejects a case linked to itself as its own قضية_أصل (litigation-stage self-reference)', async () => {
+      fakeElements['fCaseParentCase'] = makeFakeElement();
+      fakeElements['fCaseParentCase'].value = '2025/1002'; // same as fCaseNum below
+      fakeElements['fCaseNum'].value = '2025/1002';
+      fakeElements['fCaseTitle'].value = 'قضية طلاق';
+      fakeElements['fCaseClient'].value = 'سارة عبد الله';
+      const before = sandboxGlobals.data.cases.length;
+
+      await casesModule.saveCase();
+
+      assert.strictEqual(sandboxGlobals.data.cases.length, before, 'no new/updated record should be persisted');
+      assert.strictEqual(toastLog[toastLog.length - 1].msg, 'لا يمكن ربط القضية بنفسها كدرجة سابقة');
+
+      fakeElements['fCaseParentCase'].value = ''; // cleanup for subsequent tests
+    });
+
+    // ---- CASES_RELATIONSHIP_FINANCIAL قرار §3-E: مجموعة_تقاضي derivation ----
+    await checkAsync('saveCase(): linking to a parent with no مجموعة_تقاضي yet backfills the parent AND stamps the same group on the child', async () => {
+      fakeElements['fCaseParentCase'].value = '2025/1001'; // created earlier, no مجموعة_تقاضي set
+      fakeElements['fCaseNum'].value = '2025/2001';
+      fakeElements['fCaseTitle'].value = 'استئناف قضية نفقة';
+      fakeElements['fCaseClient'].value = 'أحمد محمود';
+      sandboxGlobals.__nextFormValue = {
+        'رقم_القضية': '2025/2001',
+        'عنوان_القضية': 'استئناف قضية نفقة',
+        'اسم_الموكل': 'أحمد محمود',
+        'درجة_التقاضي': 'استئناف',
+        'قضية_أصل': '2025/1001'
+      };
+      sandboxGlobals.editIdx.cases = -1;
+
+      await casesModule.saveCase();
+
+      const parent = sandboxGlobals.data.cases.find(c => c['رقم_القضية'] === '2025/1001');
+      const child  = sandboxGlobals.data.cases.find(c => c['رقم_القضية'] === '2025/2001');
+      assert.strictEqual(parent['مجموعة_تقاضي'], '2025/1001', 'parent must be backfilled with its own number as the group id');
+      assert.strictEqual(child['مجموعة_تقاضي'], '2025/1001', 'child must inherit the same group id');
+    });
+
+    await checkAsync('saveCase(): a third-generation case (linked to the child above) inherits the ROOT group, not its immediate parent\'s own number', async () => {
+      fakeElements['fCaseParentCase'].value = '2025/2001'; // the child from the previous test, which now HAS a مجموعة_تقاضي
+      fakeElements['fCaseNum'].value = '2025/3001';
+      fakeElements['fCaseTitle'].value = 'نقض قضية نفقة';
+      fakeElements['fCaseClient'].value = 'أحمد محمود';
+      sandboxGlobals.__nextFormValue = {
+        'رقم_القضية': '2025/3001',
+        'عنوان_القضية': 'نقض قضية نفقة',
+        'اسم_الموكل': 'أحمد محمود',
+        'درجة_التقاضي': 'نقض',
+        'قضية_أصل': '2025/2001'
+      };
+      sandboxGlobals.editIdx.cases = -1;
+
+      await casesModule.saveCase();
+
+      const grandchild = sandboxGlobals.data.cases.find(c => c['رقم_القضية'] === '2025/3001');
+      assert.strictEqual(grandchild['مجموعة_تقاضي'], '2025/1001', 'must inherit the chain\'s ROOT group id, not 2025/2001');
+
+      fakeElements['fCaseParentCase'].value = ''; // cleanup for subsequent tests
+    });
+
+    // ---- CASES_RELATIONSHIP_FINANCIAL قرار §3-E: getLitigationChain() ----
+    check('getLitigationChain(): returns the full 3-stage chain in root -> leaf order, regardless of which member is queried', () => {
+      const fromRoot = casesModule.getLitigationChain('2025/1001');
+      const fromMiddle = casesModule.getLitigationChain('2025/2001');
+      const fromLeaf = casesModule.getLitigationChain('2025/3001');
+      const expected = ['2025/1001', '2025/2001', '2025/3001'];
+
+      [fromRoot, fromMiddle, fromLeaf].forEach(chain => {
+        assert.deepStrictEqual(chain.map(c => c['رقم_القضية']), expected);
+      });
+    });
+
+    check('getLitigationChain(): a case with no مجموعة_تقاضي returns just itself (not part of any chain)', () => {
+      const chain = casesModule.getLitigationChain('2025/1002'); // never linked to a parent
+      assert.strictEqual(chain.length, 1);
+      assert.strictEqual(chain[0]['رقم_القضية'], '2025/1002');
+    });
+
+    check('getLitigationChain(): an unknown رقم_القضية returns an empty array', () => {
+      assert.deepStrictEqual(casesModule.getLitigationChain('no-such-case'), []);
+    });
+
+    // CASES_RELATIONSHIP_FINANCIAL قرار §18/§3-G: صافي عائد القضية wiring.
+    // getCaseNet() itself is fully tested against the real Repository
+    // engine in verify_financial_reports.js — this test only proves
+    // buildCaseReport() correctly detects and calls it (the
+    // `typeof getCaseNet === 'function'` guard), matching the exact
+    // pattern used for buildClientReport()/getClientNet() in
+    // verify_clients_repository_integration.js.
+    check('buildCaseReport(c): calls getCaseNet() when present and renders the صافي عائد القضية section', () => {
+      global.getCaseNet = function (caseNum) { return { totalFees: 8000, totalExpenses: 1500, net: 6500 }; };
+
+      const caseRecord = sandboxGlobals.data.cases[0];
+      const html = casesModule.buildCaseReport(caseRecord, [], [], []);
+
+      assert.ok(html.indexOf('صافي عائد القضية') !== -1);
+
+      delete global.getCaseNet;
+    });
+
+    check('buildCaseReport(c): renders WITHOUT the صافي عائد القضية section when getCaseNet is absent (backward compat — confirms the guard, not just its positive path)', () => {
+      assert.strictEqual(typeof global.getCaseNet, 'undefined');
+      const caseRecord = sandboxGlobals.data.cases[0];
+      const html = casesModule.buildCaseReport(caseRecord, [], [], []);
+      assert.ok(html.indexOf('صافي عائد القضية') === -1);
+    });
+
+    // ---- CASES_RELATIONSHIP_FINANCIAL: switchCaseFormTab() ----
+    check('switchCaseFormTab(): shows only the target pane, hides the other 3, and marks only its own button active', () => {
+      // A tiny registered-elements array that document.querySelectorAll can
+      // actually filter over — the file's normal stub (returns []) can't
+      // exercise this function's real job, which IS querySelectorAll-driven
+      // show/hide, so a slightly richer fake is used for this one check only.
+      const panes = ['info', 'stage', 'parties', 'other'].map(id => {
+        const el = makeFakeElement();
+        el.id = 'casePane-' + id;
+        el.style.display = '';
+        fakeElements['casePane-' + id] = el; // same instance for both getElementById() and the querySelectorAll stub below
+        return el;
+      });
+      const buttons = ['info', 'stage', 'parties', 'other'].map(id => {
+        const el = makeFakeElement();
+        el._caseTab = id;
+        el.getAttribute = function (attr) { return attr === 'data-case-tab' ? this._caseTab : null; };
+        return el;
+      });
+
+      sandboxGlobals.document.querySelectorAll = function (selector) {
+        if (selector === '.case-form-pane') return panes;
+        if (selector === '#caseFormTabs .tab-btn') return buttons;
+        return [];
+      };
+      global.document.querySelectorAll = sandboxGlobals.document.querySelectorAll;
+
+      casesModule.switchCaseFormTab('stage');
+
+      panes.forEach(p => {
+        assert.strictEqual(p.style.display, p.id === 'casePane-stage' ? '' : 'none');
+      });
+      buttons.forEach(b => {
+        assert.strictEqual(b.classList.contains('active'), b._caseTab === 'stage');
+      });
+
+      global.document.querySelectorAll = function () { return []; }; // restore the file's normal minimal stub for subsequent tests
+    });
+
     // ---- VALIDATION: missing required field blocked before any Repository call ----
     check('saveCase(): empty fCaseClient is still blocked with the original Arabic toast, before any Repository call', () => {
       fakeElements['fCaseClient'].value = '   ';
@@ -517,7 +671,10 @@ async function main() {
 
       await casesModule.saveCase();
 
-      assert.strictEqual(sandboxGlobals.data.cases.length, 2);
+      // CASES_RELATIONSHIP_FINANCIAL: was 2 before the مجموعة_تقاضي
+      // derivation tests above added 2025/2001 and 2025/3001 (this is an
+      // UPDATE, so the count itself doesn't change from its pre-test value).
+      assert.strictEqual(sandboxGlobals.data.cases.length, 4);
       const updated = sandboxGlobals.data.cases.filter(function (c) { return c[casesModule.CASES_ID_FIELD] === idBefore; })[0];
       assert.strictEqual(updated['عنوان_القضية'], 'قضية طلاق (محدثة)');
       assert.strictEqual(updated[casesModule.CASES_ID_FIELD], idBefore, 'رقم_القضية must not be regenerated on update');
@@ -592,7 +749,9 @@ async function main() {
     // ---- getCaseStats(): pre-existing dead code (audit §15/§17.2), still works, unaffected by migration ----
     check('getCaseStats(): still computes total/active/closed/pending counts against the live mirror (unreferenced dead code, unaffected by this migration)', () => {
       const stats = casesModule.getCaseStats();
-      assert.strictEqual(stats.total, 2);
+      // CASES_RELATIONSHIP_FINANCIAL: was 2 before the مجموعة_تقاضي
+      // derivation tests above added 2025/2001 and 2025/3001.
+      assert.strictEqual(stats.total, 4);
       assert.strictEqual(typeof stats.active, 'number');
       assert.strictEqual(typeof stats.closed, 'number');
       assert.strictEqual(typeof stats.pending, 'number');
@@ -693,7 +852,10 @@ async function main() {
 
     // ---- data.cases.length reflects the deletion immediately (dashboard.js dependency) ----
     check('data.cases.length (read by dashboard.js) reflects only non-deleted cases immediately after delete', () => {
-      assert.strictEqual(sandboxGlobals.data.cases.length, 2); // case #1 + the newly-created "قضية حضانة"
+      // CASES_RELATIONSHIP_FINANCIAL: was 2 (case #1 + "قضية حضانة") before
+      // the مجموعة_تقاضي derivation tests above added 2 more cases
+      // (2025/2001, 2025/3001), neither of which is the deleted record.
+      assert.strictEqual(sandboxGlobals.data.cases.length, 4);
     });
 
     // ---- dashboard.js-style read still works unmodified against the mirror ----
@@ -705,8 +867,11 @@ async function main() {
     // ---- clients.js-style linear scan over data.cases (buildClientReport's linkedCases) still works unmodified against the mirror ----
     check('clients.js-style linear filter (buildClientReport linkedCases pattern) still resolves cases by اسم_الموكل against the Repository-backed mirror', () => {
       const linked = sandboxGlobals.data.cases.filter(function (c) { return c['اسم_الموكل'] === 'أحمد محمود'; });
-      assert.strictEqual(linked.length, 1);
-      assert.strictEqual(linked[0]['رقم_القضية'], '2025/1001');
+      // CASES_RELATIONSHIP_FINANCIAL: was 1 (only 2025/1001) before the
+      // مجموعة_تقاضي derivation tests above added 2025/2001 and 2025/3001,
+      // both also linked to 'أحمد محمود'.
+      assert.strictEqual(linked.length, 3);
+      assert.ok(linked.some(function (c) { return c['رقم_القضية'] === '2025/1001'; }));
     });
   }
 
