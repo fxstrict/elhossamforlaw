@@ -338,13 +338,20 @@
    * Matches, in the same order, Code_v4.gs's 'الأتعاب' sheet headers:
    *   ['رقم_العملية','رقم_القضية','اسم_الموكل','نوع_الأتعاب','المبلغ',
    *    'تاريخ_الاستلام','طريقة_الدفع','الملاحظات','تاريخ_الإنشاء']
-   * No other dynamically-added field exists for Fees (unlike Clients'
-   * 'portal_token') — confirmed by full read of js/modules/fees.js (227
-   * lines total, no other field ever written).
+   * No other dynamically-added field existed for Fees as of the phase
+   * that wrote this comment (confirmed then by a full read of
+   * js/modules/fees.js). CASES_RELATIONSHIP_FINANCIAL قرار §3-F later
+   * added THREE more columns additively to the end of SHEET_DEFS'
+   * 'الأتعاب' headers (Config/00_Config.gs) for the 3-level Fees model:
+   * 'رقم_الموكل' (ID-based client link), 'مستوى_الأتعاب'
+   * ('موكل'/'قضية'/'درجة'), 'رقم_علاقة' (optional قضية_موكلين row id).
+   * Included below so they participate in free-text search like every
+   * other Fees column.
    */
   var FEES_LEGACY_FIELDS = [
     'رقم_العملية', 'رقم_القضية', 'اسم_الموكل', 'نوع_الأتعاب', 'المبلغ',
-    'تاريخ_الاستلام', 'طريقة_الدفع', 'الملاحظات', 'تاريخ_الإنشاء'
+    'تاريخ_الاستلام', 'طريقة_الدفع', 'الملاحظات', 'تاريخ_الإنشاء',
+    'رقم_الموكل', 'مستوى_الأتعاب', 'رقم_علاقة'
   ];
 
   // ================================================================

@@ -96,26 +96,33 @@
  *   ChildrenRepository.js (not imported from either — see
  *   "NAMING/independence" note below).
  *
- * VALIDATION — **a documented discrepancy against
+ * VALIDATION — originally a **documented discrepancy against
  *   Data_Schema_Specification_Report.md §4.4**, which lists Required
  *   Fields as `رقم_القضية`, `التاريخ`. Direct inspection of the ACTUAL
- *   saveSession() (js/modules/sessions.js, lines 162-167) shows a
- *   DIFFERENT pair is actually enforced today:
+ *   saveSession() (js/modules/sessions.js, lines 162-167) showed a
+ *   DIFFERENT pair actually enforced at the time:
  *     var date = document.getElementById('fSessionDate').value;
  *     var time = document.getElementById('fSessionTime').value;
  *     if (!date || !time) { toast('يرجى تحديد تاريخ ووقت الجلسة','error'); return; }
  *   `date` maps (via MAP.sessions) to `التاريخ`, `time` maps to `الوقت`.
- *   `رقم_القضية` is NOT checked anywhere in saveSession() — a session can
- *   be saved today with an empty/absent `رقم_القضية`. Because this phase's
- *   explicit priority is "Behavior Compatible 100% مع Sessions Module
- *   الحالي" — and because this is the actual, live, runtime-enforced rule,
- *   not an abstract planning document's field list — `_validate()` below
- *   enforces exactly `التاريخ` and `الوقت` as the two required, non-empty
- *   (after trim) fields, NOT `رقم_القضية`. This divergence from
- *   Data_Schema_Specification_Report.md §4.4 is called out explicitly (not
- *   silently "fixed") in Sessions_Repository_Report.md §2.2 — same
- *   resolution pattern as the Cases/Children validation deviations in
- *   prior phases.
+ *   `رقم_القضية` was NOT checked in saveSession() — a session could be
+ *   saved with an empty/absent `رقم_القضية`, because `fSessionCaseNum`
+ *   is a `populateCaseDropdown()`-driven <select> that always prepends
+ *   an empty `-- اختر القضية --` placeholder option, and nothing
+ *   rejected that placeholder being left selected.
+ *
+ *   CASES_RELATIONSHIP_FINANCIAL — decision §3-J ("لا تسمح بحفظ Session
+ *   يتيمة بقضية غير موجودة") makes `رقم_القضية` a required field here
+ *   (added to `SESSIONS_REQUIRED_FIELDS` below) and in the matching
+ *   `saveSession()` guard (js/modules/sessions.js), closing exactly this
+ *   gap. Referential integrity to a *real, existing* case number was
+ *   already structurally guaranteed by `populateCaseDropdown()` sourcing
+ *   its options only from `data.cases` — the only gap was the empty
+ *   placeholder slipping through; no cross-Repository ID-existence
+ *   lookup was added here, since no other Repository in this codebase
+ *   cross-references a sibling Repository (would be new, unprecedented
+ *   architecture — out of scope per rule §15).
+
  *
  * SEARCH — Data_Schema_Specification_Report.md §4.4 states Search Fields
  *   are narrowly `عنوان_القضية`, `رقم_القضية` — the one occasion so far
@@ -299,7 +306,7 @@
    * Data_Schema_Specification §4.4 (`رقم_القضية`, `التاريخ`); see file
    * header "VALIDATION" note for the full reconciliation.
    */
-  var SESSIONS_REQUIRED_FIELDS = ['التاريخ', 'الوقت'];
+  var SESSIONS_REQUIRED_FIELDS = ['التاريخ', 'الوقت', 'رقم_القضية'];
 
   /** Filter Fields per Data_Schema_Specification §4.4 / Repository_Contract
    *  §4.4 — the two real, documented, and actually-used filtering
