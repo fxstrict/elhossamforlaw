@@ -697,6 +697,58 @@ async function main() {
     });
 
     // ================================================================
+    // CASES_RELATIONSHIP_FINANCIAL: gaps closed to reach parity with
+    // verify_opponents_case_selector_integration.js's coverage depth
+    // (docs/DELIVERY_REPORT_AR.md §3-ب).
+    // ================================================================
+    check('syncCaseClientSelectorFromField(): PRIMARY path — reads from data.caseClients (real قضية_موكلين rows), NOT the legacy #fCaseClient fallback, when the case actually has junction rows', () => {
+      const ahmed = sandboxGlobals.data.clients.filter(c => c['الاسم'] === 'أحمد محمود')[0];
+      const ahmedId = ahmed[clientsModule.CLIENTS_ID_FIELD];
+
+      fakeElements['fCaseNum'].value = '2025/9999';
+      fakeElements['fCaseClient'].value = 'اسم قديم لا صلة له إطلاقًا'; // deliberately WRONG legacy text — must be ignored when junction rows exist
+      sandboxGlobals.data.caseClients = [
+        { 'id': 'row-1', 'رقم_القضية': '2025/9999', 'رقم_الموكل': ahmedId, 'الصفة': 'مدّعي' }
+      ];
+
+      clientsModule.syncCaseClientSelectorFromField();
+
+      assert.ok(fakeElements['clientSelectorChips'].innerHTML.indexOf('أحمد محمود') !== -1, 'must resolve the real client name from the junction row');
+      assert.ok(fakeElements['clientSelectorChips'].innerHTML.indexOf('اسم قديم لا صلة له إطلاقًا') === -1, 'must NOT fall back to the legacy text when real junction data exists');
+
+      fakeElements['fCaseNum'].value = '';
+      sandboxGlobals.data.caseClients = [];
+    });
+
+    check('renderClientSelectorChips(): renders a role-card (with الصفة/أتعاب_العلاقة inputs) for each selected client, matching opponents.js\'s equivalent card structure', () => {
+      const ahmed = sandboxGlobals.data.clients.filter(c => c['الاسم'] === 'أحمد محمود')[0];
+      const ahmedId = ahmed[clientsModule.CLIENTS_ID_FIELD];
+
+      clientsModule.toggleCaseClient(ahmedId, true);
+
+      const html = fakeElements['clientSelectorChips'].innerHTML;
+      assert.ok(html.indexOf('data-client-role-id') !== -1, 'expected role-card input markup');
+      assert.ok(html.indexOf('data-client-role-field="الصفة"') !== -1);
+      assert.ok(html.indexOf('data-client-role-field="أتعاب_العلاقة"') !== -1);
+
+      clientsModule.toggleCaseClient(ahmedId, false); // cleanup
+    });
+
+    check('resetForm(\'cases\'): clears the client selector — empties _caseSelectedClientIds and resets the chips display, matching opponents.js\'s equivalent resetForm behavior', () => {
+      const ahmed = sandboxGlobals.data.clients.filter(c => c['الاسم'] === 'أحمد محمود')[0];
+      const ahmedId = ahmed[clientsModule.CLIENTS_ID_FIELD];
+      clientsModule.toggleCaseClient(ahmedId, true);
+      assert.ok(fakeElements['clientSelectorChips'].innerHTML.indexOf('أحمد محمود') !== -1, 'sanity check: selection took effect before reset');
+
+      global.resetForm('cases');
+
+      assert.strictEqual(sandboxGlobals.__lastResetType, 'cases');
+      const html = fakeElements['clientSelectorChips'].innerHTML;
+      assert.ok(html.indexOf('أحمد محمود') === -1, 'chips must be cleared after reset');
+      assert.ok(html.indexOf('اختر موكلاً') !== -1, 'must show the empty-state placeholder again');
+    });
+
+    // ================================================================
     // CASES_RELATIONSHIP_FINANCIAL: _reconcileCaseClientsAfterSave()
     // (previously completely untested — the actual logic that persists
     // Case<->Client relationships to قضية_موكلين). Exercised via the
