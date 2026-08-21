@@ -798,6 +798,82 @@ async function redoLastSessionAction() {
   }
 }
 
+// ================================================================
+// OVERRIDE saveCase — create an embedded جلسة (Session) when the
+// case-modal's "جلسة" tab was filled in (optional — decision §4
+// "أضف جلسة للقضية الآن أو اتركها فارغة"). Runs AFTER the case itself
+// saves successfully, using the case's own رقم_القضية (already known
+// at this point — a required, user-typed field, see cases.js's own
+// saveCase()). Non-fatal on failure: a session-creation error never
+// blocks or rolls back the case save itself (same "additive, doesn't
+// break the primary flow" principle as clients.js/opponents.js's wraps).
+// ================================================================
+if (typeof saveCase === 'function') {
+  var _origSaveCaseForEmbeddedSession = saveCase;
+  saveCase = function () {
+    var result = _origSaveCaseForEmbeddedSession.apply(this, arguments);
+    if (result && typeof result.then === 'function') {
+      return result.then(function (saveOutcome) {
+        return _createEmbeddedSessionIfFilled().then(function () { return saveOutcome; });
+      });
+    }
+    return result;
+  };
+}
+
+/**
+ * _createEmbeddedSessionIfFilled — reads the "جلسة" tab's fields; if
+ * تاريخ_الجلسة is present (the one field that genuinely signals "the
+ * user actually meant to add a session", matching how every other
+ * optional embedded section in this app treats its own primary field),
+ * creates a real Sessions record linked to the just-saved case. Clears
+ * the tab's fields afterward so a second case save in the same modal
+ * session doesn't silently re-create the same session.
+ * @returns {Promise<void>}
+ */
+function _createEmbeddedSessionIfFilled() {
+  var dateEl = document.getElementById('fCaseSessionDate');
+  var date = dateEl ? dateEl.value.trim() : '';
+  if (!date) return Promise.resolve(); // tab left empty — nothing to do, matches decision §4's "اتركها فارغة"
+
+  var caseNumEl = document.getElementById('fCaseNum');
+  var caseNum = caseNumEl ? caseNumEl.value.trim() : '';
+  if (!caseNum) return Promise.resolve(); // defensive — saveCase() itself already requires this before reaching here
+
+  var titleEl = document.getElementById('fCaseSessionTitle');
+  var timeEl = document.getElementById('fCaseSessionTime');
+  var requiredEl = document.getElementById('fCaseSessionRequired');
+  var notesEl = document.getElementById('fCaseSessionNotes');
+
+  return ensureSessionsRepositoryReady().then(function () {
+    return sessionsRepository.create({
+      'رقم_القضية': caseNum,
+      'التاريخ': date,
+      // CASES_RELATIONSHIP_FINANCIAL: الوقت إلزامي عند SessionsRepository
+      // (قرار §3-J) — قيمة افتراضية آمنة إن تُرك حقل الموعد فارغًا، بدلًا
+      // من فشل الحفظ بصمت لمجرد أن المستخدم لم يحدد ساعة دقيقة.
+      'الوقت': (timeEl && timeEl.value.trim()) || '00:00',
+      'عنوان_القضية': titleEl ? titleEl.value.trim() : '',
+      'ما_تم_في_الجلسة': requiredEl ? requiredEl.value.trim() : '',
+      'الملاحظات': notesEl ? notesEl.value.trim() : ''
+    });
+  }).then(function (result) {
+    if (result && result.success) {
+      syncSessionsMirror();
+      // Clear the tab so re-saving the same case (e.g. an immediate
+      // edit right after create) doesn't duplicate this session.
+      [dateEl, titleEl, timeEl, requiredEl, notesEl].forEach(function (el) { if (el) el.value = ''; });
+      if (typeof updateBadges === 'function') updateBadges();
+    } else if (typeof console !== 'undefined' && console.error) {
+      console.error('Embedded session creation failed:', result && result.error);
+    }
+  }).catch(function (err) {
+    if (typeof console !== 'undefined' && console.error) {
+      console.error('Embedded session creation failed:', err);
+    }
+  });
+}
+
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     sessionsUndoManager: sessionsUndoManager,
@@ -814,6 +890,7 @@ if (typeof module !== 'undefined' && module.exports) {
     saveSession: saveSession,
     editSession: editSession,
     deleteSession: deleteSession,
-    restoreSession: restoreSession
+    restoreSession: restoreSession,
+    _createEmbeddedSessionIfFilled: _createEmbeddedSessionIfFilled
   };
 }
