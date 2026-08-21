@@ -1215,6 +1215,7 @@ style="color:var(--muted);font-size:12px;margin-top:4px;"> جارٍ تحميل
       <button type="button" class="tab-btn active" data-case-tab="info" onclick="switchCaseFormTab('info')">&#128203; المعلومات</button>
       <button type="button" class="tab-btn" data-case-tab="stage" onclick="switchCaseFormTab('stage')">&#127963; الدرجة</button>
       <button type="button" class="tab-btn" data-case-tab="parties" onclick="switchCaseFormTab('parties')">&#128101; الأطراف</button>
+      <button type="button" class="tab-btn" data-case-tab="session" onclick="switchCaseFormTab('session')">&#128197; جلسة</button>
       <button type="button" class="tab-btn" data-case-tab="other" onclick="switchCaseFormTab('other')">&#128220; أخرى</button>
     </div>
     <div class="modal-body">
@@ -1317,6 +1318,21 @@ style="color:var(--muted);font-size:12px;margin-top:4px;"> جارٍ تحميل
           <div class="form-group"><label>عنوان الخصم</label><input type="text" id="fCaseOpponentAddr" placeholder="اختياري"></div>
           <div class="form-group"><label>وظيفة الخصم</label><input type="text" id="fCaseOpponentJob" placeholder="اختياري"></div>
           <div class="form-group"><label>جهة عمل الخصم</label><input type="text" id="fCaseOpponentEmployer" placeholder="اختياري"></div>
+        </div>
+      </div>
+
+      <!-- ============== تبويب: جلسة (اختياري) ============== -->
+      <div class="case-form-pane" id="casePane-session" style="display:none;">
+        <div class="form-grid">
+          <!-- CASES_RELATIONSHIP_FINANCIAL: جلسة اختيارية تُنشأ مع حفظ القضية —
+               معرّفات فريدة جديدة (fCaseSession*)، لا تتشارك أي id مع نافذة
+               الجلسة المستقلة #modalSession (fSessionDate/fSessionTime/...)
+               تفاديًا لتكرار id فى نفس المستند. -->
+          <div class="form-group full"><label>عنوان الجلسة (اختياري)</label><input type="text" id="fCaseSessionTitle" placeholder="أدخل عنوان الجلسة"></div>
+          <div class="form-group"><label>تاريخ الجلسة</label><input type="date" id="fCaseSessionDate"></div>
+          <div class="form-group"><label>الموعد</label><input type="time" id="fCaseSessionTime"></div>
+          <div class="form-group full"><label>المطلوب فى الجلسة</label><textarea id="fCaseSessionRequired" placeholder="المطلوب فى الجلسة" style="min-height:60px;"></textarea></div>
+          <div class="form-group full"><label>ملاحظات الجلسة</label><textarea id="fCaseSessionNotes" placeholder="ملاحظات الجلسة" style="min-height:60px;"></textarea></div>
         </div>
       </div>
 
