@@ -238,7 +238,7 @@
 // networkFirstShell() (always fresh), and its only change was to a
 // small inline <script> block (bootLoadFromSheets() call sites), not a
 // cached file reference.
-var SW_VERSION = 'v55'; // ADMINISTRATIVE WORKS TRANSFORM — "المهام" -> "الأعمال الإدارية".
+var SW_VERSION = 'v56'; // ADMINISTRATIVE WORKS TRANSFORM — "المهام" -> "الأعمال الإدارية".
                          // RANK 1 FIX (Android Fixed-Surface Reduction) —
                          // css/components.css?v=53 is listed in PRECACHE_URLS below and
                          // served cacheFirstIn(SHELL_CACHE), which is keyed by SW_VERSION
