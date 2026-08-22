@@ -1217,6 +1217,7 @@ style="color:var(--muted);font-size:12px;margin-top:4px;"> جارٍ تحميل
       <button type="button" class="tab-btn" data-case-tab="parties" onclick="switchCaseFormTab('parties')">&#128101; الأطراف</button>
       <button type="button" class="tab-btn" data-case-tab="session" onclick="switchCaseFormTab('session')">&#128197; جلسة</button>
       <button type="button" class="tab-btn" data-case-tab="adminwork" onclick="switchCaseFormTab('adminwork')">&#128203; عمل اداري</button>
+      <button type="button" class="tab-btn" data-case-tab="psw" onclick="switchCaseFormTab('psw')">&#9997; محضرين</button>
       <button type="button" class="tab-btn" data-case-tab="other" onclick="switchCaseFormTab('other')">&#128220; أخرى</button>
     </div>
     <div class="modal-body">
@@ -1349,6 +1350,24 @@ style="color:var(--muted);font-size:12px;margin-top:4px;"> جارٍ تحميل
           <div class="form-group"><label>مكان التنفيذ</label><input type="text" id="fCaseTaskLocation" placeholder="أدخل مكان التنفيذ"></div>
           <div class="form-group full"><label>المطلوب</label><textarea id="fCaseTaskRequired" placeholder="المطلوب أثناء التنفيذ" style="min-height:60px;"></textarea></div>
           <div class="form-group full"><label>ملاحظات العمل الإداري</label><textarea id="fCaseTaskNotes" placeholder="ملاحظات العمل الإداري" style="min-height:60px;"></textarea></div>
+        </div>
+      </div>
+
+      <!-- ============== تبويب: محضرين (اختياري) ============== -->
+      <div class="case-form-pane" id="casePane-psw" style="display:none;">
+        <div class="form-grid">
+          <!-- CASES_RELATIONSHIP_FINANCIAL: عمل محضرين اختياري يُنشأ مع حفظ
+               القضية، ويُربط تلقائيًا بأول موكل فى القضية (نفس Convention
+               عمل اداري أعلاه) — معرّفات فريدة جديدة (fCasePsw*)، لا تتشارك
+               أي id مع نافذة عمل المحضرين المستقلة. -->
+          <div class="form-group full"><label>طبيعة الإعلان (اختياري)</label><input type="text" id="fCasePswNature" placeholder="مثل: إعادة إعلان"></div>
+          <div class="form-group"><label>رقم المحضرين</label><input type="text" id="fCasePswNumber" placeholder="الرقم كما فى الجهة"></div>
+          <div class="form-group"><label>المحكمة</label><input type="text" id="fCasePswCourt" placeholder="مثل: محكمة الإسكندرية الجزئية"></div>
+          <div class="form-group"><label>قلم المحضرين</label><input type="text" id="fCasePswOffice" placeholder="مثل: قلم المحضرين بمحكمة الجيزة"></div>
+          <div class="form-group"><label>تاريخ التسليم</label><input type="date" id="fCasePswDeliveryDate"></div>
+          <div class="form-group"><label>تاريخ الاستلام</label><input type="date" id="fCasePswReceiptDate"></div>
+          <div class="form-group"><label>تاريخ الجلسة</label><input type="date" id="fCasePswSessionDate"></div>
+          <div class="form-group full"><label>ملاحظات</label><textarea id="fCasePswNotes" placeholder="أضف أي ملاحظات إضافية" style="min-height:60px;"></textarea></div>
         </div>
       </div>
 
