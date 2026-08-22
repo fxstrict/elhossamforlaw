@@ -725,6 +725,100 @@ if (typeof module !== 'undefined' && module.exports) {
     filterPswStatus: filterPswStatus,
     selectPswClient: selectPswClient,
     removePswClient: removePswClient,
-    populatePswCaseDropdown: populatePswCaseDropdown
+    populatePswCaseDropdown: populatePswCaseDropdown,
+    _createEmbeddedPswIfFilled: _createEmbeddedPswIfFilled
   };
+}
+
+// ================================================================
+// OVERRIDE saveCase — create an embedded عمل محضرين (Process Server
+// Work) when the case-modal's "محضرين" tab was filled in (optional —
+// decision §4). Same wrap pattern as sessions.js/tasks.js this
+// session — non-fatal on failure, doesn't block the case save.
+// ================================================================
+if (typeof saveCase === 'function') {
+  var _origSaveCaseForEmbeddedPsw = saveCase;
+  saveCase = function () {
+    var result = _origSaveCaseForEmbeddedPsw.apply(this, arguments);
+    if (result && typeof result.then === 'function') {
+      return result.then(function (saveOutcome) {
+        return _createEmbeddedPswIfFilled().then(function () { return saveOutcome; });
+      });
+    }
+    return result;
+  };
+}
+
+/**
+ * _createEmbeddedPswIfFilled — reads the "محضرين" tab's fields. Unlike
+ * sessions.js (gated on التاريخ) and tasks.js (gated on العنوان),
+ * PSW_REQUIRED_FIELDS is actually رقم_الموكل — a field this tab
+ * doesn't even expose (it's derived automatically from the case's
+ * first selected client, same §4 convention as عمل اداري). The intent
+ * signal here is therefore طبيعة_الاعلان OR رقم_المحضرين — either one
+ * being filled means the user meant to add a work item.
+ * @returns {Promise<void>}
+ */
+function _createEmbeddedPswIfFilled() {
+  var natureEl = document.getElementById('fCasePswNature');
+  var numberEl = document.getElementById('fCasePswNumber');
+  var nature = natureEl ? natureEl.value.trim() : '';
+  var number = numberEl ? numberEl.value.trim() : '';
+  if (!nature && !number) return Promise.resolve(); // tab left empty — nothing to do
+
+  var caseNumEl = document.getElementById('fCaseNum');
+  var caseNum = caseNumEl ? caseNumEl.value.trim() : '';
+  if (!caseNum) return Promise.resolve(); // defensive — saveCase() already requires this
+
+  var clientId = '';
+  var clientsHidden = document.getElementById('fCaseClients');
+  if (clientsHidden && clientsHidden.value) {
+    try {
+      var ids = JSON.parse(clientsHidden.value);
+      if (Array.isArray(ids) && ids.length) clientId = ids[0]; // "أول موكل فى القضية"
+    } catch (e) { /* malformed/absent — proceed without a client link, non-fatal */ }
+  }
+  if (!clientId) return Promise.resolve(); // PSW_REQUIRED_FIELDS = ['رقم_الموكل'] — no client selected on the case yet means we genuinely cannot create a valid record; silently skip rather than fail loudly for an optional tab
+
+  var clientName = '';
+  if (typeof data !== 'undefined' && data.clients) {
+    var idField = (typeof CLIENTS_ID_FIELD !== 'undefined') ? CLIENTS_ID_FIELD : 'رقم_الموكل';
+    var match = data.clients.filter(function (c) { return c[idField] === clientId; })[0];
+    if (match) clientName = match['الاسم'] || '';
+  }
+
+  var courtEl = document.getElementById('fCasePswCourt');
+  var officeEl = document.getElementById('fCasePswOffice');
+  var deliveryEl = document.getElementById('fCasePswDeliveryDate');
+  var receiptEl = document.getElementById('fCasePswReceiptDate');
+  var sessionDateEl = document.getElementById('fCasePswSessionDate');
+  var notesEl = document.getElementById('fCasePswNotes');
+
+  return ensureProcessServerWorksRepositoryReady().then(function () {
+    return processServerWorksRepository.create({
+      'رقم_الموكل': clientId,
+      'اسم_الموكل': clientName,
+      'رقم_القضية': caseNum,
+      'طبيعة_الاعلان': nature,
+      'رقم_المحضرين': number,
+      'المحكمة': courtEl ? courtEl.value.trim() : '',
+      'قلم_المحضرين': officeEl ? officeEl.value.trim() : '',
+      'تاريخ_التسليم': deliveryEl ? deliveryEl.value.trim() : '',
+      'تاريخ_الاستلام': receiptEl ? receiptEl.value.trim() : '',
+      'تاريخ_الجلسة': sessionDateEl ? sessionDateEl.value.trim() : '',
+      'الملاحظات': notesEl ? notesEl.value.trim() : ''
+    });
+  }).then(function (result) {
+    if (result && result.success) {
+      syncProcessServerWorksMirror();
+      [natureEl, numberEl, courtEl, officeEl, deliveryEl, receiptEl, sessionDateEl, notesEl].forEach(function (el) { if (el) el.value = ''; });
+      if (typeof updateBadges === 'function') updateBadges();
+    } else if (typeof console !== 'undefined' && console.error) {
+      console.error('Embedded PSW creation failed:', result && result.error);
+    }
+  }).catch(function (err) {
+    if (typeof console !== 'undefined' && console.error) {
+      console.error('Embedded PSW creation failed:', err);
+    }
+  });
 }
