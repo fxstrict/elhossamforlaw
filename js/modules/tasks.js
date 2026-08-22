@@ -1315,6 +1315,95 @@ if (typeof module !== 'undefined' && module.exports) {
     selectTaskClient: selectTaskClient,
     removeTaskClient: removeTaskClient,
     populateTaskCaseDropdown: populateTaskCaseDropdown,
-    onTaskCaseChange: onTaskCaseChange
+    onTaskCaseChange: onTaskCaseChange,
+    _createEmbeddedAdminWorkIfFilled: _createEmbeddedAdminWorkIfFilled
   };
+}
+
+// ================================================================
+// OVERRIDE saveCase — create an embedded عمل إداري (Admin Work) when
+// the case-modal's "عمل اداري" tab was filled in (optional — decision
+// §4). Runs AFTER the case itself saves successfully. Same wrap
+// pattern as sessions.js's _createEmbeddedSessionIfFilled() this
+// session — non-fatal on failure, doesn't block the case save.
+// ================================================================
+if (typeof saveCase === 'function') {
+  var _origSaveCaseForEmbeddedAdminWork = saveCase;
+  saveCase = function () {
+    var result = _origSaveCaseForEmbeddedAdminWork.apply(this, arguments);
+    if (result && typeof result.then === 'function') {
+      return result.then(function (saveOutcome) {
+        return _createEmbeddedAdminWorkIfFilled().then(function () { return saveOutcome; });
+      });
+    }
+    return result;
+  };
+}
+
+/**
+ * _createEmbeddedAdminWorkIfFilled — reads the "عمل اداري" tab's
+ * fields; if العنوان is present (TASKS_REQUIRED_FIELDS's actual
+ * required field — the one signal that genuinely means "the user
+ * meant to add a work item", matching sessions.js's identical
+ * التاريخ-presence gate for its own required field), creates a real
+ * Tasks record linked to the just-saved case AND its first selected
+ * client (decision §4: "يكون مرتبطًا بأول موكل في القضية" — read from
+ * the live-synced #fCaseClients hidden field, JSON id array, rather
+ * than clients.js's private _caseSelectedClientIds — decoupled,
+ * no cross-module private-state access).
+ * @returns {Promise<void>}
+ */
+function _createEmbeddedAdminWorkIfFilled() {
+  var titleEl = document.getElementById('fCaseTaskTitle');
+  var title = titleEl ? titleEl.value.trim() : '';
+  if (!title) return Promise.resolve(); // tab left empty — nothing to do
+
+  var caseNumEl = document.getElementById('fCaseNum');
+  var caseNum = caseNumEl ? caseNumEl.value.trim() : '';
+  if (!caseNum) return Promise.resolve(); // defensive — saveCase() already requires this
+
+  var clientId = '';
+  var clientsHidden = document.getElementById('fCaseClients');
+  if (clientsHidden && clientsHidden.value) {
+    try {
+      var ids = JSON.parse(clientsHidden.value);
+      if (Array.isArray(ids) && ids.length) clientId = ids[0]; // "أول موكل فى القضية"
+    } catch (e) { /* malformed/absent — proceed without a client link, non-fatal */ }
+  }
+  var clientName = '';
+  if (clientId && typeof data !== 'undefined' && data.clients) {
+    var idField = (typeof CLIENTS_ID_FIELD !== 'undefined') ? CLIENTS_ID_FIELD : 'رقم_الموكل';
+    var match = data.clients.filter(function (c) { return c[idField] === clientId; })[0];
+    if (match) clientName = match['الاسم'] || '';
+  }
+
+  var deadlineEl = document.getElementById('fCaseTaskDeadline');
+  var locationEl = document.getElementById('fCaseTaskLocation');
+  var requiredEl = document.getElementById('fCaseTaskRequired');
+  var notesEl = document.getElementById('fCaseTaskNotes');
+
+  return ensureTasksRepositoryReady().then(function () {
+    return tasksRepository.create({
+      'العنوان': title,
+      'رقم_القضية': caseNum,
+      'رقم_الموكل': clientId,
+      'اسم_الموكل': clientName,
+      'الموعد_النهائي': deadlineEl ? deadlineEl.value.trim() : '',
+      'مكان_التنفيذ': locationEl ? locationEl.value.trim() : '',
+      'المطلوب': requiredEl ? requiredEl.value.trim() : '',
+      'الملاحظات': notesEl ? notesEl.value.trim() : ''
+    });
+  }).then(function (result) {
+    if (result && result.success) {
+      syncTasksMirror();
+      [titleEl, deadlineEl, locationEl, requiredEl, notesEl].forEach(function (el) { if (el) el.value = ''; });
+      if (typeof updateBadges === 'function') updateBadges();
+    } else if (typeof console !== 'undefined' && console.error) {
+      console.error('Embedded admin-work creation failed:', result && result.error);
+    }
+  }).catch(function (err) {
+    if (typeof console !== 'undefined' && console.error) {
+      console.error('Embedded admin-work creation failed:', err);
+    }
+  });
 }
