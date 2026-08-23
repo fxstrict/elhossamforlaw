@@ -865,6 +865,87 @@ if (typeof module !== 'undefined' && module.exports) {
     selectDocClient: selectDocClient,
     removeDocClient: removeDocClient,
     renderDocClientSelectorChips: renderDocClientSelectorChips,
-    syncDocClientSelectorFromRecord: syncDocClientSelectorFromRecord
+    syncDocClientSelectorFromRecord: syncDocClientSelectorFromRecord,
+    _createEmbeddedDocumentIfFilled: _createEmbeddedDocumentIfFilled
   };
+}
+
+// ================================================================
+// OVERRIDE saveCase — create an embedded مستند (Document) when the
+// case-modal's "المستندات" tab was filled in (optional — decision
+// §4). Same wrap pattern as sessions.js/tasks.js/process-server-
+// works.js this session — non-fatal on failure, doesn't block the
+// case save. Unlike محضرين's tab, رقم_القضية is always known here
+// (saveCase() already required it), so no silent-skip tradeoff is
+// needed — DocumentsRepository's "رقم_القضية OR رقم_الموكل" validation
+// (decision §3-L) is always satisfiable in this context.
+// ================================================================
+if (typeof saveCase === 'function') {
+  var _origSaveCaseForEmbeddedDocument = saveCase;
+  saveCase = function () {
+    var result = _origSaveCaseForEmbeddedDocument.apply(this, arguments);
+    if (result && typeof result.then === 'function') {
+      return result.then(function (saveOutcome) {
+        return _createEmbeddedDocumentIfFilled().then(function () { return saveOutcome; });
+      });
+    }
+    return result;
+  };
+}
+
+/**
+ * _createEmbeddedDocumentIfFilled — reads the "المستندات" tab's
+ * fields; if اسم_المستند is present (DocumentsRepository's own
+ * required field, alongside the case/client link), creates a real
+ * Documents record linked to the just-saved case AND its first
+ * selected client (same §4 convention as عمل اداري/محضرين — read from
+ * the live-synced #fCaseClients hidden field, not clients.js's
+ * private state).
+ * @returns {Promise<void>}
+ */
+function _createEmbeddedDocumentIfFilled() {
+  var nameEl = document.getElementById('fCaseDocName');
+  var name = nameEl ? nameEl.value.trim() : '';
+  if (!name) return Promise.resolve(); // tab left empty — nothing to do
+
+  var caseNumEl = document.getElementById('fCaseNum');
+  var caseNum = caseNumEl ? caseNumEl.value.trim() : '';
+  if (!caseNum) return Promise.resolve(); // defensive — saveCase() already requires this
+
+  var clientId = '';
+  var clientsHidden = document.getElementById('fCaseClients');
+  if (clientsHidden && clientsHidden.value) {
+    try {
+      var ids = JSON.parse(clientsHidden.value);
+      if (Array.isArray(ids) && ids.length) clientId = ids[0]; // "أول موكل فى القضية"
+    } catch (e) { /* malformed/absent — proceed without a client link, non-fatal */ }
+  }
+
+  var typeEl = document.getElementById('fCaseDocType');
+  var driveUrlEl = document.getElementById('fCaseDocDriveUrl');
+  var notesEl = document.getElementById('fCaseDocNotes');
+
+  return ensureDocumentsRepositoryReady().then(function () {
+    return documentsRepository.create({
+      'اسم_المستند': name,
+      'رقم_القضية': caseNum,
+      'رقم_الموكل': clientId,
+      'نوع_المستند': typeEl ? typeEl.value : '',
+      'رابط_Drive': driveUrlEl ? driveUrlEl.value.trim() : '',
+      'الملاحظات': notesEl ? notesEl.value.trim() : ''
+    });
+  }).then(function (result) {
+    if (result && result.success) {
+      syncDocumentsMirror();
+      [nameEl, driveUrlEl, notesEl].forEach(function (el) { if (el) el.value = ''; });
+      if (typeEl) typeEl.selectedIndex = 0;
+      if (typeof updateBadges === 'function') updateBadges();
+    } else if (typeof console !== 'undefined' && console.error) {
+      console.error('Embedded document creation failed:', result && result.error);
+    }
+  }).catch(function (err) {
+    if (typeof console !== 'undefined' && console.error) {
+      console.error('Embedded document creation failed:', err);
+    }
+  });
 }
