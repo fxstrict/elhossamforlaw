@@ -1218,6 +1218,7 @@ style="color:var(--muted);font-size:12px;margin-top:4px;"> جارٍ تحميل
       <button type="button" class="tab-btn" data-case-tab="session" onclick="switchCaseFormTab('session')">&#128197; جلسة</button>
       <button type="button" class="tab-btn" data-case-tab="adminwork" onclick="switchCaseFormTab('adminwork')">&#128203; عمل اداري</button>
       <button type="button" class="tab-btn" data-case-tab="psw" onclick="switchCaseFormTab('psw')">&#9997; محضرين</button>
+      <button type="button" class="tab-btn" data-case-tab="docs" onclick="switchCaseFormTab('docs')">&#128193; المستندات</button>
       <button type="button" class="tab-btn" data-case-tab="other" onclick="switchCaseFormTab('other')">&#128220; أخرى</button>
     </div>
     <div class="modal-body">
@@ -1368,6 +1369,23 @@ style="color:var(--muted);font-size:12px;margin-top:4px;"> جارٍ تحميل
           <div class="form-group"><label>تاريخ الاستلام</label><input type="date" id="fCasePswReceiptDate"></div>
           <div class="form-group"><label>تاريخ الجلسة</label><input type="date" id="fCasePswSessionDate"></div>
           <div class="form-group full"><label>ملاحظات</label><textarea id="fCasePswNotes" placeholder="أضف أي ملاحظات إضافية" style="min-height:60px;"></textarea></div>
+        </div>
+      </div>
+
+      <!-- ============== تبويب: المستندات (اختياري) ============== -->
+      <div class="case-form-pane" id="casePane-docs" style="display:none;">
+        <div class="form-grid">
+          <!-- CASES_RELATIONSHIP_FINANCIAL: مستند اختياري يُنشأ مع حفظ
+               القضية، ويُربط بها مباشرة (رقم_القضية معروف دائمًا هنا، بخلاف
+               محضرين — لا حاجة لتخطٍّ صامت). معرّفات فريدة جديدة
+               (fCaseDoc*)، لا تتشارك أي id مع نافذة المستندات المستقلة
+               #modalDocument (fDocName/fDocType/...). -->
+          <div class="form-group full"><label>اسم المستند (اختياري)</label><input type="text" id="fCaseDocName" placeholder="مثال: عقد الزواج"></div>
+          <div class="form-group"><label>نوع المستند</label>
+            <select id="fCaseDocType"><option>عقد زواج</option><option>شهادة ميلاد</option><option>مفردات مرتب</option><option>محضر</option><option>إيصال</option><option>حكم</option><option>بيان مدرسي</option><option>تحريات</option><option>مراسلة</option><option>مستند آخر</option></select>
+          </div>
+          <div class="form-group"><label>رابط Google Drive</label><input type="url" id="fCaseDocDriveUrl" placeholder="https://drive.google.com/file/d/..."></div>
+          <div class="form-group full"><label>ملاحظات</label><textarea id="fCaseDocNotes" placeholder="ملاحظات المستند" style="min-height:60px;"></textarea></div>
         </div>
       </div>
 
