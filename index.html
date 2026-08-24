@@ -1029,6 +1029,10 @@ style="color:var(--muted);font-size:12px;margin-top:4px;"> جارٍ تحميل
     <div><h2 style="font-size:17px;font-weight:700;">&#127760; الأدلة القانونية</h2><p class="u-meta-muted-sm">محاكم، نيابات، نقابة المحامين، ومواقع قانونية مرجعية</p></div>
   </div>
   <div class="legal-dir-breadcrumb" id="legalDirBreadcrumb"></div>
+  <!-- PHASE — Legal Directories: Admin Panel (Stage 3). Empty by default;
+       js/modules/legal-directories.js only fills this in when the
+       current user (or fail-open default) is allowed CanManageRawData. -->
+  <div class="legal-dir-admin-bar" id="legalDirAdminBar"></div>
   <div class="legal-dir-grid" id="legalDirGrid"></div>
   <div id="legalDirEmpty" class="legal-dir-empty" style="display:none;">لا توجد عناصر في هذا القسم حالياً.</div>
   <div id="legalDirError" class="legal-dir-error" style="display:none;"></div>
@@ -2702,6 +2706,7 @@ window.addEventListener('DOMContentLoaded',function(){
 <script src="js/utils/DirectoryModel.js?v=1"></script>
 <script src="js/utils/DirectoryValidation.js?v=1"></script>
 <script src="js/utils/DirectoryRenderer.js?v=1"></script>
+<script src="js/modules/legal-directories-admin.js?v=1"></script>
 <script src="js/modules/legal-directories.js?v=1"></script>
 <script src="js/modules/historypanel-ui.js?v=42"></script>
 <!-- PHASE 13.3D — PART 2A: RepositoryReadyCoordinator.js is deliberately
