@@ -271,6 +271,11 @@
      free-text field. New, standalone file; no other CSS file was touched
      for this phase. -->
 <link href="css/voice-input.css?v=42" rel="stylesheet">
+<!-- PHASE — Legal Directories: Generic UI (Stage 2). Additive-only
+     stylesheet for the generic Directory/Node card UI; does not
+     modify any existing CSS file — see css/legal-directories.css
+     header for details. -->
+<link href="css/legal-directories.css?v=1" rel="stylesheet">
 <!-- ================================================================
      PHASE 17.1 — LOADER OPTIMIZATION (preload + priority hints, additive only)
      WHY THIS BLOCK EXISTS
@@ -608,6 +613,8 @@ style="color:var(--muted);font-size:12px;margin-top:4px;"> جارٍ تحميل
     <div class="nav-item" tabindex="0" role="link" onclick="navigate('calendar')"><span class="nav-icon">&#128467;</span> التقويم</div>
     <div class="nav-item" tabindex="0" role="link" onclick="navigate('library')"><span class="nav-icon">&#128218;</span> المكتبة القانونية</div>
     <div class="nav-item" tabindex="0" role="link" onclick="navigate('templates')"><span class="nav-icon">&#128196;</span> صيغ الدعاوى</div>
+    <!-- PHASE — Legal Directories: Generic UI (Stage 2) — additive nav item, same markup pattern as every item above. -->
+    <div class="nav-item" tabindex="0" role="link" onclick="navigate('legalDirectories')"><span class="nav-icon">&#127760;</span> الأدلة القانونية</div>
     <div class="nav-item" tabindex="0" role="link" onclick="navigate('settings')"><span class="nav-icon">&#9881;</span> الإعدادات</div>
     <!-- SIDEBAR QUICK LOGOUT — additive, third entry point to the exact
          same HossamSession.clear() + LoginScreen.init() action already
@@ -1009,6 +1016,22 @@ style="color:var(--muted);font-size:12px;margin-top:4px;"> جارٍ تحميل
   <div class="section-tabs" id="templateTabs"><button class="tab-btn active" onclick="filterTemplates('all')">&#128203; الكل</button></div>
   <div class="lib-grid" id="templatesGrid"></div>
   <div id="templatesEmpty" class="empty-state empty-container" style="display:none;"><div class="icon">&#128196;</div><h3>لا توجد صيغ دعاوى بعد</h3><p>أضف نماذج الصحف والمذكرات الجاهزة لتوفير وقتك عند إعداد قضايا مشابهة مستقبلاً.</p><button class="btn btn-primary" onclick="openAddTemplateModal()">&#65291; إضافة صيغة دعوى</button></div>
+</div>
+
+<!-- LEGAL DIRECTORIES -->
+<!-- PHASE — Legal Directories: Generic UI (Stage 2). Read-only browser
+     for the static Directory/Node dataset (js/data/directories/
+     legal-directories.json), built entirely by js/modules/
+     legal-directories.js + js/utils/DirectoryRenderer.js. No add/edit/
+     delete controls in this phase (Stage-1 §28 — no admin panel yet). -->
+<div class="page" id="page-legalDirectories">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:9px;">
+    <div><h2 style="font-size:17px;font-weight:700;">&#127760; الأدلة القانونية</h2><p class="u-meta-muted-sm">محاكم، نيابات، نقابة المحامين، ومواقع قانونية مرجعية</p></div>
+  </div>
+  <div class="legal-dir-breadcrumb" id="legalDirBreadcrumb"></div>
+  <div class="legal-dir-grid" id="legalDirGrid"></div>
+  <div id="legalDirEmpty" class="legal-dir-empty" style="display:none;">لا توجد عناصر في هذا القسم حالياً.</div>
+  <div id="legalDirError" class="legal-dir-error" style="display:none;"></div>
 </div>
 
 <!-- SETTINGS -->
@@ -2161,7 +2184,7 @@ function toast(msg,type){
 }
 function showLoading(v){document.getElementById('loadingOverlay').classList.toggle('show',v);}
 
-var PAGE_TITLES={dashboard:'لوحة التحكم',cases:'القضايا',sessions:'الجلسات',clients:'الموكلون',opponents:'الخصوم',processServerWorks:'أعمال المحضرين',children:'الأطفال',documents:'المستندات',tasks:'المهام',fees:'الأتعاب',expenses:'المصروفات',calendar:'التقويم',library:'المكتبة القانونية',templates:'صيغ الدعاوى',settings:'الإعدادات'};
+var PAGE_TITLES={dashboard:'لوحة التحكم',cases:'القضايا',sessions:'الجلسات',clients:'الموكلون',opponents:'الخصوم',processServerWorks:'أعمال المحضرين',children:'الأطفال',documents:'المستندات',tasks:'المهام',fees:'الأتعاب',expenses:'المصروفات',calendar:'التقويم',library:'المكتبة القانونية',templates:'صيغ الدعاوى',legalDirectories:'الأدلة القانونية',settings:'الإعدادات'};
 var ADDABLE=['cases','sessions','clients','tasks','opponents','processServerWorks'];
 
 function navigate(page){
@@ -2296,6 +2319,7 @@ function navigate(page){
   else if(page==='calendar'){var n=new Date();calYear=n.getFullYear();calMonth=n.getMonth();if(__vcNeedsRender)__vcRunRender('calendar',renderCalendar);}
   else if(page==='library'){if(__vcNeedsRender)__vcRunRender('library',renderLibrary);}
   else if(page==='templates'){if(__vcNeedsRender)__vcRunRender('templates',renderTemplates);}
+  else if(page==='legalDirectories'){if(__vcNeedsRender)__vcRunRender('legalDirectories',renderLegalDirectories);}
   else if(page==='settings'){document.getElementById('apiUrlInput').value=API_URL;document.getElementById('driveUrlInput').value=DRIVE_URL;var db=document.getElementById('driveOpenBtn');if(DRIVE_URL){db.href=DRIVE_URL;db.style.display='';}else db.style.display='none';if(typeof refreshDeveloperDiagnosticsToggle==='function')refreshDeveloperDiagnosticsToggle();if(window.OfficeProfilePanel)OfficeProfilePanel.render();if(typeof switchSettingsTab==='function')switchSettingsTab('office');}
   if(__vcNeedsRender&&__vcTrackedPages.indexOf(page)>=0&&window.ViewLifecycle){
     try{ViewLifecycle.recordRendered(page);}catch(__vcErr2){}
@@ -2671,6 +2695,14 @@ window.addEventListener('DOMContentLoaded',function(){
 <script src="js/modules/fees.js?v=42"></script>
 <script src="js/modules/library.js?v=42"></script>
 <script src="js/modules/templates.js?v=42"></script>
+<!-- PHASE — Legal Directories: Data Model (Stage 1) + Generic UI (Stage 2).
+     Load order: model -> validation -> renderer -> page module (each
+     depends only on the ones before it; none depend on any Repository,
+     IndexedDB, or Google Sheets script). -->
+<script src="js/utils/DirectoryModel.js?v=1"></script>
+<script src="js/utils/DirectoryValidation.js?v=1"></script>
+<script src="js/utils/DirectoryRenderer.js?v=1"></script>
+<script src="js/modules/legal-directories.js?v=1"></script>
 <script src="js/modules/historypanel-ui.js?v=42"></script>
 <!-- PHASE 13.3D — PART 2A: RepositoryReadyCoordinator.js is deliberately
      the LAST <script> tag on the page, not grouped with the other
