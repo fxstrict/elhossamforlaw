@@ -1,0 +1,135 @@
+/* ================================================================
+ * legal-directories.css — نظام الحسام للمحاماة
+ * ================================================================
+ * PHASE — Legal Directories: Generic UI (Stage 2)
+ *
+ * Additive-only stylesheet for the generic Directory/Node card UI
+ * (js/utils/DirectoryRenderer.js + js/modules/legal-directories.js).
+ * Reuses the existing design tokens from css/variables.css only
+ * (--gold, --radius, --shadow-sm, --transition, --muted, ...). Does
+ * NOT modify css/components.css, css/layout.css, or any other
+ * existing stylesheet — this file is purely additive and can be
+ * removed without affecting any other page.
+ * ================================================================ */
+
+.legal-dir-breadcrumb {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 14px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.legal-dir-breadcrumb-item {
+  cursor: pointer;
+  color: var(--gold-dk);
+  background: none;
+  border: none;
+  font: inherit;
+  padding: 2px 4px;
+  border-radius: 6px;
+}
+
+.legal-dir-breadcrumb-item:hover,
+.legal-dir-breadcrumb-item:focus-visible {
+  text-decoration: underline;
+  outline: none;
+}
+
+.legal-dir-breadcrumb-item[aria-current="page"] {
+  color: #0D1B2A;
+  font-weight: 700;
+  cursor: default;
+  text-decoration: none;
+}
+
+.legal-dir-breadcrumb-sep {
+  opacity: 0.6;
+}
+
+.legal-dir-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 14px;
+}
+
+.legal-dir-card {
+  background: #FFFFFF;
+  border: 1px solid rgba(201, 168, 76, 0.18);
+  border-radius: var(--radius);
+  padding: 15px;
+  text-align: right;
+  cursor: pointer;
+  transition: all var(--transition);
+  position: relative;
+  overflow: hidden;
+  display: block;
+  width: 100%;
+  font: inherit;
+  color: inherit;
+}
+
+.legal-dir-card:hover,
+.legal-dir-card:focus-visible {
+  border-color: rgba(201, 168, 76, 0.35);
+  transform: translateY(-2px);
+  outline: none;
+}
+
+.legal-dir-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--gold), transparent);
+}
+
+.legal-dir-card-icon {
+  font-size: 30px;
+  margin-bottom: 8px;
+  display: block;
+}
+
+.legal-dir-card-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: #0D1B2A;
+  margin-bottom: 4px;
+  line-height: 1.4;
+}
+
+.legal-dir-card-desc {
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.legal-dir-card-badge {
+  display: inline-block;
+  padding: 2px 7px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 700;
+  margin-bottom: 7px;
+  background: rgba(201, 168, 76, 0.2);
+  color: var(--gold-dk);
+}
+
+.legal-dir-card-badge.is-link {
+  background: rgba(41, 128, 185, 0.18);
+  color: var(--info);
+}
+
+.legal-dir-empty,
+.legal-dir-error {
+  padding: 24px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.legal-dir-error {
+  color: var(--danger);
+}
