@@ -122,6 +122,97 @@
   color: var(--info);
 }
 
+/* ---- Stage 3: Admin Panel ---- */
+
+.legal-dir-admin-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  background: rgba(201, 168, 76, 0.08);
+  border: 1px dashed rgba(201, 168, 76, 0.35);
+  border-radius: var(--radius);
+}
+
+.legal-dir-admin-bar:empty {
+  display: none;
+  padding: 0;
+  border: none;
+  margin: 0;
+}
+
+.legal-dir-admin-toggle {
+  background: var(--gold);
+  color: #0D1B2A;
+  border: none;
+  border-radius: 8px;
+  padding: 7px 14px;
+  font-weight: 700;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.legal-dir-admin-status {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.legal-dir-admin-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  width: 100%;
+}
+
+.legal-dir-admin-form input,
+.legal-dir-admin-form select {
+  padding: 6px 8px;
+  border: 1px solid rgba(201, 168, 76, 0.3);
+  border-radius: 6px;
+  font-size: 12px;
+  min-width: 120px;
+  flex: 1 1 140px;
+}
+
+.legal-dir-admin-form button {
+  background: var(--gold-dk);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+
+.legal-dir-card-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.legal-dir-admin-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.legal-dir-admin-toolbar button {
+  flex: 1 1 auto;
+  font-size: 10px;
+  padding: 4px 5px;
+  border: 1px solid rgba(201, 168, 76, 0.3);
+  border-radius: 6px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.legal-dir-admin-toolbar button:hover {
+  background: rgba(201, 168, 76, 0.12);
+}
+
 .legal-dir-empty,
 .legal-dir-error {
   padding: 24px;
