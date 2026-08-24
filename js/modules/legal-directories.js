@@ -3,38 +3,46 @@
  * legal-directories.js — js/modules/legal-directories.js
  * نظام الحسام للمحاماة
  * ================================================================
- * PHASE — Legal Directories: Generic UI (Stage 2)
+ * PHASE — Legal Directories: Generic UI (Stage 2) + Admin Panel (Stage 3, PART B)
  *
- * WHAT THIS IS
+ * WHAT THIS IS (Stage 2, unchanged)
  *   The page module behind the "الأدلة القانونية" nav item / page
  *   (#page-legalDirectories). Loads the static dataset once, walks
  *   it with a simple breadcrumb/drill-down stack, and delegates all
- *   DOM building to js/utils/DirectoryRenderer.js. This file owns
- *   ONLY navigation state (which directory/folder is open) — it
- *   never branches on a specific directory/node id/slug/title
- *   (Stage-1 §19 requirement, carried into Stage 2).
+ *   DOM building to js/utils/DirectoryRenderer.js. Never branches on
+ *   a specific directory/node id/slug/title (Stage-1 §19).
  *
- * DATA SOURCE
- *   fetch('js/data/directories/legal-directories.json') — the exact
- *   same static file validated and tested in Stage 1
- *   (js/utils/DirectoryValidation.js). Fetched once per page load and
- *   cached in memory; the app's own service worker already serves
- *   same-origin GET requests it doesn't explicitly precache via a
- *   stale-while-revalidate runtime cache (see service-worker.js),
- *   so this file does not need special offline handling of its own.
- *   NOTE (flagged, not silently assumed): this file is intentionally
- *   NOT added to service-worker.js's PRECACHE_URLS in this phase —
- *   see the delivery report for why, and why that's still safe.
+ * WHAT'S NEW (Stage 3, PART B — admin mode)
+ *   A permission-gated "وضع الإدارة" toggle. When ON, browsing
+ *   switches from the live dataset to an in-memory DRAFT
+ *   (js/modules/legal-directories-admin.js) so nothing is ever
+ *   written back to js/data/directories/legal-directories.json by
+ *   the browser itself. Admin mode lets you:
+ *     - add/edit/toggle-enabled/remove/reorder Directories (root)
+ *     - add/edit/toggle-enabled/remove/reorder Nodes (folder/link),
+ *       at any nesting depth
+ *     - see live validation status (js/utils/DirectoryValidation.js)
+ *     - download the edited dataset as JSON
+ *   PERMISSION: reuses the EXISTING RBAC system exactly as-is —
+ *   window.HossamSession.getCurrentUser() + window.HossamPermissionService
+ *   .can(user, 'CanManageRawData') (an existing permission key from
+ *   js/core/rbac/Permissions.js's "settings" group — CHOSEN, not
+ *   added: no RBAC file was modified for this phase). Fails OPEN
+ *   (admin controls visible) when RBAC isn't wired up or no session
+ *   is active yet, matching js/core/rbac/SessionContext.js's own
+ *   documented fail-open convention (login screen is "Deferred").
  *
- * WHAT THIS IS NOT
- *   - Not a Repository. No IndexedDB, no Google Sheets, no user data.
- *   - Not an admin/editor. Read-only browsing only (Stage-1 §28).
+ *   PUBLISHING (deliberately NOT built here): see the header of
+ *   js/modules/legal-directories-admin.js for why committing the
+ *   edited JSON back to the repository (GitHub API/Actions) needs a
+ *   decision from you before it's safe to build, and what "download
+ *   the JSON, then commit it" looks like today as the interim step.
  *
  * WIRING (index.html)
- *   Requires these ids to exist on #page-legalDirectories:
- *     #legalDirBreadcrumb, #legalDirGrid, #legalDirEmpty, #legalDirError
- *   Entry point called from navigate()'s dispatch, exactly like every
- *   other page's renderX(): renderLegalDirectories().
+ *   Requires these ids on #page-legalDirectories:
+ *     #legalDirBreadcrumb, #legalDirGrid, #legalDirEmpty, #legalDirError,
+ *     #legalDirAdminBar (Stage 3)
+ *   Entry point unchanged: renderLegalDirectories().
  * ================================================================
  */
 (function (global) {
@@ -43,23 +51,28 @@
   // In-memory-only state — never persisted, never touches any
   // Repository/IndexedDB/localStorage (this is static reference
   // content, not office/case data).
-  var _dataset = null;          // { directories: Directory[] } | null
+  var _dataset = null;          // { directories: Directory[] } | null — the LIVE, read-only copy
   var _loadPromise = null;
   var _loadError = null;
-  // Navigation stack: [{ kind:'directory', directory }, { kind:'folder', node }, ...]
+  // Navigation stack: [{ kind:'directory'|'folder', directory, node? }, ...]
+  // `directory` is always the ancestor Directory object for this
+  // level (used by admin actions to know which directory a Node
+  // add/edit belongs to, without ever branching on its id/title).
   var _stack = [];
+  var _adminMode = false;
 
   function getDom() {
     return {
       breadcrumb: global.document.getElementById('legalDirBreadcrumb'),
       grid: global.document.getElementById('legalDirGrid'),
       empty: global.document.getElementById('legalDirEmpty'),
-      error: global.document.getElementById('legalDirError')
+      error: global.document.getElementById('legalDirError'),
+      adminBar: global.document.getElementById('legalDirAdminBar')
     };
   }
 
   // ================================================================
-  // 1. Load + validate (once)
+  // 1. Load + validate (once) — Stage 2, unchanged
   // ================================================================
 
   function loadDataset() {
@@ -75,8 +88,6 @@
         if (global.DirectoryValidation) {
           var result = global.DirectoryValidation.validateDataset(json);
           if (!result.valid) {
-            // Fail loudly in the console (dev-visible) but degrade
-            // gracefully in the UI — never throw up through navigate().
             console.error('[legal-directories] dataset failed validation:',
               result.errors.map(global.DirectoryValidation.toDisplayString));
             throw new Error('dataset failed validation (' + result.errors.length + ' error(s), see console)');
@@ -93,7 +104,39 @@
   }
 
   // ================================================================
-  // 2. Breadcrumb
+  // 2. Admin permission (reuses existing RBAC — nothing added there)
+  // ================================================================
+
+  function isAdminAllowed() {
+    var session = global.HossamSession;
+    if (!session || typeof session.getCurrentUser !== 'function') return true; // RBAC not wired -> fail-open
+    var user = session.getCurrentUser();
+    if (!user) return true; // no active session (login deferred) -> fail-open, matches SessionContext.check()
+    if (!global.HossamPermissionService || typeof global.HossamPermissionService.can !== 'function') return true;
+    return global.HossamPermissionService.can(user, 'CanManageRawData');
+  }
+
+  /** The dataset actually being browsed: the admin draft when admin
+   *  mode is on, otherwise the live, read-only dataset. */
+  function activeDataset() {
+    return (_adminMode && global.LegalDirectoriesAdmin) ? global.LegalDirectoriesAdmin.getDraft() : _dataset;
+  }
+
+  function toggleAdminMode() {
+    if (!isAdminAllowed()) return;
+    if (!global.LegalDirectoriesAdmin) return; // admin module not loaded — nothing to toggle into
+    if (!_adminMode) {
+      global.LegalDirectoriesAdmin.startDraft(_dataset || { directories: [] });
+      _adminMode = true;
+    } else {
+      _adminMode = false;
+    }
+    _stack = []; // stale references across dataset<->draft — always return to root (documented tradeoff)
+    renderCurrentLevel();
+  }
+
+  // ================================================================
+  // 3. Breadcrumb — Stage 2, unchanged
   // ================================================================
 
   function renderBreadcrumb(dom) {
@@ -129,14 +172,199 @@
   }
 
   // ================================================================
-  // 3. Rendering the current level
+  // 4. Admin bar (Stage 3) — toggle, validation status, quick-add
+  //    form, per-card admin toolbars. All optional: if
+  //    #legalDirAdminBar isn't in the DOM, or admin isn't allowed,
+  //    this renders nothing and Stage-2 read-only behavior is
+  //    unaffected.
   // ================================================================
 
-  function renderCurrentLevel() {
+  function currentAdminContext() {
+    // Returns { directoryId, parentNodeId } describing where a new
+    // Node would be added at the CURRENT level, or null at root
+    // (root = add a Directory, not a Node).
+    if (_stack.length === 0) return null;
+    var top = _stack[_stack.length - 1];
+    return {
+      directoryId: top.directory.id,
+      parentNodeId: top.kind === 'folder' ? top.node.id : null
+    };
+  }
+
+  function buildQuickForm(dom, editTarget) {
+    // editTarget: null (adding new) | { kind:'directory'|'node', id, values }
+    var doc = global.document;
+    var form = doc.createElement('div');
+    form.className = 'legal-dir-admin-form';
+
+    var ctx = currentAdminContext(); // null => root => Directory form
+    var isDirectoryForm = !ctx;
+
+    var titleInput = doc.createElement('input');
+    titleInput.type = 'text';
+    titleInput.placeholder = 'العنوان';
+    titleInput.value = (editTarget && editTarget.values.title) || '';
+    form.appendChild(titleInput);
+
+    var descInput = doc.createElement('input');
+    descInput.type = 'text';
+    descInput.placeholder = 'وصف (اختياري)';
+    descInput.value = (editTarget && editTarget.values.description) || '';
+    form.appendChild(descInput);
+
+    var typeSelect = null, urlInput = null;
+    if (!isDirectoryForm) {
+      typeSelect = doc.createElement('select');
+      ['folder', 'link'].forEach(function (t) {
+        var opt = doc.createElement('option');
+        opt.value = t; opt.textContent = t === 'folder' ? 'مجلد' : 'رابط';
+        typeSelect.appendChild(opt);
+      });
+      typeSelect.value = (editTarget && editTarget.values.type) || 'link';
+      form.appendChild(typeSelect);
+
+      urlInput = doc.createElement('input');
+      urlInput.type = 'text';
+      urlInput.placeholder = 'الرابط (لعنصر من نوع رابط)';
+      urlInput.value = (editTarget && editTarget.values.url) || '';
+      form.appendChild(urlInput);
+    }
+
+    var saveBtn = doc.createElement('button');
+    saveBtn.type = 'button';
+    saveBtn.textContent = editTarget ? 'حفظ التعديل' : (isDirectoryForm ? 'إضافة دليل' : 'إضافة عنصر');
+    saveBtn.addEventListener('click', function () {
+      var Admin = global.LegalDirectoriesAdmin;
+      var fields = { title: titleInput.value, description: descInput.value || undefined };
+      if (!isDirectoryForm) {
+        fields.type = typeSelect.value;
+        if (typeSelect.value === 'link') fields.url = urlInput.value;
+      }
+      try {
+        if (editTarget) {
+          if (editTarget.kind === 'directory') Admin.updateDirectory(editTarget.id, fields);
+          else Admin.updateNode(editTarget.id, fields);
+        } else if (isDirectoryForm) {
+          Admin.addDirectory(fields);
+        } else {
+          Admin.addNode(ctx.directoryId, ctx.parentNodeId, fields);
+        }
+        renderCurrentLevel();
+      } catch (e) {
+        console.error('[legal-directories admin]', e);
+      }
+    });
+    form.appendChild(saveBtn);
+
+    return form;
+  }
+
+  function buildAdminToolbar(kind, id, node) {
+    var doc = global.document;
+    var Admin = global.LegalDirectoriesAdmin;
+    var bar = doc.createElement('div');
+    bar.className = 'legal-dir-admin-toolbar';
+
+    function btn(label, onClick) {
+      var b = doc.createElement('button');
+      b.type = 'button';
+      b.textContent = label;
+      b.addEventListener('click', onClick);
+      bar.appendChild(b);
+      return b;
+    }
+
+    btn('\u25B2', function () { // ▲
+      if (kind === 'directory') Admin.moveDirectoryOrder(id, 'up'); else Admin.moveNodeOrder(id, 'up');
+      renderCurrentLevel();
+    });
+    btn('\u25BC', function () { // ▼
+      if (kind === 'directory') Admin.moveDirectoryOrder(id, 'down'); else Admin.moveNodeOrder(id, 'down');
+      renderCurrentLevel();
+    });
+    btn('\u270E \u062A\u0639\u062F\u064A\u0644', function () { // ✎ تعديل
+      renderCurrentLevel({ kind: kind, id: id, values: node });
+    });
+    btn(node.enabled === false ? '\u{1F441} \u062A\u0641\u0639\u064A\u0644' : '\u{1F441} \u062A\u0639\u0637\u064A\u0644', function () {
+      if (kind === 'directory') Admin.toggleDirectoryEnabled(id); else Admin.toggleNodeEnabled(id);
+      renderCurrentLevel();
+    });
+    btn('\u{1F5D1} \u062D\u0630\u0641', function () { // 🗑 حذف
+      var confirmFn = global.confirm || function () { return true; };
+      if (!confirmFn('هل تريد حذف هذا العنصر نهائياً من المسودة؟')) return;
+      if (kind === 'directory') Admin.removeDirectory(id); else Admin.removeNode(id);
+      renderCurrentLevel();
+    });
+
+    return bar;
+  }
+
+  function renderAdminBar(dom, editTarget) {
+    if (!dom.adminBar) return;
+    dom.adminBar.innerHTML = '';
+    if (!isAdminAllowed()) return;
+    var doc = global.document;
+
+    var toggleBtn = doc.createElement('button');
+    toggleBtn.type = 'button';
+    toggleBtn.className = 'legal-dir-admin-toggle';
+    toggleBtn.textContent = _adminMode ? 'إنهاء وضع الإدارة' : 'تفعيل وضع الإدارة';
+    toggleBtn.addEventListener('click', toggleAdminMode);
+    dom.adminBar.appendChild(toggleBtn);
+
+    if (!_adminMode || !global.LegalDirectoriesAdmin) return;
+    var Admin = global.LegalDirectoriesAdmin;
+
+    var status = doc.createElement('div');
+    status.className = 'legal-dir-admin-status';
+    var result = Admin.validateDraft();
+    status.textContent = result.valid
+      ? '\u2705 المسودة صالحة (' + (Admin.isDirty() ? 'بها تعديلات غير محفوظة خارج المتصفح' : 'بدون تعديلات') + ')'
+      : '\u26A0 ' + result.errors.length + ' خطأ في المسودة — التنزيل معطّل حتى يتم الإصلاح';
+    dom.adminBar.appendChild(status);
+
+    var downloadBtn = doc.createElement('button');
+    downloadBtn.type = 'button';
+    downloadBtn.textContent = 'تنزيل التعديلات (JSON)';
+    downloadBtn.disabled = !result.valid;
+    downloadBtn.addEventListener('click', function () {
+      var json = Admin.exportDraftJSON();
+      if (typeof global.Blob === 'function' && global.document.createElement('a').download !== undefined) {
+        var blob = new global.Blob([json], { type: 'application/json' });
+        var url = global.URL.createObjectURL(blob);
+        var a = doc.createElement('a');
+        a.href = url;
+        a.download = 'legal-directories.json';
+        a.click();
+        global.URL.revokeObjectURL(url);
+      }
+    });
+    dom.adminBar.appendChild(downloadBtn);
+
+    var resetBtn = doc.createElement('button');
+    resetBtn.type = 'button';
+    resetBtn.textContent = 'تراجع عن كل التعديلات';
+    resetBtn.addEventListener('click', function () {
+      Admin.resetDraft();
+      _stack = [];
+      renderCurrentLevel();
+    });
+    dom.adminBar.appendChild(resetBtn);
+
+    dom.adminBar.appendChild(buildQuickForm(dom, editTarget || null));
+  }
+
+  // ================================================================
+  // 5. Rendering the current level (Stage 2 flow + Stage 3 wrap)
+  // ================================================================
+
+  function renderCurrentLevel(editTarget) {
     var dom = getDom();
     if (!dom.grid) return; // page not in DOM (defensive — never throw)
 
-    if (_loadError) {
+    renderAdminBar(dom, editTarget);
+
+    if (_loadError && !_adminMode) {
       dom.grid.innerHTML = '';
       dom.empty.style.display = 'none';
       dom.error.style.display = '';
@@ -151,43 +379,59 @@
       onLinkClick: function (node) { if (node.url) global.open(node.url, node.target || '_blank', 'noopener,noreferrer'); }
     };
 
+    var dataset = activeDataset();
+    var nodesForToolbar = []; // [{kind,id,node}] parallel to cards, admin-mode only
+
     var cards;
     if (_stack.length === 0) {
-      // Root level: the list of Directories themselves, rendered as
-      // folder-like cards using the SAME generic Node card shape by
-      // wrapping each Directory as a folder-typed Node — no separate
-      // "DirectoryCard" component needed (Stage-1 §1: one renderer).
-      var directories = (_dataset ? _dataset.directories : [])
-        .filter(function (d) { return global.DirectoryModel.isEnabled(d); });
+      var directories = (dataset ? dataset.directories : [])
+        .filter(function (d) { return _adminMode || global.DirectoryModel.isEnabled(d); });
       var sorted = global.DirectoryModel.sortByOrder(directories);
       cards = sorted.map(function (directory) {
         var pseudoNode = {
           id: directory.id, title: directory.title, type: 'folder',
-          description: directory.description, icon: directory.icon, enabled: true
+          description: directory.description, icon: directory.icon, enabled: directory.enabled
         };
         var card = global.DirectoryRenderer.renderNode(pseudoNode, {
           onFolderClick: function () { pushDirectory(directory); }
         });
+        nodesForToolbar.push({ kind: 'directory', id: directory.id, node: directory });
         return card;
       });
     } else {
       var top = _stack[_stack.length - 1];
-      if (top.kind === 'directory') {
-        cards = global.DirectoryRenderer.renderDirectory(top.directory, handlers);
-      } else {
-        cards = global.DirectoryRenderer.renderNodeChildren(top.node, handlers);
-      }
+      var list = top.kind === 'directory' ? top.directory.items : (top.node.children || []);
+      var visibleList = list.filter(function (n) { return _adminMode || global.DirectoryModel.isEnabled(n); });
+      var sortedNodes = global.DirectoryModel.sortByOrder(visibleList);
+      cards = sortedNodes.map(function (node) {
+        var card = global.DirectoryRenderer.renderNode(node, handlers);
+        nodesForToolbar.push({ kind: 'node', id: node.id, node: node });
+        return card;
+      });
     }
 
     dom.grid.innerHTML = '';
-    cards.forEach(function (card) { dom.grid.appendChild(card); });
+    cards.forEach(function (card, i) {
+      if (_adminMode) {
+        var doc = global.document;
+        var wrap = doc.createElement('div');
+        wrap.className = 'legal-dir-card-wrap';
+        wrap.appendChild(card);
+        wrap.appendChild(buildAdminToolbar(nodesForToolbar[i].kind, nodesForToolbar[i].id, nodesForToolbar[i].node));
+        dom.grid.appendChild(wrap);
+      } else {
+        dom.grid.appendChild(card);
+      }
+    });
     dom.empty.style.display = cards.length === 0 ? '' : 'none';
 
     renderBreadcrumb(dom);
   }
 
   // ================================================================
-  // 4. Navigation actions
+  // 6. Navigation actions — carry `directory` on every stack entry
+  //    so admin actions always know which Directory a Node belongs
+  //    to without branching on any id/title (Stage-1 §19).
   // ================================================================
 
   function pushDirectory(directory) {
@@ -196,7 +440,8 @@
   }
 
   function pushFolder(node) {
-    _stack.push({ kind: 'folder', node: node });
+    var ancestorDirectory = _stack.length > 0 ? _stack[_stack.length - 1].directory : null;
+    _stack.push({ kind: 'folder', node: node, directory: ancestorDirectory });
     renderCurrentLevel();
   }
 
@@ -211,27 +456,28 @@
   }
 
   // ================================================================
-  // 5. Entry point (called from navigate() dispatch, like renderX())
+  // 7. Entry point (called from navigate() dispatch, like renderX())
   // ================================================================
 
   function renderLegalDirectories() {
-    loadDataset().then(renderCurrentLevel);
-    // Render immediately too (covers the already-loaded/cached case
-    // synchronously, and shows an empty grid instead of a blank page
-    // while the first fetch is in flight).
+    loadDataset().then(function () { renderCurrentLevel(); });
     renderCurrentLevel();
   }
 
   // ================================================================
-  // 6. Exports (global function name matches navigate()'s dispatch
-  //    convention: renderLegalDirectories(), exactly like renderLibrary())
+  // 8. Exports
   // ================================================================
 
   global.renderLegalDirectories = renderLegalDirectories;
 
   var api = {
     renderLegalDirectories: renderLegalDirectories,
-    _resetForTests: function () { _dataset = null; _loadPromise = null; _loadError = null; _stack = []; }
+    _resetForTests: function () {
+      _dataset = null; _loadPromise = null; _loadError = null; _stack = []; _adminMode = false;
+      if (global.LegalDirectoriesAdmin) global.LegalDirectoriesAdmin.discardDraft();
+    },
+    _isAdminModeForTests: function () { return _adminMode; },
+    _toggleAdminModeForTests: toggleAdminMode
   };
 
   if (typeof module !== 'undefined' && module.exports) {
