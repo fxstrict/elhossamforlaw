@@ -1,0 +1,123 @@
+/* ================================================================
+ * dashboard-legal-directories-nav.css — نظام الحسام للمحاماة
+ * ================================================================
+ * PHASE — Legal Directories: Dashboard Shortcut Navigator
+ *
+ * Additive-only stylesheet for the Dashboard shortcut widget
+ * (js/modules/dashboard-legal-directories-nav.js). Reuses the exact
+ * same design tokens as css/legal-directories.css (--gold, --radius,
+ * --transition, --muted, --danger, ...) plus the existing
+ * `.legal-dir-card` / `.legal-dir-card-icon` / `.legal-dir-card-title`
+ * components from css/legal-directories.css itself — every tile in
+ * the strip below (including the back tile) IS a `.legal-dir-card`,
+ * so it automatically matches the full page's folder/link cards
+ * (white background, gold top accent, rounded corners, RTL). Only
+ * the tile's *size* and its *container* (a horizontal scroll strip
+ * instead of a grid) are scoped and overridden here, via selectors
+ * scoped under `.dash-legaldir-strip` so nothing on the full Legal
+ * Directories page (#page-legalDirectories) is affected. Does NOT
+ * modify css/legal-directories.css, css/components.css,
+ * css/dashboard-smart.css, or any other existing stylesheet — purely
+ * additive and removable without affecting any other page/widget.
+ * ================================================================ */
+
+.dash-legaldir-nav {
+  margin-bottom: 18px;
+}
+
+.dash-legaldir-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: #FFFFFF;
+  border: 1px solid rgba(201, 168, 76, 0.18);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  cursor: pointer;
+  transition: all var(--transition);
+  margin-bottom: 10px;
+}
+
+.dash-legaldir-header:hover,
+.dash-legaldir-header:focus-visible {
+  border-color: rgba(201, 168, 76, 0.4);
+  outline: none;
+}
+
+.dash-legaldir-header-title {
+  font-size: 14px;
+  font-weight: 800;
+  color: #16283F;
+}
+
+.dash-legaldir-header-icon {
+  font-size: 17px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+/* ---- Horizontal, dynamic, drag-scrollable strip ---- */
+
+.dash-legaldir-strip {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  gap: 8px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 2px 2px 8px;
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+  scrollbar-width: none; /* keep the drag-to-scroll interaction, hide the scrollbar itself */
+}
+
+.dash-legaldir-strip::-webkit-scrollbar {
+  display: none;
+}
+
+/* Every tile IS a `.legal-dir-card` (rendered by the existing
+   DirectoryRenderer.renderNode(), or the back tile just below) —
+   this only makes it a fixed-width, non-shrinking horizontal item
+   instead of a grid cell, and slightly denser to stay compact on a
+   phone-width strip. */
+.dash-legaldir-strip > .legal-dir-card {
+  flex: 0 0 auto;
+  width: 76px;
+  padding: 9px 3px 7px;
+  min-height: 64px;
+}
+
+.dash-legaldir-strip > .legal-dir-card .legal-dir-card-icon {
+  font-size: 22px;
+}
+
+.dash-legaldir-strip > .legal-dir-card .legal-dir-card-title {
+  font-size: 10px;
+}
+
+.dash-legaldir-back {
+  background: rgba(201, 168, 76, 0.06);
+}
+
+.dash-legaldir-back .legal-dir-card-icon {
+  color: var(--gold-dk);
+}
+
+.dash-legaldir-empty,
+.dash-legaldir-error {
+  padding: 8px 4px 0;
+  text-align: center;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.dash-legaldir-error {
+  color: var(--danger);
+}
+
+@media (max-width: 480px) {
+  .dash-legaldir-strip > .legal-dir-card {
+    width: 70px;
+  }
+}
