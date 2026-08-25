@@ -15,26 +15,30 @@
  *   an in-memory "draft" clone and never touches the loaded/live
  *   dataset in js/modules/legal-directories.js directly.
  *
- * SCOPE DECISION — GitHub-backed publishing (flagged, not built here)
- *   The original roadmap groups "Admin Panel" and "GitHub-backed
- *   publishing workflow" together. This phase intentionally builds
- *   ONLY the editing/validation/export side. Committing the edited
- *   dataset back to the repository (GitHub API + Actions) is NOT
- *   implemented, because doing it safely requires a decision only
- *   you can make: a GitHub Personal Access Token must never be
- *   embedded in client-side code shipped to every user's browser
- *   (this app has no server component to hold a secret) — see
- *   js/utils/DirectoryAdminExport.js is not what stores anything;
- *   this file only produces exportDraftJSON() text, which today the
- *   UI offers as a file download. Publishing that file is a manual
- *   "download -> commit" step until you choose one of:
- *     (a) a small trusted backend/serverless endpoint that holds the
- *         token and accepts the edited JSON, or
- *     (b) a manual PR/commit step by a human with repo access, or
- *     (c) GitHub's device-flow OAuth (still needs *something*
- *         server-side to keep the resulting token off client code).
- *   This mirrors Stage-1 rule §23's "stop and inform" convention —
- *   recorded here rather than guessed.
+ * SCOPE DECISION — GitHub-backed publishing (CONFIRMED, Stage 4)
+ *   Approved publishing flow: Admin Panel -> in-memory Draft ->
+ *   Validation -> DirectoryPublisher.createExportArtifact() -> browser
+ *   download -> YOU manually commit the downloaded file to GitHub in
+ *   its place. Explicitly NOT built in this phase, by decision, not
+ *   oversight: GitHub API calls, a Personal Access Token embedded in
+ *   client code, OAuth, a GitHub App, GitHub Actions, or any new
+ *   backend/serverless endpoint. None of that is safe to add without
+ *   a server component to hold a secret, which this app doesn't have.
+ *   The publishing layer (js/utils/DirectoryPublisher.js) is
+ *   deliberately decoupled from "how the artifact leaves the browser"
+ *   so a future GitHub-backed delivery mechanism only replaces the
+ *   download button's click handler in js/modules/legal-directories.js
+ *   — it never touches this file, DirectoryPublisher, DirectoryModel,
+ *   DirectoryValidation, or DirectoryRenderer.
+ *
+ * EXPORT (Stage 4)
+ *   exportArtifact() delegates canonicalization/versioning entirely to
+ *   js/utils/DirectoryPublisher.js (deterministic key order, items/
+ *   children sorted by `order`, dataset-level version/updatedAt
+ *   stamped only here at export time — never on a normal page load).
+ *   exportDraftJSON() is kept as a thin convenience wrapper returning
+ *   just the artifact's `content` string, for callers that don't need
+ *   the filename.
  *
  * PERMISSIONS
  *   Gating (who may see/use admin controls) lives in the UI layer
@@ -56,6 +60,9 @@
   var DirectoryModelNS = (typeof module !== 'undefined' && module.exports)
     ? require('./../utils/DirectoryModel.js')
     : global.DirectoryModel;
+  var DirectoryPublisherNS = (typeof module !== 'undefined' && module.exports)
+    ? require('./../utils/DirectoryPublisher.js')
+    : global.DirectoryPublisher;
 
   var NODE_TYPES = DirectoryModelNS.NODE_TYPES;
 
@@ -303,8 +310,24 @@
     return DirectoryValidationNS.validateDataset(_draft);
   }
 
+  /**
+   * Produces the full export/publish artifact via DirectoryPublisher
+   * (canonical key order, items/children sorted by order, dataset-level
+   * version/updatedAt stamped now). Throws if the draft is invalid —
+   * the UI is expected to check validateDraft() first to disable the
+   * download control, but this is enforced here too (defense in depth,
+   * so this function is never silently wrong when called directly, e.g.
+   * from a test or a future non-UI caller).
+   * @returns {{filename:string, content:string, dataset:Object}}
+   */
+  function exportArtifact() {
+    var baseVersion = (_original && typeof _original.version === 'number') ? _original.version : 0;
+    return DirectoryPublisherNS.createExportArtifact(_draft, { baseVersion: baseVersion });
+  }
+
+  /** Convenience wrapper for callers that only need the JSON text. */
   function exportDraftJSON() {
-    return JSON.stringify(_draft, null, 2);
+    return exportArtifact().content;
   }
 
   // ================================================================
@@ -328,6 +351,7 @@
     removeNode: removeNode,
     moveNodeOrder: moveNodeOrder,
     validateDraft: validateDraft,
+    exportArtifact: exportArtifact,
     exportDraftJSON: exportDraftJSON,
     findDirectory: findDirectory,
     findNode: findNode

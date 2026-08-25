@@ -22,7 +22,8 @@
  *     - add/edit/toggle-enabled/remove/reorder Nodes (folder/link),
  *       at any nesting depth
  *     - see live validation status (js/utils/DirectoryValidation.js)
- *     - download the edited dataset as JSON
+ *     - download the edited dataset as JSON (via js/utils/
+ *       DirectoryPublisher.js — canonical order, sorted, versioned)
  *   PERMISSION: reuses the EXISTING RBAC system exactly as-is —
  *   window.HossamSession.getCurrentUser() + window.HossamPermissionService
  *   .can(user, 'CanManageRawData') (an existing permission key from
@@ -31,12 +32,21 @@
  *   (admin controls visible) when RBAC isn't wired up or no session
  *   is active yet, matching js/core/rbac/SessionContext.js's own
  *   documented fail-open convention (login screen is "Deferred").
+ *   NOTE — this permission gates the in-app admin UI ONLY. It is not
+ *   a real security boundary: the static JSON lives in a public repo
+ *   that anyone with repo access (or just the raw file URL) can read
+ *   or edit outside this app. No backend authorization is needed
+ *   right now because publishing is a manual, human-in-the-loop
+ *   step (see below) — there is nothing this permission is meant to
+ *   stop a technical user from doing to the file itself.
  *
- *   PUBLISHING (deliberately NOT built here): see the header of
- *   js/modules/legal-directories-admin.js for why committing the
- *   edited JSON back to the repository (GitHub API/Actions) needs a
- *   decision from you before it's safe to build, and what "download
- *   the JSON, then commit it" looks like today as the interim step.
+ *   PUBLISHING (CONFIRMED, Stage 4 — approach (b)): Admin Panel ->
+ *   Draft -> Validation -> DirectoryPublisher.createExportArtifact()
+ *   -> browser download -> YOU manually commit the file to GitHub.
+ *   See js/modules/legal-directories-admin.js's header for exactly
+ *   why GitHub API/PAT/OAuth/Actions/a new backend are NOT built
+ *   here, and how a future "Publish to GitHub" button would only
+ *   replace this file's download-button handler.
  *
  * WIRING (index.html)
  *   Requires these ids on #page-legalDirectories:
@@ -328,13 +338,19 @@
     downloadBtn.textContent = 'تنزيل التعديلات (JSON)';
     downloadBtn.disabled = !result.valid;
     downloadBtn.addEventListener('click', function () {
-      var json = Admin.exportDraftJSON();
+      var artifact;
+      try {
+        artifact = Admin.exportArtifact(); // {filename, content, dataset} — see DirectoryPublisher.js
+      } catch (e) {
+        console.error('[legal-directories admin] export blocked:', e);
+        return;
+      }
       if (typeof global.Blob === 'function' && global.document.createElement('a').download !== undefined) {
-        var blob = new global.Blob([json], { type: 'application/json' });
+        var blob = new global.Blob([artifact.content], { type: 'application/json' });
         var url = global.URL.createObjectURL(blob);
         var a = doc.createElement('a');
         a.href = url;
-        a.download = 'legal-directories.json';
+        a.download = artifact.filename;
         a.click();
         global.URL.revokeObjectURL(url);
       }
