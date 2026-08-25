@@ -179,7 +179,7 @@
       dom.breadcrumb.appendChild(btn);
     }
 
-    addCrumb('الأدلة القانونية', function () { goToRoot(); }, _stack.length === 0);
+    addCrumb('الأجندة والمواقع الرسمية', function () { goToRoot(); }, _stack.length === 0);
 
     _stack.forEach(function (entry, index) {
       var isLast = index === _stack.length - 1;
@@ -391,7 +391,7 @@
       dom.grid.innerHTML = '';
       dom.empty.style.display = 'none';
       dom.error.style.display = '';
-      dom.error.textContent = 'تعذر تحميل الأدلة القانونية. تحقق من الاتصال ثم أعد المحاولة.';
+      dom.error.textContent = 'تعذر تحميل الأجندة والمواقع الرسمية. تحقق من الاتصال ثم أعد المحاولة.';
       renderBreadcrumb(dom);
       return;
     }
