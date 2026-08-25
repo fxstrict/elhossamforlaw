@@ -53,6 +53,13 @@
  *     #legalDirBreadcrumb, #legalDirGrid, #legalDirEmpty, #legalDirError,
  *     #legalDirAdminBar (Stage 3)
  *   Entry point unchanged: renderLegalDirectories().
+ *
+ * BUG FIX — Back button (user-reported): drilling into a directory/
+ *   folder now pushes a browser history entry per level and listens
+ *   for popstate, so the Android/browser Back button goes up ONE tree
+ *   level at a time (matching breadcrumb navigation) instead of
+ *   exiting straight to the dashboard. See section 6 below for the
+ *   full explanation and its one documented limitation (Forward).
  * ================================================================
  */
 (function (global) {
@@ -448,27 +455,106 @@
   // 6. Navigation actions — carry `directory` on every stack entry
   //    so admin actions always know which Directory a Node belongs
   //    to without branching on any id/title (Stage-1 §19).
+  //
+  //    BUG FIX (reported by user): the Android/browser Back button
+  //    used to exit straight to the dashboard instead of going up one
+  //    level in the tree, because drilling into a directory/folder
+  //    never created a browser history entry — only the top-level
+  //    navigate() call (via js/core/shell/NavigationManager.js) did.
+  //    Fix: every drill-down pushes ONE history entry
+  //    ({page:'legalDirectories', legalDirDepth:N}, same '#legalDirectories'
+  //    URL — see js/core/shell/NavigationManager.js's own "why hash-based"
+  //    rationale, which applies identically here). Going shallower
+  //    (breadcrumb/root click OR the real Back button) is driven
+  //    through history.go(-steps) + the popstate listener below, so
+  //    in-app breadcrumb clicks and the OS/browser Back button always
+  //    manipulate the exact same history stack and can never diverge.
+  //
+  //    KNOWN LIMITATION: pressing Forward after pressing Back multiple
+  //    levels deep cannot fully restore state deeper than what is
+  //    still held in `_stack` (the actual Directory/Node object
+  //    references for popped levels aren't cached for "redo"). This
+  //    is a deliberate, minimal scope: the reported bug was about
+  //    Back, and mobile users overwhelmingly do not use browser
+  //    Forward. See _onLegalDirPopState()'s clamp for the safe
+  //    fallback in that rare case (renders at the deepest level we
+  //    can actually reconstruct, instead of crashing).
   // ================================================================
+
+  function pushHistoryForDepth(depth) {
+    try {
+      if (global.history && typeof global.history.pushState === 'function') {
+        global.history.pushState({ page: 'legalDirectories', legalDirDepth: depth }, '', '#legalDirectories');
+      }
+    } catch (e) { /* defensive — never break navigation */ }
+  }
+
+  /** @returns {boolean} true if a real back-navigation was requested (caller should NOT also render synchronously — the popstate listener will). */
+  function goBackSteps(steps) {
+    try {
+      if (steps > 0 && global.history && typeof global.history.go === 'function') {
+        global.history.go(-steps);
+        return true;
+      }
+    } catch (e) { /* fall through to synchronous fallback */ }
+    return false;
+  }
 
   function pushDirectory(directory) {
     _stack.push({ kind: 'directory', directory: directory });
+    pushHistoryForDepth(_stack.length);
     renderCurrentLevel();
   }
 
   function pushFolder(node) {
     var ancestorDirectory = _stack.length > 0 ? _stack[_stack.length - 1].directory : null;
     _stack.push({ kind: 'folder', node: node, directory: ancestorDirectory });
+    pushHistoryForDepth(_stack.length);
     renderCurrentLevel();
   }
 
   function goToRoot() {
+    if (goBackSteps(_stack.length)) return; // popstate listener will truncate + render
     _stack = [];
     renderCurrentLevel();
   }
 
   function goToDepth(index) {
-    _stack = _stack.slice(0, index + 1);
+    var targetDepth = index + 1;
+    if (goBackSteps(_stack.length - targetDepth)) return; // popstate listener will truncate + render
+    _stack = _stack.slice(0, targetDepth);
     renderCurrentLevel();
+  }
+
+  /**
+   * Handles Back/Forward for this page's internal tree depth. Only
+   * acts when the landed-on history state still belongs to this page
+   * (page === 'legalDirectories') — anything else (the user backed
+   * out of the page entirely) is left untouched for
+   * js/core/shell/NavigationManager.js's own popstate handler to
+   * process via navigate(), exactly as it already does for every
+   * other page.
+   */
+  function onLegalDirPopState(event) {
+    try {
+      var state = event && event.state;
+      if (state && state.page === 'legalDirectories') {
+        var depth = (typeof state.legalDirDepth === 'number') ? state.legalDirDepth : 0;
+        // Clamp: see KNOWN LIMITATION above — we cannot regrow past
+        // what _stack currently holds (Forward beyond a Back further
+        // than we cached), so render as deep as we actually can.
+        _stack = _stack.slice(0, Math.min(depth, _stack.length));
+        renderCurrentLevel();
+      } else {
+        // Left the page entirely (back past its root entry) — reset
+        // so a future fresh visit starts at the root, not mid-tree.
+        _stack = [];
+      }
+    } catch (e) { /* never break navigation */ }
+  }
+
+  if (global.window && typeof global.window.addEventListener === 'function') {
+    global.window.addEventListener('popstate', onLegalDirPopState);
   }
 
   // ================================================================
@@ -493,7 +579,9 @@
       if (global.LegalDirectoriesAdmin) global.LegalDirectoriesAdmin.discardDraft();
     },
     _isAdminModeForTests: function () { return _adminMode; },
-    _toggleAdminModeForTests: toggleAdminMode
+    _toggleAdminModeForTests: toggleAdminMode,
+    _simulatePopStateForTests: onLegalDirPopState,
+    _stackDepthForTests: function () { return _stack.length; }
   };
 
   if (typeof module !== 'undefined' && module.exports) {
