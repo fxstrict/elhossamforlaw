@@ -328,6 +328,14 @@ function renderDashboard(){
   renderAlertsCenterWidget();
   renderKpiWidget();
   renderChartsWidget();
+  // PHASE — Legal Directories: Dashboard Shortcut Navigator (additive).
+  // Defined in js/modules/dashboard-legal-directories-nav.js, which
+  // loads later in index.html's <script> order — guarded here exactly
+  // like the other optional-module calls already in this codebase
+  // (e.g. OfficeProfilePanel/refreshDeveloperDiagnosticsToggle in
+  // index.html's own navigate() dispatch) so a missing/not-yet-loaded
+  // copy of that file never breaks the rest of the dashboard.
+  if(typeof renderDashboardLegalDirNav==='function')renderDashboardLegalDirNav();
 }
 
 function updateBadges(){

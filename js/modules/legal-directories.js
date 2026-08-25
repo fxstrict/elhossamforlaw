@@ -574,6 +574,20 @@
 
   var api = {
     renderLegalDirectories: renderLegalDirectories,
+    // ----------------------------------------------------------------
+    // PHASE — Legal Directories: Dashboard Shortcut Navigator.
+    // Read-only accessors so a second, independent UI surface (the
+    // Dashboard shortcut widget in js/modules/dashboard-legal-
+    // directories-nav.js) can reuse this SAME dataset singleton
+    // (_dataset / loadDataset()'s single in-flight _loadPromise)
+    // instead of fetching js/data/directories/legal-directories.json
+    // a second time. No existing behavior above this point is
+    // changed — these three functions only read state that already
+    // exists in this closure.
+    // ----------------------------------------------------------------
+    ensureDatasetLoaded: function () { return loadDataset(); },
+    getDataset: function () { return _dataset; },
+    getLoadError: function () { return _loadError; },
     _resetForTests: function () {
       _dataset = null; _loadPromise = null; _loadError = null; _stack = []; _adminMode = false;
       if (global.LegalDirectoriesAdmin) global.LegalDirectoriesAdmin.discardDraft();
