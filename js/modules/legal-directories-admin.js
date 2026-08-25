@@ -31,11 +31,16 @@
  *   — it never touches this file, DirectoryPublisher, DirectoryModel,
  *   DirectoryValidation, or DirectoryRenderer.
  *
- * EXPORT (Stage 4)
+ * EXPORT (Stage 4, bump behavior fixed in Final Audit §2)
  *   exportArtifact() delegates canonicalization/versioning entirely to
  *   js/utils/DirectoryPublisher.js (deterministic key order, items/
  *   children sorted by `order`, dataset-level version/updatedAt
  *   stamped only here at export time — never on a normal page load).
+ *   It passes `bump: isDirty()`: version/updatedAt only advance when
+ *   the draft actually differs from what was loaded — exporting an
+ *   unmodified draft reproduces the exact same stamp every time (a
+ *   real no-op for GitHub diff purposes), instead of bumping on every
+ *   click regardless of whether anything changed.
  *   exportDraftJSON() is kept as a thin convenience wrapper returning
  *   just the artifact's `content` string, for callers that don't need
  *   the filename.
@@ -322,7 +327,7 @@
    */
   function exportArtifact() {
     var baseVersion = (_original && typeof _original.version === 'number') ? _original.version : 0;
-    return DirectoryPublisherNS.createExportArtifact(_draft, { baseVersion: baseVersion });
+    return DirectoryPublisherNS.createExportArtifact(_draft, { baseVersion: baseVersion, bump: isDirty() });
   }
 
   /** Convenience wrapper for callers that only need the JSON text. */
