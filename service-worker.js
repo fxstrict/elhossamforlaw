@@ -238,7 +238,24 @@
 // networkFirstShell() (always fresh), and its only change was to a
 // small inline <script> block (bootLoadFromSheets() call sites), not a
 // cached file reference.
-var SW_VERSION = 'v62'; // ADMINISTRATIVE WORKS TRANSFORM — "المهام" -> "الأعمال الإدارية".
+var SW_VERSION = 'v63'; // LEGAL DIRECTORIES — read-only offline support (Stage 4).
+                         // Added 6 PRECACHE_URLS entries so a normal user can open
+                         // "الأدلة القانونية" offline once this version is installed:
+                         // css/legal-directories.css, js/utils/DirectoryModel.js,
+                         // js/utils/DirectoryValidation.js, js/utils/DirectoryRenderer.js,
+                         // js/modules/legal-directories.js, and the static dataset itself
+                         // (js/data/directories/legal-directories.json). Deliberately NOT
+                         // precached: js/utils/DirectoryPublisher.js and
+                         // js/modules/legal-directories-admin.js — Admin Panel is
+                         // intentionally NOT part of the offline experience for normal
+                         // users (still loads fine online; legal-directories.js already
+                         // guards every use of window.LegalDirectoriesAdmin with an
+                         // existence check, so its absence offline degrades safely to
+                         // read-only browsing, not a crash). Bumping SW_VERSION (rather
+                         // than editing PRECACHE_URLS alone) forces a fresh SHELL_CACHE so
+                         // existing installs actually fetch+cache these new files instead
+                         // of silently missing them until some unrelated future bump.
+// (v60 note, kept for history) ADMINISTRATIVE WORKS TRANSFORM — "المهام" -> "الأعمال الإدارية".
                          // RANK 1 FIX (Android Fixed-Surface Reduction) —
                          // css/components.css?v=53 is listed in PRECACHE_URLS below and
                          // served cacheFirstIn(SHELL_CACHE), which is keyed by SW_VERSION
@@ -389,6 +406,7 @@ var PRECACHE_URLS = [
   'css/license.css?v=42',
   'css/auth.css?v=42',
   'css/voice-input.css?v=42',
+  'css/legal-directories.css?v=1',
   'assets/favicon/favicon.ico',
   'assets/favicon/favicon-16.png',
   'assets/favicon/favicon-32.png',
@@ -481,6 +499,11 @@ var PRECACHE_URLS = [
   'js/modules/fees.js?v=42',
   'js/modules/library.js?v=42',
   'js/modules/templates.js?v=42',
+  'js/utils/DirectoryModel.js?v=1',
+  'js/utils/DirectoryValidation.js?v=1',
+  'js/utils/DirectoryRenderer.js?v=1',
+  'js/modules/legal-directories.js?v=1',
+  'js/data/directories/legal-directories.json',
   'js/modules/historypanel-ui.js?v=42',
   'js/core/RepositoryReadyCoordinator.js?v=42',
   'js/core/boot/BootManager.js?v=42',

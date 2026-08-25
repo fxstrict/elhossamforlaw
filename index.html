@@ -2699,13 +2699,18 @@ window.addEventListener('DOMContentLoaded',function(){
 <script src="js/modules/fees.js?v=42"></script>
 <script src="js/modules/library.js?v=42"></script>
 <script src="js/modules/templates.js?v=42"></script>
-<!-- PHASE — Legal Directories: Data Model (Stage 1) + Generic UI (Stage 2).
-     Load order: model -> validation -> renderer -> page module (each
-     depends only on the ones before it; none depend on any Repository,
-     IndexedDB, or Google Sheets script). -->
+<!-- PHASE — Legal Directories: Data Model (Stage 1) + Generic UI (Stage 2)
+     + Admin Panel (Stage 3) + Architecture hardening / Publisher (Stage 4).
+     Load order: model -> validation -> renderer -> publisher -> admin
+     module -> page module (each depends only on the ones before it;
+     none depend on any Repository, IndexedDB, or Google Sheets script).
+     legal-directories-admin.js and DirectoryPublisher.js are Admin-only
+     and deliberately NOT in service-worker.js's PRECACHE_URLS — see
+     that file's comment near the "Legal Directories" precache entries. -->
 <script src="js/utils/DirectoryModel.js?v=1"></script>
 <script src="js/utils/DirectoryValidation.js?v=1"></script>
 <script src="js/utils/DirectoryRenderer.js?v=1"></script>
+<script src="js/utils/DirectoryPublisher.js?v=1"></script>
 <script src="js/modules/legal-directories-admin.js?v=1"></script>
 <script src="js/modules/legal-directories.js?v=1"></script>
 <script src="js/modules/historypanel-ui.js?v=42"></script>
