@@ -40,16 +40,32 @@
  *     keys below, not by a separate "sanitize" pass).
  *   - Never mutates the dataset object passed in.
  *
- * VERSIONING (Stage-4 §5)
+ * VERSIONING (Stage-4 §5, revised in Final Audit §2 — BUG FIX)
  *   Dataset-level `version` (positive integer) and `updatedAt` (ISO
  *   date string) are stamped ONLY here, i.e. only when an export/
  *   publish actually happens — never by the read-only load path
- *   (js/modules/legal-directories.js never calls this file). `version`
- *   = the dataset's own current `version` (or 0 if absent) + 1, so
- *   re-running an export within the same admin session against the
- *   same starting point always proposes the same next version number
- *   (deterministic), while `updatedAt` reflects the moment of that
- *   particular export.
+ *   (js/modules/legal-directories.js never calls this file).
+ *
+ *   FIX: the original Stage-4 implementation bumped `version` and
+ *   re-stamped `updatedAt` to "now" on EVERY export call, even a
+ *   no-op re-export of an unchanged draft — meaning clicking
+ *   "download" twice in a row with no edits produced two different
+ *   files, which would show as a spurious change in a GitHub diff.
+ *   That is not acceptable (an exported artifact must be a pure
+ *   function of actual content, not of when/how many times someone
+ *   clicked export). Fixed via `options.bump`:
+ *     - bump !== false (default): a REAL content change happened —
+ *       version = baseVersion (explicit, or dataset.version, or 0) + 1;
+ *       updatedAt = options.now || new Date().toISOString().
+ *     - bump === false: NO content actually changed — version and
+ *       updatedAt are carried over unchanged from the dataset being
+ *       exported (falling back to baseVersion/now only if the dataset
+ *       has neither yet, e.g. exporting a hand-authored file that
+ *       never had a version stamped before).
+ *   The caller (js/modules/legal-directories-admin.js's exportArtifact())
+ *   decides which case applies using its own isDirty() check — this
+ *   file stays a pure function of its explicit inputs and does not
+ *   track any draft/session state itself.
  *   Per-Directory `version`/`updatedAt` (documented as optional,
  *   future-admin-panel-use fields in DirectoryModel.js) are left
  *   exactly as-is if a Directory happens to have them — this file
@@ -164,10 +180,22 @@
     var baseVersion = (typeof options.baseVersion === 'number')
       ? options.baseVersion
       : (typeof dataset.version === 'number' ? dataset.version : 0);
-    var stamp = {
-      version: baseVersion + 1,
-      updatedAt: options.now || new Date().toISOString()
-    };
+
+    var stamp;
+    if (options.bump === false) {
+      // No real content change — carry the existing stamp over
+      // unchanged (fixes: re-exporting an unmodified draft must not
+      // produce a different file every time it's clicked).
+      stamp = {
+        version: (typeof dataset.version === 'number') ? dataset.version : (baseVersion || 1),
+        updatedAt: dataset.updatedAt || options.now || new Date().toISOString()
+      };
+    } else {
+      stamp = {
+        version: baseVersion + 1,
+        updatedAt: options.now || new Date().toISOString()
+      };
+    }
 
     var canonical = canonicalizeDataset(dataset, stamp);
     var content = JSON.stringify(canonical, null, 2) + '\n';
