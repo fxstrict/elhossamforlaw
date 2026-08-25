@@ -276,6 +276,11 @@
      modify any existing CSS file — see css/legal-directories.css
      header for details. -->
 <link href="css/legal-directories.css?v=1" rel="stylesheet">
+<!-- PHASE — Legal Directories: Dashboard Shortcut Navigator. Additive-only
+     stylesheet, scoped under .dash-legaldir-* selectors; reuses
+     css/legal-directories.css's .legal-dir-card component as-is — see
+     css/dashboard-legal-directories-nav.css header for details. -->
+<link href="css/dashboard-legal-directories-nav.css?v=1" rel="stylesheet">
 <!-- ================================================================
      PHASE 17.1 — LOADER OPTIMIZATION (preload + priority hints, additive only)
      WHY THIS BLOCK EXISTS
@@ -668,6 +673,22 @@ style="color:var(--muted);font-size:12px;margin-top:4px;"> جارٍ تحميل
   <div class="quick-search">
     <input type="text" id="dashQuickSearchInput" placeholder="بحث شامل: قضايا، موكلين، خصوم، مستندات، مهام، جلسات..." oninput="performDashboardQuickSearch(this.value)" onfocus="if(this.value)performDashboardQuickSearch(this.value)" onblur="setTimeout(function(){var r=document.getElementById('dashQuickSearchResults');if(r)r.classList.remove('open');},150)">
     <div class="quick-search-results" id="dashQuickSearchResults"></div>
+  </div>
+  <!-- PHASE — Legal Directories: Dashboard Shortcut Navigator. New,
+       additive widget only — js/modules/dashboard-legal-directories-
+       nav.js is the only thing that writes into it. No existing
+       element on this page was moved, edited, or removed. Reuses the
+       same dataset singleton and DirectoryRenderer cards as
+       #page-legalDirectories (see that module's header comment for
+       why this is not a second data source). -->
+  <div class="dash-legaldir-nav" id="dashLegalDirNav">
+    <div class="dash-legaldir-header" id="dashLegalDirHeader" role="link" tabindex="0" onclick="navigate('legalDirectories')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();navigate('legalDirectories');}">
+      <span class="dash-legaldir-header-title">الأجندة والمواقع الرسمية</span>
+      <span class="dash-legaldir-header-icon" aria-hidden="true">&#127968;</span>
+    </div>
+    <div class="dash-legaldir-strip" id="dashLegalDirStrip"></div>
+    <div class="dash-legaldir-empty" id="dashLegalDirEmpty" style="display:none;">لا توجد عناصر بعد.</div>
+    <div class="dash-legaldir-error" id="dashLegalDirError" style="display:none;">تعذر تحميل الأجندة والمواقع الرسمية.</div>
   </div>
   <div id="dashAlerts"></div>
   <!-- PHASE UX-01: shown instead of the (all-zero) stats/dashboard grids
@@ -2713,6 +2734,16 @@ window.addEventListener('DOMContentLoaded',function(){
 <script src="js/utils/DirectoryPublisher.js?v=1"></script>
 <script src="js/modules/legal-directories-admin.js?v=1"></script>
 <script src="js/modules/legal-directories.js?v=1"></script>
+<!-- PHASE — Legal Directories: Dashboard Shortcut Navigator. Depends on
+     DirectoryModel.js, DirectoryRenderer.js, and legal-directories.js's
+     ensureDatasetLoaded()/getDataset()/getLoadError() accessors above —
+     must load after all three, same "load order = dependency order"
+     convention as the block above. Called from js/modules/dashboard.js's
+     renderDashboard() (guarded with a typeof check there), so, exactly
+     like dashboard.js's own documented load-order note, it is safe for
+     this file to load AFTER dashboard.js's <script> tag earlier in this
+     document — the actual function call only happens at runtime. -->
+<script src="js/modules/dashboard-legal-directories-nav.js?v=1"></script>
 <script src="js/modules/historypanel-ui.js?v=42"></script>
 <!-- PHASE 13.3D — PART 2A: RepositoryReadyCoordinator.js is deliberately
      the LAST <script> tag on the page, not grouped with the other

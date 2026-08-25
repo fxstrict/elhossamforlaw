@@ -238,7 +238,15 @@
 // networkFirstShell() (always fresh), and its only change was to a
 // small inline <script> block (bootLoadFromSheets() call sites), not a
 // cached file reference.
-var SW_VERSION = 'v71'; // LEGAL DIRECTORIES — Back-button tree-navigation fix.
+var SW_VERSION = 'v72'; // LEGAL DIRECTORIES — Dashboard Shortcut Navigator.
+                         // Two new precached files (css/dashboard-legal-
+                         // directories-nav.css?v=1, js/modules/dashboard-
+                         // legal-directories-nav.js?v=1) added to
+                         // PRECACHE_URLS below — bumped so already-
+                         // installed clients pick them up, same
+                         // "Cache Versioning" rule as every previous bump
+                         // in this file.
+// (v68 note, kept for history) LEGAL DIRECTORIES — Back-button tree-navigation fix.
                          // js/modules/legal-directories.js?v=1 is listed in
                          // PRECACHE_URLS and served cacheFirstIn(SHELL_CACHE), keyed
                          // by SW_VERSION — same "Cache Versioning" rule as every
@@ -436,6 +444,7 @@ var PRECACHE_URLS = [
   'css/auth.css?v=42',
   'css/voice-input.css?v=42',
   'css/legal-directories.css?v=1',
+  'css/dashboard-legal-directories-nav.css?v=1',
   'assets/favicon/favicon.ico',
   'assets/favicon/favicon-16.png',
   'assets/favicon/favicon-32.png',
@@ -532,6 +541,7 @@ var PRECACHE_URLS = [
   'js/utils/DirectoryValidation.js?v=1',
   'js/utils/DirectoryRenderer.js?v=1',
   'js/modules/legal-directories.js?v=1',
+  'js/modules/dashboard-legal-directories-nav.js?v=1',
   'js/data/directories/legal-directories.json',
   'js/modules/historypanel-ui.js?v=42',
   'js/core/RepositoryReadyCoordinator.js?v=42',
