@@ -238,7 +238,19 @@
 // networkFirstShell() (always fresh), and its only change was to a
 // small inline <script> block (bootLoadFromSheets() call sites), not a
 // cached file reference.
-var SW_VERSION = 'v64'; // LEGAL DIRECTORIES — compact 4-per-row card layout.
+var SW_VERSION = 'v66'; // LEGAL DIRECTORIES — Back-button tree-navigation fix.
+                         // js/modules/legal-directories.js?v=1 is listed in
+                         // PRECACHE_URLS and served cacheFirstIn(SHELL_CACHE), keyed
+                         // by SW_VERSION — same "Cache Versioning" rule as every
+                         // previous bump in this file. Only that file's JS changed
+                         // (drilling into a directory/folder now pushes a history
+                         // entry per level + a popstate listener, so Back goes up
+                         // one tree level instead of exiting straight to the
+                         // dashboard) — no HTML changed, no PRECACHE_URLS entry
+                         // added/removed/renamed, its own ?v= query kept at 1 (same
+                         // established convention of bumping SW_VERSION rather than
+                         // the file's own query string for same-path content edits).
+// (v62 note, kept for history) LEGAL DIRECTORIES — compact 4-per-row card layout.
                          // css/legal-directories.css?v=1 is listed in PRECACHE_URLS
                          // and served cacheFirstIn(SHELL_CACHE), keyed by SW_VERSION,
                          // so an already-installed client would keep serving its OLD
