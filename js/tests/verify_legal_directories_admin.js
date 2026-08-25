@@ -11,7 +11,7 @@ const path = require('path');
 const fs = require('fs');
 
 require(path.join(__dirname, '..', 'utils', 'DirectoryModel.js'));
-require(path.join(__dirname, '..', 'utils', 'DirectoryValidation.js'));
+const DirectoryValidation = require(path.join(__dirname, '..', 'utils', 'DirectoryValidation.js'));
 const Admin = require(path.join(__dirname, '..', 'modules', 'legal-directories-admin.js'));
 
 let passed = 0;
@@ -202,12 +202,24 @@ check('a freshly-added, correctly-filled node keeps the draft valid', () => {
   assert.strictEqual(result.valid, true);
 });
 
-check('exportDraftJSON() produces valid, re-parseable JSON identical in content to the draft', () => {
+check('exportDraftJSON() produces valid JSON containing every id from the draft, with a stamped version/updatedAt', () => {
+  // CHANGED (Stage 4): export no longer mirrors the raw draft
+  // byte-for-byte — it canonicalizes through DirectoryPublisher.js
+  // (fixed key order, items sorted by `order`, dataset-level
+  // version/updatedAt stamped at export time). This test checks the
+  // export is semantically complete and correctly stamped instead of
+  // asserting exact structural equality with the raw draft.
   Admin.startDraft(baseDataset());
-  Admin.addDirectory({ title: 'دليل جديد' });
+  const newDirId = Admin.addDirectory({ title: 'دليل جديد' });
   const json = Admin.exportDraftJSON();
   const parsed = JSON.parse(json);
-  assert.deepStrictEqual(parsed, Admin.getDraft());
+  assert.strictEqual(typeof parsed.version, 'number');
+  assert.strictEqual(parsed.version, 1); // baseDataset() has no version -> 0 + 1
+  assert.strictEqual(typeof parsed.updatedAt, 'string');
+  assert.ok(!isNaN(new Date(parsed.updatedAt).getTime()));
+  const exportedIds = new Set(parsed.directories.map((d) => d.id));
+  assert.ok(exportedIds.has('dir-1'));
+  assert.ok(exportedIds.has(newDirId));
 });
 
 // ---- 5. Round-trip against the real shipped dataset ----
@@ -220,7 +232,12 @@ check('starting a draft from the real shipped legal-directories.json, editing, a
   const newNodeId = Admin.addNode(firstDir.id, null, { title: 'اختبار', type: 'link', url: 'https://example.test/roundtrip' });
   assert.strictEqual(Admin.validateDraft().valid, true);
   Admin.removeNode(newNodeId);
-  assert.strictEqual(Admin.exportDraftJSON(), JSON.stringify(Admin.getDraft(), null, 2));
+  // CHANGED (Stage 4): exportDraftJSON() now bumps version relative to
+  // the ORIGINAL loaded dataset's version (real.version), not a raw
+  // dump of the draft — see js/utils/DirectoryPublisher.js.
+  const exported = JSON.parse(Admin.exportDraftJSON());
+  assert.strictEqual(exported.version, (real.version || 0) + 1);
+  assert.strictEqual(DirectoryValidation.validateDataset(exported).valid, true);
 });
 
 // ---- Report ----

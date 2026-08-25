@@ -207,6 +207,50 @@ check('the shipped demo dataset (legal-directories.json) is valid', () => {
   }
 });
 
+// ---- 12. Dataset-level version/updatedAt (Stage 4 §5) ----
+
+check('dataset without version/updatedAt is still valid (both remain optional)', () => {
+  const result = DirectoryValidation.validateDataset(validDataset());
+  assert.strictEqual(result.valid, true);
+});
+
+check('a valid positive-integer version is accepted', () => {
+  const dataset = validDataset();
+  dataset.version = 3;
+  const result = DirectoryValidation.validateDataset(dataset);
+  assert.strictEqual(result.valid, true);
+});
+
+check('a non-integer or non-positive version is rejected', () => {
+  ['1', 1.5, 0, -1, null].forEach((bad) => {
+    const dataset = validDataset();
+    dataset.version = bad;
+    const result = DirectoryValidation.validateDataset(dataset);
+    assert.strictEqual(result.valid, false, 'expected version=' + JSON.stringify(bad) + ' to be invalid');
+  });
+});
+
+check('a valid ISO date string updatedAt is accepted', () => {
+  const dataset = validDataset();
+  dataset.updatedAt = '2026-08-24T00:00:00.000Z';
+  const result = DirectoryValidation.validateDataset(dataset);
+  assert.strictEqual(result.valid, true);
+});
+
+check('a malformed updatedAt is rejected', () => {
+  const dataset = validDataset();
+  dataset.updatedAt = 'not-a-date';
+  const result = DirectoryValidation.validateDataset(dataset);
+  assert.strictEqual(result.valid, false);
+});
+
+check('a non-string updatedAt (e.g. a number) is rejected even if Date() could coerce it', () => {
+  const dataset = validDataset();
+  dataset.updatedAt = 1700000000000;
+  const result = DirectoryValidation.validateDataset(dataset);
+  assert.strictEqual(result.valid, false);
+});
+
 // ---- Report ----
 
 console.log(log.join('\n'));
