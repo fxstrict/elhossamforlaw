@@ -1,137 +1,23 @@
 {
   "$schemaVersion": 1,
-  "version": 1,
-  "updatedAt": "2026-08-24T00:00:00.000Z",
+  "version": 2,
+  "updatedAt": "2026-08-25T19:30:00.836Z",
   "directories": [
     {
-      "id": "dir-courts-0001",
-      "slug": "courts",
-      "title": "محاكم مصر",
-      "description": "دليل تجريبي (Demo) لمحاكم مصر — بيانات إثبات مفهوم فقط.",
-      "icon": { "type": "default" },
+      "id": "dir-mt926c4o-3ivz",
+      "title": "مواقع رسمية",
+      "description": "جميع مواقع الدولة الرسمية",
       "enabled": true,
-      "order": 1,
+      "order": 0,
       "items": [
         {
-          "id": "node-state-council-0001",
-          "slug": "state-council",
-          "title": "مجلس الدولة",
-          "type": "folder",
-          "order": 1,
-          "icon": { "type": "default" },
+          "id": "node-mt9279kf-xlsg",
+          "title": "موقع مصر الرقمية",
+          "type": "link",
+          "order": 0,
+          "description": "موقع الدولة الرسمى",
           "enabled": true,
-          "children": [
-            {
-              "id": "node-state-council-cairo-0001",
-              "slug": "cairo",
-              "title": "مجلس الدولة — القاهرة (Demo)",
-              "type": "link",
-              "order": 1,
-              "icon": { "type": "default" },
-              "enabled": true,
-              "url": "https://example.test/demo/state-council/cairo",
-              "target": "_blank"
-            },
-            {
-              "id": "node-state-council-aswan-0001",
-              "slug": "aswan",
-              "title": "مجلس الدولة — أسوان (Demo)",
-              "type": "link",
-              "order": 2,
-              "icon": { "type": "default" },
-              "enabled": true,
-              "url": "https://example.test/demo/state-council/aswan",
-              "target": "_blank"
-            }
-          ]
-        },
-        {
-          "id": "node-economic-courts-0001",
-          "slug": "economic-courts",
-          "title": "المحاكم الاقتصادية",
-          "type": "folder",
-          "order": 2,
-          "icon": { "type": "default" },
-          "enabled": true,
-          "children": [
-            {
-              "id": "node-economic-courts-cairo-0001",
-              "slug": "cairo",
-              "title": "المحاكم الاقتصادية — القاهرة (Demo)",
-              "type": "link",
-              "order": 1,
-              "icon": { "type": "default" },
-              "enabled": true,
-              "url": "https://example.test/demo/economic-courts/cairo",
-              "target": "_blank"
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "id": "dir-prosecutions-0001",
-      "slug": "prosecutions",
-      "title": "النيابات",
-      "description": "دليل تجريبي (Demo) للنيابات — بيانات إثبات مفهوم فقط.",
-      "icon": { "type": "default" },
-      "enabled": true,
-      "order": 2,
-      "items": [
-        {
-          "id": "node-public-prosecution-0001",
-          "slug": "public-prosecution",
-          "title": "النيابة العامة",
-          "type": "folder",
-          "order": 1,
-          "icon": { "type": "default" },
-          "enabled": true,
-          "children": [
-            {
-              "id": "node-cairo-prosecutions-0001",
-              "slug": "cairo-prosecutions",
-              "title": "نيابات القاهرة (Demo)",
-              "type": "link",
-              "order": 1,
-              "icon": { "type": "default" },
-              "enabled": true,
-              "url": "https://example.test/demo/prosecutions/cairo",
-              "target": "_blank"
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "id": "dir-bar-0001",
-      "slug": "bar",
-      "title": "نقابة المحامين",
-      "description": "دليل تجريبي (Demo) لنقابة المحامين — بيانات إثبات مفهوم فقط.",
-      "icon": { "type": "default" },
-      "enabled": true,
-      "order": 3,
-      "items": [
-        {
-          "id": "node-sub-syndicates-0001",
-          "slug": "sub-syndicates",
-          "title": "النقابات الفرعية",
-          "type": "folder",
-          "order": 1,
-          "icon": { "type": "default" },
-          "enabled": true,
-          "children": [
-            {
-              "id": "node-cairo-syndicate-0001",
-              "slug": "cairo",
-              "title": "نقابة القاهرة الفرعية (Demo)",
-              "type": "link",
-              "order": 1,
-              "icon": { "type": "default" },
-              "enabled": true,
-              "url": "https://example.test/demo/bar/cairo",
-              "target": "_blank"
-            }
-          ]
+          "url": "https://digital.gov.eg/"
         }
       ]
     }
