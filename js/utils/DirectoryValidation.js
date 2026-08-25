@@ -196,6 +196,21 @@
     var seenDirectoryIds = new Set();
     var seenNodeIds = new Set(); // global across the whole dataset — see IDENTITY
 
+    // Stage-4 §5 — dataset-level versioning stamps (both optional; if
+    // present, must be well-formed). These are only ever written by
+    // js/utils/DirectoryPublisher.js at export time, never by the
+    // read-only load path — validated here so a hand-edited or
+    // corrupted file is still caught before publishing.
+    if (dataset.version !== undefined && !(Number.isInteger(dataset.version) && dataset.version >= 1)) {
+      errors.push(makeError(undefined, undefined, '(dataset)', 'dataset version=' + JSON.stringify(dataset.version) + ' is invalid (must be a positive integer when present)'));
+    }
+    if (dataset.updatedAt !== undefined) {
+      var parsedDate = new Date(dataset.updatedAt);
+      if (!(typeof dataset.updatedAt === 'string') || isNaN(parsedDate.getTime())) {
+        errors.push(makeError(undefined, undefined, '(dataset)', 'dataset updatedAt=' + JSON.stringify(dataset.updatedAt) + ' is not a valid date string'));
+      }
+    }
+
     dataset.directories.forEach(function (directory) {
       validateDirectory(directory, errors, seenDirectoryIds, seenNodeIds);
     });
