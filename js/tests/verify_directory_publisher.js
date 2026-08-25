@@ -148,6 +148,42 @@ check('createExportArtifact() succeeds on a valid dataset and returns the expect
 
 // ---- Versioning (Stage-4 §5) ----
 
+check('bump:false reuses the dataset\'s existing version/updatedAt verbatim (no-op re-export)', () => {
+  const dataset = validDataset();
+  dataset.version = 5;
+  dataset.updatedAt = '2020-01-01T00:00:00.000Z';
+  const artifact = DirectoryPublisher.createExportArtifact(dataset, { bump: false });
+  const parsed = JSON.parse(artifact.content);
+  assert.strictEqual(parsed.version, 5);
+  assert.strictEqual(parsed.updatedAt, '2020-01-01T00:00:00.000Z');
+});
+
+check('re-exporting the SAME unchanged dataset twice with bump:false is byte-for-byte identical (FINAL AUDIT §2)', () => {
+  const dataset = validDataset();
+  dataset.version = 2;
+  dataset.updatedAt = '2021-06-15T00:00:00.000Z';
+  const a = DirectoryPublisher.createExportArtifact(dataset, { bump: false });
+  const b = DirectoryPublisher.createExportArtifact(dataset, { bump: false });
+  assert.strictEqual(a.content, b.content);
+});
+
+check('bump:false on a dataset with no prior version/updatedAt falls back sanely instead of emitting undefined', () => {
+  const artifact = DirectoryPublisher.createExportArtifact(validDataset(), { bump: false, baseVersion: 0, now: '2022-02-02T00:00:00.000Z' });
+  const parsed = JSON.parse(artifact.content);
+  assert.strictEqual(parsed.version, 1); // no prior version, no baseVersion bump requested -> falls back to 1, not 0/undefined
+  assert.strictEqual(parsed.updatedAt, '2022-02-02T00:00:00.000Z');
+});
+
+check('bump:true (default) always advances version/updatedAt even if content looks the same, when explicitly requested', () => {
+  const dataset = validDataset();
+  dataset.version = 5;
+  dataset.updatedAt = '2020-01-01T00:00:00.000Z';
+  const artifact = DirectoryPublisher.createExportArtifact(dataset, { now: '2026-01-01T00:00:00.000Z' });
+  const parsed = JSON.parse(artifact.content);
+  assert.strictEqual(parsed.version, 6);
+  assert.strictEqual(parsed.updatedAt, '2026-01-01T00:00:00.000Z');
+});
+
 check('version defaults to 1 when the source dataset has no version field', () => {
   const artifact = DirectoryPublisher.createExportArtifact(validDataset());
   const parsed = JSON.parse(artifact.content);

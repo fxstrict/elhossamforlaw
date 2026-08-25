@@ -263,6 +263,23 @@ async function main() {
     assert.strictEqual(downloadBtn.disabled, false);
   });
 
+  // ---- FINAL AUDIT §2: clicking export/download twice with zero
+  // edits in between must not silently change the file (no version
+  // bump, no updatedAt drift) — exercised through the real
+  // Admin.exportArtifact() path used by the UI, not DirectoryPublisher
+  // directly, so this catches a regression in the wiring too.
+  await check('exporting twice with no edits between clicks produces byte-identical artifact content', async () => {
+    installStubs(global, realDataset);
+    const mod = freshModule();
+    mod.renderLegalDirectories();
+    await flush(); await flush();
+    mod._toggleAdminModeForTests();
+    const Admin = require(path.join(__dirname, '..', 'modules', 'legal-directories-admin.js'));
+    const first = Admin.exportArtifact();
+    const second = Admin.exportArtifact();
+    assert.strictEqual(first.content, second.content);
+  });
+
   console.log(log.join('\n'));
   console.log('\n' + passed + ' passed, ' + failed + ' failed.');
   if (failed > 0) process.exit(1);

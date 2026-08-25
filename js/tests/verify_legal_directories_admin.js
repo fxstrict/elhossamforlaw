@@ -224,7 +224,10 @@ check('exportDraftJSON() produces valid JSON containing every id from the draft,
 
 // ---- 5. Round-trip against the real shipped dataset ----
 
-check('starting a draft from the real shipped legal-directories.json, editing, and re-validating works end-to-end', () => {
+check('starting a draft from the real shipped dataset, adding then removing the same node (net no change), does NOT bump version', () => {
+  // FINAL AUDIT §2 FIX: exporting must be a pure function of actual
+  // content, not of "an edit happened at some point". add+remove
+  // cancels out -> isDirty() is false -> no bump, exact same stamp.
   const datasetPath = path.join(__dirname, '..', 'data', 'directories', 'legal-directories.json');
   const real = JSON.parse(fs.readFileSync(datasetPath, 'utf8'));
   Admin.startDraft(real);
@@ -232,11 +235,23 @@ check('starting a draft from the real shipped legal-directories.json, editing, a
   const newNodeId = Admin.addNode(firstDir.id, null, { title: 'اختبار', type: 'link', url: 'https://example.test/roundtrip' });
   assert.strictEqual(Admin.validateDraft().valid, true);
   Admin.removeNode(newNodeId);
-  // CHANGED (Stage 4): exportDraftJSON() now bumps version relative to
-  // the ORIGINAL loaded dataset's version (real.version), not a raw
-  // dump of the draft — see js/utils/DirectoryPublisher.js.
+  assert.strictEqual(Admin.isDirty(), false);
+  const exported = JSON.parse(Admin.exportDraftJSON());
+  assert.strictEqual(exported.version, real.version);
+  assert.strictEqual(exported.updatedAt, real.updatedAt);
+  assert.strictEqual(DirectoryValidation.validateDataset(exported).valid, true);
+});
+
+check('starting a draft from the real shipped dataset and making a REAL persisting change DOES bump version', () => {
+  const datasetPath = path.join(__dirname, '..', 'data', 'directories', 'legal-directories.json');
+  const real = JSON.parse(fs.readFileSync(datasetPath, 'utf8'));
+  Admin.startDraft(real);
+  const firstDir = Admin.getDraft().directories[0];
+  Admin.addNode(firstDir.id, null, { title: 'اختبار', type: 'link', url: 'https://example.test/roundtrip' });
+  assert.strictEqual(Admin.isDirty(), true);
   const exported = JSON.parse(Admin.exportDraftJSON());
   assert.strictEqual(exported.version, (real.version || 0) + 1);
+  assert.notStrictEqual(exported.updatedAt, real.updatedAt);
   assert.strictEqual(DirectoryValidation.validateDataset(exported).valid, true);
 });
 
