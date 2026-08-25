@@ -238,7 +238,24 @@
 // networkFirstShell() (always fresh), and its only change was to a
 // small inline <script> block (bootLoadFromSheets() call sites), not a
 // cached file reference.
-var SW_VERSION = 'v63'; // LEGAL DIRECTORIES — read-only offline support (Stage 4).
+var SW_VERSION = 'v64'; // LEGAL DIRECTORIES — compact 4-per-row card layout.
+                         // css/legal-directories.css?v=1 is listed in PRECACHE_URLS
+                         // and served cacheFirstIn(SHELL_CACHE), keyed by SW_VERSION,
+                         // so an already-installed client would keep serving its OLD
+                         // cached copy of that file forever until SW_VERSION changes —
+                         // same "Cache Versioning" rule as every previous bump in this
+                         // file. Only that file's CSS rules changed (grid-template-
+                         // columns: repeat(4,1fr) instead of auto-fill minmax(190px,...),
+                         // plus smaller icon/title and hiding the badge/description at
+                         // this tile size) — no HTML/JS changed, no other PRECACHE_URLS
+                         // entry added/removed/renamed, its own ?v= query kept at 1
+                         // (matching this project's established convention of bumping
+                         // SW_VERSION rather than the individual file's query string for
+                         // same-path content edits — see the v48/v50 notes below for the
+                         // same pattern). This bump only regenerates SHELL_CACHE's
+                         // contents under the new 'ahp-shell-v62' name so it re-fetches
+                         // every listed URL, legal-directories.css included.
+// (v61 note, kept for history) LEGAL DIRECTORIES — read-only offline support (Stage 4).
                          // Added 6 PRECACHE_URLS entries so a normal user can open
                          // "الأدلة القانونية" offline once this version is installed:
                          // css/legal-directories.css, js/utils/DirectoryModel.js,
