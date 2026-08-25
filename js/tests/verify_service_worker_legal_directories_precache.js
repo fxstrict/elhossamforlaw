@@ -69,8 +69,8 @@ check('SW_VERSION is declared exactly once (no duplicate/leftover var from editi
   assert.strictEqual(matches.length, 1);
 });
 
-check('SW_VERSION was bumped to v62 for the compact-card CSS content change', () => {
-  assert.ok(/var SW_VERSION = 'v62'/.test(swSource));
+check('SW_VERSION was bumped to v63 for the Back-button navigation fix', () => {
+  assert.ok(/var SW_VERSION = 'v63'/.test(swSource));
 });
 
 EXPECTED_PRECACHED.forEach((url) => {
