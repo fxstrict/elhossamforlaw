@@ -614,7 +614,7 @@ style="color:var(--muted);font-size:12px;margin-top:4px;"> جارٍ تحميل
     <div class="nav-item" tabindex="0" role="link" onclick="navigate('library')"><span class="nav-icon">&#128218;</span> المكتبة القانونية</div>
     <div class="nav-item" tabindex="0" role="link" onclick="navigate('templates')"><span class="nav-icon">&#128196;</span> صيغ الدعاوى</div>
     <!-- PHASE — Legal Directories: Generic UI (Stage 2) — additive nav item, same markup pattern as every item above. -->
-    <div class="nav-item" tabindex="0" role="link" onclick="navigate('legalDirectories')"><span class="nav-icon">&#127760;</span> الأدلة القانونية</div>
+    <div class="nav-item" tabindex="0" role="link" onclick="navigate('legalDirectories')"><span class="nav-icon">&#127760;</span> الأجندة والمواقع الرسمية</div>
     <div class="nav-item" tabindex="0" role="link" onclick="navigate('settings')"><span class="nav-icon">&#9881;</span> الإعدادات</div>
     <!-- SIDEBAR QUICK LOGOUT — additive, third entry point to the exact
          same HossamSession.clear() + LoginScreen.init() action already
@@ -1026,7 +1026,7 @@ style="color:var(--muted);font-size:12px;margin-top:4px;"> جارٍ تحميل
      delete controls in this phase (Stage-1 §28 — no admin panel yet). -->
 <div class="page" id="page-legalDirectories">
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:9px;">
-    <div><h2 style="font-size:17px;font-weight:700;">&#127760; الأدلة القانونية</h2><p class="u-meta-muted-sm">محاكم، نيابات، نقابة المحامين، ومواقع قانونية مرجعية</p></div>
+    <div><h2 style="font-size:17px;font-weight:700;">&#127760; الأجندة والمواقع الرسمية</h2><p class="u-meta-muted-sm">محاكم، نيابات، نقابة المحامين، ومواقع قانونية مرجعية</p></div>
   </div>
   <div class="legal-dir-breadcrumb" id="legalDirBreadcrumb"></div>
   <!-- PHASE — Legal Directories: Admin Panel (Stage 3). Empty by default;
@@ -2188,7 +2188,7 @@ function toast(msg,type){
 }
 function showLoading(v){document.getElementById('loadingOverlay').classList.toggle('show',v);}
 
-var PAGE_TITLES={dashboard:'لوحة التحكم',cases:'القضايا',sessions:'الجلسات',clients:'الموكلون',opponents:'الخصوم',processServerWorks:'أعمال المحضرين',children:'الأطفال',documents:'المستندات',tasks:'المهام',fees:'الأتعاب',expenses:'المصروفات',calendar:'التقويم',library:'المكتبة القانونية',templates:'صيغ الدعاوى',legalDirectories:'الأدلة القانونية',settings:'الإعدادات'};
+var PAGE_TITLES={dashboard:'لوحة التحكم',cases:'القضايا',sessions:'الجلسات',clients:'الموكلون',opponents:'الخصوم',processServerWorks:'أعمال المحضرين',children:'الأطفال',documents:'المستندات',tasks:'المهام',fees:'الأتعاب',expenses:'المصروفات',calendar:'التقويم',library:'المكتبة القانونية',templates:'صيغ الدعاوى',legalDirectories:'الأجندة والمواقع الرسمية',settings:'الإعدادات'};
 var ADDABLE=['cases','sessions','clients','tasks','opponents','processServerWorks'];
 
 function navigate(page){

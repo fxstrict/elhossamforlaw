@@ -238,7 +238,7 @@
 // networkFirstShell() (always fresh), and its only change was to a
 // small inline <script> block (bootLoadFromSheets() call sites), not a
 // cached file reference.
-var SW_VERSION = 'v66'; // LEGAL DIRECTORIES — Back-button tree-navigation fix.
+var SW_VERSION = 'v67'; // LEGAL DIRECTORIES — Back-button tree-navigation fix.
                          // js/modules/legal-directories.js?v=1 is listed in
                          // PRECACHE_URLS and served cacheFirstIn(SHELL_CACHE), keyed
                          // by SW_VERSION — same "Cache Versioning" rule as every
