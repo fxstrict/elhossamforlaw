@@ -1,7 +1,7 @@
 {
   "$schemaVersion": 1,
-  "version": 3,
-  "updatedAt": "2026-08-26T21:24:01.873Z",
+  "version": 4,
+  "updatedAt": "2026-08-26T22:00:30.081Z",
   "directories": [
     {
       "id": "dir-mt926c4o-3ivz",
@@ -221,6 +221,150 @@
               "url": "https://drive.google.com/drive/u/0/mobile/folders/1h-5khcPng-rXlQYnYTJN5ggsUbu_3DP-?usp=sharing"
             }
           ]
+        }
+      ]
+    },
+    {
+      "id": "dir-mtamduip-e4l3",
+      "title": "التوزيع القضائية",
+      "enabled": true,
+      "order": 2,
+      "items": [
+        {
+          "id": "node-mtamh0p1-vtvu",
+          "title": "التوزيع القضائية  ",
+          "type": "link",
+          "order": 0,
+          "enabled": true,
+          "url": "https://drive.google.com/drive/folders/1x_KnfkV-Fn_L1l1TMkXTCFaWqgf0DkZ1"
+        }
+      ]
+    },
+    {
+      "id": "dir-mtamimaj-v19l",
+      "title": "الاكواد القانونية",
+      "enabled": true,
+      "order": 3,
+      "items": [
+        {
+          "id": "node-mtamji7x-eg32",
+          "title": "جميع الاكواد ال٤انونية",
+          "type": "link",
+          "order": 0,
+          "enabled": true,
+          "url": "https://drive.google.com/drive/folders/1snlSroFqkjRlUcg2Hrw4lqBHNNiCPYVb"
+        }
+      ]
+    },
+    {
+      "id": "dir-mtamk9wx-eil9",
+      "title": "الصيغ والعقود",
+      "enabled": true,
+      "order": 4,
+      "items": [
+        {
+          "id": "node-mtamko3g-g8f9",
+          "title": "جميع الصيغ والعقوظ",
+          "type": "link",
+          "order": 0,
+          "enabled": true,
+          "url": "https://drive.google.com/drive/folders/14mWIl7TwcJKsZE5vgwSPud3ckzigKEed"
+        }
+      ]
+    },
+    {
+      "id": "dir-mtamoav4-p6mt",
+      "title": "احكام نقض جنائي ومدني واداري",
+      "enabled": true,
+      "order": 5,
+      "items": [
+        {
+          "id": "node-mtamp5op-h562",
+          "title": "جميع احكام النقض جنائي ومدني واداري ",
+          "type": "link",
+          "order": 0,
+          "enabled": true,
+          "url": "https://drive.google.com/drive/folders/1xgu2udYWf36-9FlSSPZ06aNw_1G294rV"
+        }
+      ]
+    },
+    {
+      "id": "dir-mtamq3wv-7o9x",
+      "title": "مذكرات جنائية ",
+      "enabled": true,
+      "order": 6,
+      "items": [
+        {
+          "id": "node-mtamqpqz-i3zl",
+          "title": "مذكرات جنائية متنوعة",
+          "type": "link",
+          "order": 0,
+          "enabled": true,
+          "url": "https://drive.google.com/drive/folders/127qr3ex62RI7JnaCE7xl6zr7InEF4ZG2"
+        }
+      ]
+    },
+    {
+      "id": "dir-mtamt7wa-gcmq",
+      "title": "عناوين الاحياء ومقارها",
+      "enabled": true,
+      "order": 7,
+      "items": [
+        {
+          "id": "node-mtamtowu-xldf",
+          "title": "جميع عناوين الاحياء ومقارها",
+          "type": "link",
+          "order": 0,
+          "enabled": true,
+          "url": "https://drive.google.com/drive/folders/12csI5bBX18oUF6hGY1az1L6j9nrAsivW"
+        }
+      ]
+    },
+    {
+      "id": "dir-mtamuehe-ppn8",
+      "title": "عناوين المحاكم ومواقعها",
+      "enabled": true,
+      "order": 8,
+      "items": [
+        {
+          "id": "node-mtamuw0r-nstl",
+          "title": "جميع عناوين المحاكم ومواقعها",
+          "type": "link",
+          "order": 0,
+          "enabled": true,
+          "url": "https://drive.google.com/drive/folders/1sKlw_JMbyHpHnH7MrKm_d4ya6s0ROFu8"
+        }
+      ]
+    },
+    {
+      "id": "dir-mtamwf3a-1le6",
+      "title": "ماموريات الشهر العقاري",
+      "enabled": true,
+      "order": 9,
+      "items": [
+        {
+          "id": "node-mtamxhtn-9vjz",
+          "title": "ماموريات الشهر العقاري ومواقعها",
+          "type": "link",
+          "order": 0,
+          "enabled": true,
+          "url": "https://drive.google.com/drive/folders/18Yp9dDDRydmjwtnoFSk_X5epP6dg9hrI"
+        }
+      ]
+    },
+    {
+      "id": "dir-mtamy6k1-05gc",
+      "title": "عناوين مقار التأمينات الاجتماعية ",
+      "enabled": true,
+      "order": 10,
+      "items": [
+        {
+          "id": "node-mtamyxe8-fkn9",
+          "title": "عناوين التأمينات الاجتماعية ",
+          "type": "link",
+          "order": 0,
+          "enabled": true,
+          "url": "https://drive.google.com/drive/folders/1INv_E5fmH8xqG5W1WAltgHDu8lQ4VoGT"
         }
       ]
     }
