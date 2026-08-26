@@ -1264,18 +1264,6 @@ function buildCaseReport(c, sessions, docs, children) {
     '</div>' +
   '</div>';
 
-  // شريط السرية + زر الطباعة — تحت الترويسة مباشرةً. الزر (no-print) لا
-  // يظهر عند الطباعة الفعلية؛ جملة السرية نفسها تبقى ظاهرة/مطبوعة عمدًا
-  // (نفس نص بوابة الموكل حرفيًا — Config/05_Portal.gs "🔒 هذه الصفحة
-  // سرية ومُعدّة لك أنت فقط"). هذا إضافي فقط: زر الطباعة الأصلي في رأس
-  // النافذة (index.html، modalView) لم يُمس، لأنه مشترك أيضًا مع عرض
-  // الموكل/الخصم/أعمال المحضرين (printView() في clients.js) وتعديله كان
-  // سيغيّر سلوكًا خارج نطاق بطاقة القضية.
-  html += '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;background:#FDF6E3;border:1px solid #EEDFAF;border-radius:8px;padding:8px 14px;margin-bottom:16px;">' +
-    '<span style="font-size:12px;font-weight:700;color:#8a6d1a;">&#128274; هذه الصفحة سرية ومُعدّة لك أنت فقط</span>' +
-    '<button type="button" class="btn btn-success btn-sm u-btn-compact no-print" onclick="printView()">&#128438; طباعة</button>' +
-  '</div>';
-
   // البيانات الأساسية
   html += '<div class="view-section"><div class="view-section-title">&#128203; البيانات الأساسية</div><div class="view-grid">';
   html += vf('نوع الدعوى', c['نوع_الدعوى']) +
@@ -1288,10 +1276,20 @@ function buildCaseReport(c, sessions, docs, children) {
           vf('أتعاب المحاماة', c['أتعاب_المحاماة'] ? c['أتعاب_المحاماة'] + ' ج.م' : '');
   html += '</div></div>';
 
-  // ملاحظة تنظيم الأقسام: قسم "سلسلة درجات التقاضي" (getLitigationChain
-  // نفسها — بلا أي تعديل على منطقها) نُقل إلى آخر التسلسل المطلوب
-  // (الخصوم↓الجلسات↓المستندات↓المهام↓المحضرين↓السلسلة)؛ يُبنى ويُدرَج
-  // بعد قسم "المحضرين" أدناه في هذه الدالة، وليس هنا.
+  // CASES_RELATIONSHIP_FINANCIAL قرار §3-E: سلسلة درجات التقاضي — يعيد
+  // استخدام .client-chip الموجودة (css/components.css) بدلاً من إضافة
+  // CSS جديد، مع تمييز بسيط inline للدرجة الحالية فقط.
+  var chain = getLitigationChain(c['رقم_القضية']);
+  if (chain.length > 1) {
+    html += '<div class="view-section"><div class="view-section-title">&#9878; سلسلة درجات التقاضي</div><div>';
+    html += chain.map(function (stageCase, idx) {
+      var isCurrent = stageCase['رقم_القضية'] === c['رقم_القضية'];
+      var label = (stageCase['درجة_التقاضي'] || ('درجة ' + (idx + 1))) + ' — ' + (stageCase['رقم_القضية'] || '');
+      var style = isCurrent ? ' style="font-weight:700;border-color:var(--gold, #C9A84C);"' : '';
+      return '<span class="client-chip"' + style + '>' + escapeHtml(label) + '</span>';
+    }).join(' <span style="color:#999;">&#8592;</span> ');
+    html += '</div></div>';
+  }
 
   // CASES_RELATIONSHIP_FINANCIAL قرار §18/§3-G: صافي عائد القضية —
   // إجمالي أتعاب القضية - مصروفات القضية. يُستدعي getCaseNet() من
@@ -1375,32 +1373,8 @@ function buildCaseReport(c, sessions, docs, children) {
     html += '</div>';
   }
 
-  // الأحكام والتنفيذ (غير مذكور في ترتيب §10 المطلوب، فأُبقي هنا —
-  // مباشرةً قبل كتلة الأقسام الستة المرتّبة صراحةً أدناه — بدل تفكيك
-  // تلك الكتلة بقسم غير مرتبط بها).
-  if (c['قرارات_المحكمة'] || c['تاريخ_الحكم'] || c['رقم_التنفيذ']) {
-    html += '<div class="view-section"><div class="view-section-title">&#128296; الأحكام والتنفيذ</div><div class="view-grid">';
-    if (c['قرارات_المحكمة'])
-      html += '<div class="view-field-full"><div class="view-label">قرارات المحكمة</div><div class="view-value">' + escapeHtml(c['قرارات_المحكمة']) + '</div></div>';
-    html += vf('تاريخ الحكم', formatDate(c['تاريخ_الحكم'])) + vf('رقم التنفيذ', c['رقم_التنفيذ']);
-    if (c['إجراءات_التنفيذ'])
-      html += '<div class="view-field-full"><div class="view-label">إجراءات التنفيذ ونتائجه</div><div class="view-value">' + escapeHtml(c['إجراءات_التنفيذ']) + '</div></div>';
-    html += '</div></div>';
-  }
-
-  // ================================================================
-  // الترتيب المطلوب صراحةً (تعليمات بطاقة القضية): الخصوم (أعلاه) ↓
-  // الجلسات ↓ المستندات ↓ المهام ↓ المحضرين ↓ السلسلة.
-  // الألوان المتفق عليها: الجلسات #EAF8EF | المهام #FFF8E1 | المحضرين
-  // #FDECEA. مطبَّقة inline على .view-section-title لهذه الأقسام الثلاثة
-  // فقط للعرض الشاشي — لا تُطبَّق على الطباعة عمدًا لأن قاعدة الطباعة
-  // الحالية (@media print .view-section-title{background:#0D1B2A
-  // !important...}) تفرض كحمي/ذهبي موحّد على كل الأقسام أصلاً بـ
-  // !important، فهذا لا يغيّر مخرجات الطباعة الحالية إطلاقًا.
-  // ================================================================
-
-  // سجل الجلسات — #EAF8EF
-  html += '<div class="view-section"><div class="view-section-title" style="background:#EAF8EF;color:#0D1B2A;">&#128197; سجل الجلسات (' + sessions.length + ' جلسة)</div>';
+  // سجل الجلسات
+  html += '<div class="view-section"><div class="view-section-title">&#128197; سجل الجلسات (' + sessions.length + ' جلسة)</div>';
   if (!sessions.length) {
     html += '<div style="padding:14px;color:#888;font-size:12px;">لا توجد جلسات مسجلة لهذه القضية</div>';
   } else {
@@ -1432,91 +1406,38 @@ function buildCaseReport(c, sessions, docs, children) {
   }
   html += '</div>';
 
-  // المستندات — Tiles أفقية بأيقونة حسب النوع (fileIconEmoji)، بدل
-  // الجدول القديم. لا لون خاص مطلوب لهذا القسم (غير مذكور في §10-5).
+  // الأحكام والتنفيذ
+  if (c['قرارات_المحكمة'] || c['تاريخ_الحكم'] || c['رقم_التنفيذ']) {
+    html += '<div class="view-section"><div class="view-section-title">&#128296; الأحكام والتنفيذ</div><div class="view-grid">';
+    if (c['قرارات_المحكمة'])
+      html += '<div class="view-field-full"><div class="view-label">قرارات المحكمة</div><div class="view-value">' + escapeHtml(c['قرارات_المحكمة']) + '</div></div>';
+    html += vf('تاريخ الحكم', formatDate(c['تاريخ_الحكم'])) + vf('رقم التنفيذ', c['رقم_التنفيذ']);
+    if (c['إجراءات_التنفيذ'])
+      html += '<div class="view-field-full"><div class="view-label">إجراءات التنفيذ ونتائجه</div><div class="view-value">' + escapeHtml(c['إجراءات_التنفيذ']) + '</div></div>';
+    html += '</div></div>';
+  }
+
+  // المستندات
   if (docs.length > 0) {
-    html += '<div class="view-section"><div class="view-section-title">&#128206; المستندات المودعة (' + docs.length + ')</div>';
-    html += '<div style="display:flex;flex-wrap:wrap;gap:10px;padding:12px 14px;">';
+    html += '<div class="view-section"><div class="view-section-title">&#128206; المستندات المودعة</div>';
+    html += '<table style="width:100%;font-size:12px;border-collapse:collapse;">' +
+      '<tr style="background:#f5f0e8;">' +
+        '<th style="padding:7px 10px;border:1px solid #e8e0d0;text-align:right;">المستند</th>' +
+        '<th style="padding:7px 10px;border:1px solid #e8e0d0;text-align:right;">النوع</th>' +
+        '<th style="padding:7px 10px;border:1px solid #e8e0d0;text-align:right;">تاريخ الإيداع</th>' +
+        '<th style="padding:7px 10px;border:1px solid #e8e0d0;text-align:right;">الرابط</th>' +
+      '</tr>';
     docs.forEach(function(d) {
-      var link = d['رابط_Drive'];
-      var tileInner =
-        '<div style="font-size:26px;line-height:1;">' + fileIconEmoji(d) + '</div>' +
-        '<div style="font-size:11px;font-weight:700;color:#0D1B2A;margin-top:4px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + f(d['اسم_المستند']) + '</div>' +
-        '<div style="font-size:10px;color:#888;margin-top:2px;">' + escapeHtml(formatDate(d['تاريخ_الإيداع'])) + '</div>';
-      var tileStyle = 'display:flex;flex-direction:column;align-items:center;justify-content:flex-start;width:110px;padding:10px 8px;border:1px solid #e8e0d0;border-radius:10px;background:#faf8f3;text-align:center;text-decoration:none;';
-      html += link
-        ? '<a href="' + escapeHtml(link) + '" target="_blank" rel="noopener" style="' + tileStyle + '">' + tileInner + '</a>'
-        : '<div style="' + tileStyle + '">' + tileInner + '</div>';
+      html += '<tr>' +
+        '<td style="padding:7px 10px;border:1px solid #e8e0d0;font-weight:700;">' + f(d['اسم_المستند']) + '</td>' +
+        '<td style="padding:7px 10px;border:1px solid #e8e0d0;">' + f(d['نوع_المستند']) + '</td>' +
+        '<td style="padding:7px 10px;border:1px solid #e8e0d0;">' + escapeHtml(formatDate(d['تاريخ_الإيداع'])) + '</td>' +
+        '<td style="padding:7px 10px;border:1px solid #e8e0d0;">' +
+          (d['رابط_Drive'] ? '<a href="' + escapeHtml(d['رابط_Drive']) + '" style="color:#2980b9;">&#128279; عرض</a>' : '—') +
+        '</td>' +
+      '</tr>';
     });
-    html += '</div></div>';
-  }
-
-  // المهام — #FFF8E1. مهام هذه القضية تحديدًا فقط (رقم_القضية مطابق)،
-  // بنفس أسلوب فلترة الجلسات/المستندات أعلاه في هذه الدالة (بلا Data
-  // Model جديد ولا Repository جديد — data.tasks هو نفس المرآة التي
-  // تستخدمها js/modules/tasks.js وjs/modules/dashboard.js).
-  var caseTasks = (data.tasks || []).filter(function (t) {
-    return t['رقم_القضية'] === caseNum;
-  });
-  if (caseTasks.length > 0) {
-    html += '<div class="view-section"><div class="view-section-title" style="background:#FFF8E1;color:#0D1B2A;">&#9989; المهام المرتبطة (' + caseTasks.length + ')</div>';
-    html += '<div style="padding:4px 0;">';
-    caseTasks.forEach(function (t) {
-      var tStatusCls = t['الحالة'] === 'منتهية' ? 'closed-v'
-                     : t['الحالة'] === 'عاجلة'   ? 'urgent-v'
-                     : 'pending-v';
-      html += '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 14px;border-bottom:1px solid #f0ece4;">' +
-        '<div style="min-width:0;">' +
-          '<div style="font-size:13px;font-weight:700;color:#0D1B2A;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + f(t['العنوان']) + '</div>' +
-          (t['الموعد_النهائي'] ? '<div style="font-size:11px;color:#888;margin-top:2px;">&#128197; الموعد النهائي: ' + escapeHtml(formatDate(t['الموعد_النهائي'])) + '</div>' : '') +
-        '</div>' +
-        '<span class="badge-v badge-' + tStatusCls + '" style="flex-shrink:0;">' + escapeHtml(t['الحالة'] || '—') + '</span>' +
-      '</div>';
-    });
-    html += '</div></div>';
-  }
-
-  // المحضرين — #FDECEA. أعمال المحضرين المرتبطة برقم قضية هذا الموكل
-  // تحديدًا (رقم_القضية مطابق). الأعمال التي لا يوجد لها رقم قضية أو
-  // تخص قضية/موكل آخر تبقى في صفحة "أعمال المحضرين" العامة كما هي —
-  // لا تعديل هناك، فقط فلترة إضافية هنا لعرضها ضمن بطاقة القضية أيضًا.
-  // data.processServerWorks هي نفس المرآة المُصدَّرة من
-  // js/modules/process-server-works.js (نفس أسلوب data.tasks أعلاه).
-  var casePsw = (data.processServerWorks || []).filter(function (w) {
-    return w['رقم_القضية'] === caseNum;
-  });
-  if (casePsw.length > 0) {
-    html += '<div class="view-section"><div class="view-section-title" style="background:#FDECEA;color:#0D1B2A;">&#128257; أعمال المحضرين المرتبطة (' + casePsw.length + ')</div>';
-    html += '<div style="padding:4px 0;">';
-    casePsw.forEach(function (w) {
-      var wStatusCls = w['الحالة'] === 'مستلم' ? 'active-v' : 'pending-v';
-      html += '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 14px;border-bottom:1px solid #f0ece4;">' +
-        '<div style="min-width:0;">' +
-          '<div style="font-size:13px;font-weight:700;color:#0D1B2A;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + f(w['طبيعة_الاعلان']) + '</div>' +
-          '<div style="font-size:11px;color:#888;margin-top:2px;">' +
-            (w['المحكمة'] ? '&#127963; ' + escapeHtml(w['المحكمة']) + ' &nbsp; ' : '') +
-            (w['تاريخ_التسليم'] ? '&#128197; تسليم: ' + escapeHtml(formatDate(w['تاريخ_التسليم'])) : '') +
-          '</div>' +
-        '</div>' +
-        '<span class="badge-v badge-' + wStatusCls + '" style="flex-shrink:0;">' + escapeHtml(w['الحالة'] || '—') + '</span>' +
-      '</div>';
-    });
-    html += '</div></div>';
-  }
-
-  // السلسلة (سلسلة درجات التقاضي) — آخر عنصر في الترتيب المطلوب صراحةً
-  // (§10). نفس منطق getLitigationChain()/العرض الأصلي بلا أي تعديل،
-  // فقط نُقل مكان استدعائه إلى هنا.
-  var chain = getLitigationChain(c['رقم_القضية']);
-  if (chain.length > 1) {
-    html += '<div class="view-section"><div class="view-section-title">&#9878; سلسلة درجات التقاضي</div><div>';
-    html += chain.map(function (stageCase, idx) {
-      var isCurrent = stageCase['رقم_القضية'] === c['رقم_القضية'];
-      var label = (stageCase['درجة_التقاضي'] || ('درجة ' + (idx + 1))) + ' — ' + (stageCase['رقم_القضية'] || '');
-      var style = isCurrent ? ' style="font-weight:700;border-color:var(--gold, #C9A84C);"' : '';
-      return '<span class="client-chip"' + style + '>' + escapeHtml(label) + '</span>';
-    }).join(' <span style="color:#999;">&#8592;</span> ');
-    html += '</div></div>';
+    html += '</table></div>';
   }
 
   // ملاحظات المحامي
@@ -1531,28 +1452,6 @@ function buildCaseReport(c, sessions, docs, children) {
 
   html += '</div>';
   return html;
-}
-
-/**
- * fileIconEmoji — returns a display emoji for a document tile based on
- * its name/type/Drive link extension. Best-effort, string-only (no
- * network/MIME lookups) — falls back to a generic file icon when the
- * type can't be determined. Local to cases.js (case-card document
- * tiles only); duplicated locally rather than imported, matching this
- * project's existing convention of module-local display helpers
- * (see escapeHtml, duplicated the same way in clients.js).
- * @param {object} d - a أرقام المستندات record ({اسم_المستند, نوع_المستند, رابط_Drive})
- * @returns {string} an HTML entity/emoji string
- */
-function fileIconEmoji(d) {
-  var hint = String((d && (d['نوع_المستند'] || d['اسم_المستند'] || d['رابط_Drive'])) || '').toLowerCase();
-  if (/\.pdf(\?|$)|pdf/.test(hint)) return '&#128196;';                 // 📄
-  if (/\.(jpe?g|png|gif|webp|bmp)(\?|$)|صورة|image/.test(hint)) return '&#128247;'; // 📷
-  if (/\.(docx?|rtf)(\?|$)|word/.test(hint)) return '&#128221;';        // 📝
-  if (/\.(xlsx?|csv)(\?|$)|excel|جدول/.test(hint)) return '&#128202;';  // 📊
-  if (/\.(pptx?)(\?|$)|عرض تقديمي|powerpoint/.test(hint)) return '&#128203;'; // 📋
-  if (/\.(zip|rar|7z)(\?|$)/.test(hint)) return '&#128230;';            // 📦
-  return '&#128193;'; // 📁 default
 }
 
 /**
@@ -1604,7 +1503,6 @@ function quickPrintCase(i) {
     '.badge-active-v{background:#d5f5e3!important;color:#1e8449!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}' +
     '.badge-closed-v{background:#eaecee!important;color:#717d7e!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}' +
     '.badge-pending-v{background:#fdebd0!important;color:#a04000!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}' +
-    '.no-print{display:none!important;}' +
     '}' +
     '.view-body{padding:20px;background:#fff;color:#111;font-family:Cairo,Arial,sans-serif;direction:rtl;}' +
     '.view-header{border-bottom:3px solid #C9A84C;padding-bottom:14px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:flex-start;}' +
