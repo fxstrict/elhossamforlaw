@@ -1,7 +1,7 @@
 {
   "$schemaVersion": 1,
-  "version": 2,
-  "updatedAt": "2026-08-25T19:30:00.836Z",
+  "version": 3,
+  "updatedAt": "2026-08-26T21:24:01.873Z",
   "directories": [
     {
       "id": "dir-mt926c4o-3ivz",
@@ -18,6 +18,209 @@
           "description": "موقع الدولة الرسمى",
           "enabled": true,
           "url": "https://digital.gov.eg/"
+        }
+      ]
+    },
+    {
+      "id": "dir-mtal4oty-agi0",
+      "title": "الأجندة القضائية",
+      "description": "جميع المحافظات والدوائر",
+      "enabled": true,
+      "order": 1,
+      "items": [
+        {
+          "id": "node-mtal88cz-0fj7",
+          "title": "مجلس الدولة",
+          "type": "folder",
+          "order": 0,
+          "description": "جميع المحافظات",
+          "enabled": true,
+          "children": [
+            {
+              "id": "node-mtal8ybz-vwgj",
+              "title": "مجلس الدولة بالعباسية مجمع محاكم العباسية",
+              "type": "link",
+              "order": 0,
+              "enabled": true,
+              "url": "https://drive.google.com/drive/folders/1CG3gIJV7_GCLUY8WeeiIOMbQjSxzgTii"
+            },
+            {
+              "id": "node-mtalawb4-n65c",
+              "title": "مجلس الدولة  بالإسكندرية",
+              "type": "link",
+              "order": 1,
+              "enabled": true,
+              "url": "https://drive.google.com/drive/folders/19U31SsRA-G1Tv54FYLlQ56RAsXbiN7c7"
+            },
+            {
+              "id": "node-mtalbvph-owui",
+              "title": "مجلس الدوله بالبحيره ",
+              "type": "link",
+              "order": 2,
+              "enabled": true,
+              "url": "https://drive.google.com/drive/folders/1txpR-7bsWOtaLwo_mEf6gWXby6lBeN_r"
+            },
+            {
+              "id": "node-mtaleia3-7vq0",
+              "title": "مجلس الدوله بكفر الشيخ ",
+              "type": "link",
+              "order": 3,
+              "enabled": true,
+              "url": "https://drive.google.com/drive/folders/1Pj9L05-h39zym5nMjYCmfH6BtPCVGgKF"
+            },
+            {
+              "id": "node-mtalfabl-5f3d",
+              "title": "مجلس الدوله بدمياط",
+              "type": "link",
+              "order": 4,
+              "enabled": true,
+              "url": "https://drive.google.com/drive/folders/1AYi28yzIr0Zxii_GFDpFT2UrveDKtkrQ"
+            },
+            {
+              "id": "node-mtalgckm-qo4f",
+              "title": "مجلس الدوله ببورسعيد ",
+              "type": "link",
+              "order": 5,
+              "enabled": true,
+              "url": "https://drive.google.com/drive/folders/1H5_v3j7BKvMbViTpoa8mAdw40sRYTNFQ"
+            },
+            {
+              "id": "node-mtalh70z-wf6x",
+              "title": "مجلس الدوله بالاسماعيليه",
+              "type": "link",
+              "order": 6,
+              "enabled": true,
+              "url": "https://drive.google.com/drive/folders/12g7CBDPRvJCSc6vxfVdfhY2hvhMnHqTy"
+            },
+            {
+              "id": "node-mtalhxsa-aitf",
+              "title": "مجلس الدوله بالغربيه ",
+              "type": "link",
+              "order": 7,
+              "enabled": true,
+              "url": "https://drive.google.com/drive/folders/1xPlnx83EUqCZK1LJZrsvwi3t2rxa4wj9"
+            },
+            {
+              "id": "node-mtalik3z-cpej",
+              "title": "مجلس الدوله بالشرقيه ",
+              "type": "link",
+              "order": 8,
+              "enabled": true,
+              "url": "https://drive.google.com/drive/folders/1ZHEYkxbQsUzMn2zeewvE0E2q1vVqPXOy"
+            },
+            {
+              "id": "node-mtalj7z5-3uol",
+              "title": "مجلس الدوله بالمنوفيه ",
+              "type": "link",
+              "order": 9,
+              "enabled": true,
+              "url": "https://drive.google.com/drive/folders/1VmgfWz6ItoRYjW110IjApiH1P7gRA6H6"
+            },
+            {
+              "id": "node-mtaljyzj-1icf",
+              "title": "مجلس الدوله بالقليوبيه ",
+              "type": "link",
+              "order": 10,
+              "enabled": true,
+              "url": "https://drive.google.com/drive/folders/1LyF_NDN5m4uTV5ZMtozC4yd0rkJuPrL1"
+            },
+            {
+              "id": "node-mtalkgnw-lnh4",
+              "title": "مجلس الدوله بالدقهليه",
+              "type": "link",
+              "order": 11,
+              "enabled": true,
+              "url": "https://drive.google.com/drive/folders/1oodkigVJGotJs-7eLMUwfHEHwR42WWub"
+            },
+            {
+              "id": "node-mtalkzmw-jrkt",
+              "title": "مجلس الدوله بالفيوم ",
+              "type": "link",
+              "order": 12,
+              "enabled": true,
+              "url": "https://drive.google.com/drive/folders/1-eHkDOJCTlVe4duc7e0jGBw-kYIeKir7"
+            },
+            {
+              "id": "node-mtallfp6-2r93",
+              "title": "مجلس الدوله ببني سويف ",
+              "type": "link",
+              "order": 13,
+              "enabled": true,
+              "url": "https://drive.google.com/drive/folders/1GpcuVA1BPq8UyUoDlXn92Pi_deXoxxZt"
+            },
+            {
+              "id": "node-mtalluj3-0iwi",
+              "title": "مجلس الدوله بالمنيا ",
+              "type": "link",
+              "order": 14,
+              "enabled": true,
+              "url": "https://drive.google.com/drive/folders/16Ms_yBK22OkSqegFX3T_Yj5mnjK2XN-y"
+            },
+            {
+              "id": "node-mtalmb35-noka",
+              "title": "مجلس الدوله باسيوط ",
+              "type": "link",
+              "order": 15,
+              "enabled": true,
+              "url": "https://drive.google.com/drive/folders/1Ac_YyiqpX77EpiKAC40VVk8yyBbFvh7H"
+            },
+            {
+              "id": "node-mtalmvk5-csq0",
+              "title": "مجلس الدوله بقنا ",
+              "type": "link",
+              "order": 16,
+              "enabled": true,
+              "url": "https://drive.google.com/drive/folders/1MUYtcZppu3JpVbFgO36HvQt14u4Dmhcu"
+            },
+            {
+              "id": "node-mtalna04-f44c",
+              "title": "مجلس الدوله بسوهاج ",
+              "type": "link",
+              "order": 17,
+              "enabled": true,
+              "url": "https://drive.google.com/drive/folders/1t0SIHk2q9h5oWhcSEojrBRgOkdADef8c"
+            },
+            {
+              "id": "node-mtalnodf-a4tn",
+              "title": "مجلس الدوله بالبحر الاحمر ",
+              "type": "link",
+              "order": 18,
+              "enabled": true,
+              "url": "https://drive.google.com/drive/folders/17bzJXqSaOvX4xy8IFcUZ0ZytICr-qkfn"
+            },
+            {
+              "id": "node-mtalo20v-unbr",
+              "title": "مجلس الدوله بالاقصر ",
+              "type": "link",
+              "order": 19,
+              "enabled": true,
+              "url": "https://drive.google.com/drive/folders/1-AoPxV-s0CTw1OX7Xl66uV4KPvFlH0F8"
+            },
+            {
+              "id": "node-mtalon4n-yzkq",
+              "title": "مجلس الدوله باسوان ",
+              "type": "link",
+              "order": 20,
+              "enabled": true,
+              "url": "https://drive.google.com/drive/folders/1wQqa16k9dHupMQnVNLA9h5W2kjG5JL2j"
+            },
+            {
+              "id": "node-mtalp4rm-97vw",
+              "title": "الديوان العام ",
+              "type": "link",
+              "order": 21,
+              "enabled": true,
+              "url": "https://drive.google.com/drive/folders/1klOELG6WMsMUDDRWKIQrYQw_pMLR74yW"
+            },
+            {
+              "id": "node-mtalpilk-90bm",
+              "title": "الاداريه العليا ومواعيد الاطلاع ",
+              "type": "link",
+              "order": 22,
+              "enabled": true,
+              "url": "https://drive.google.com/drive/u/0/mobile/folders/1h-5khcPng-rXlQYnYTJN5ggsUbu_3DP-?usp=sharing"
+            }
+          ]
         }
       ]
     }
