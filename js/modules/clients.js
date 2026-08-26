@@ -1065,45 +1065,59 @@ function buildClientReport(c) {
   }
 
   // ---- التوكيلات ----
+  // Tiles أفقية صغيرة (نفس نظام مستندات القضية في cases.js، ونفس
+  // fileIconEmoji() المعرّفة هناك — cases.js?v=42 يُحمَّل قبل
+  // clients.js?v=42 في index.html فهي متاحة كـ global جاهزة، فلا داعي
+  // لتكرارها هنا). كل بيانات الجدول القديم (النوع/رقم-حرف-سنة/مكتب
+  // التوثيق/الصفة/الظهور للموكل) محفوظة بالكامل داخل الـTile نفسها —
+  // فقط أعيد ترتيبها بصريًا، لا حذف لأي حقل كان ظاهرًا من قبل.
   var _powers = _cfParseArr(c['التوكيلات']);
   if (_powers.length) {
     html += '<div class="view-section"><div class="view-section-title">&#128196; التوكيلات (' + _powers.length + ')</div>';
-    html += '<div class="hsm-table-scroll"><table style="width:100%;min-width:520px;font-size:12px;border-collapse:collapse;">' +
-      '<tr style="background:#f5f0e8;">' +
-        '<th style="padding:7px 10px;text-align:right;border:1px solid #e8e0d0;">النوع</th>' +
-        '<th style="padding:7px 10px;text-align:right;border:1px solid #e8e0d0;">رقم/حرف/سنة</th>' +
-        '<th style="padding:7px 10px;text-align:right;border:1px solid #e8e0d0;">مكتب التوثيق</th>' +
-        '<th style="padding:7px 10px;text-align:right;border:1px solid #e8e0d0;">الصفة</th>' +
-        '<th style="padding:7px 10px;text-align:right;border:1px solid #e8e0d0;">الملف</th>' +
-        '<th style="padding:7px 10px;text-align:right;border:1px solid #e8e0d0;">ظاهر للموكل</th>' +
-      '</tr>';
+    html += '<div style="display:flex;flex-wrap:wrap;gap:10px;padding:12px 14px;">';
     _powers.forEach(function(p) {
       var _pVisible = p.visible === 'نعم';
-      html += '<tr>' +
-        '<td style="padding:7px 10px;border:1px solid #e8e0d0;">' + f(p.type) + '</td>' +
-        '<td style="padding:7px 10px;border:1px solid #e8e0d0;">' + f([p.number, p.letter, p.year].filter(Boolean).join('/')) + '</td>' +
-        '<td style="padding:7px 10px;border:1px solid #e8e0d0;">' + f(p.notaryOffice) + '</td>' +
-        '<td style="padding:7px 10px;border:1px solid #e8e0d0;">' + f(p.capacity) + '</td>' +
-        '<td style="padding:7px 10px;border:1px solid #e8e0d0;">' + (p.fileUrl ? '<a href="' + escapeHtml(p.fileUrl) + '" target="_blank">فتح</a>' : '<span class="empty">لم يُرفع بعد</span>') + '</td>' +
-        '<td style="padding:7px 10px;border:1px solid #e8e0d0;">' + (_pVisible ? '<span style="color:#1e8449;font-weight:700;">&#10003; نعم</span>' : '<span style="color:#888;">لا</span>') + '</td>' +
-      '</tr>';
+      var _pIcon = (typeof fileIconEmoji === 'function')
+        ? fileIconEmoji({ 'اسم_المستند': p.type, 'رابط_Drive': p.fileUrl })
+        : '&#128196;';
+      var _pNumLine = [p.number, p.letter, p.year].filter(Boolean).join('/');
+      var _pInner =
+        '<div style="font-size:26px;line-height:1;">' + _pIcon + '</div>' +
+        '<div style="font-size:11px;font-weight:700;color:#0D1B2A;margin-top:4px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + f(p.type) + '</div>' +
+        (_pNumLine ? '<div style="font-size:10px;color:#888;margin-top:2px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escapeHtml(_pNumLine) + '</div>' : '') +
+        (p.notaryOffice ? '<div style="font-size:10px;color:#888;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + f(p.notaryOffice) + '</div>' : '') +
+        (p.capacity ? '<div style="font-size:10px;color:#888;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + f(p.capacity) + '</div>' : '') +
+        '<div style="font-size:9px;margin-top:3px;' + (_pVisible ? 'color:#1e8449;font-weight:700;' : 'color:#aaa;') + '">' + (_pVisible ? '&#10003; ظاهر للموكل' : 'مخفي عن الموكل') + '</div>';
+      var _pTileStyle = 'display:flex;flex-direction:column;align-items:center;justify-content:flex-start;width:130px;padding:10px 8px;border:1px solid #e8e0d0;border-radius:10px;background:#faf8f3;text-align:center;text-decoration:none;';
+      html += p.fileUrl
+        ? '<a href="' + escapeHtml(p.fileUrl) + '" target="_blank" rel="noopener" style="' + _pTileStyle + '">' + _pInner + '</a>'
+        : '<div style="' + _pTileStyle + '">' + _pInner + '<div style="font-size:9px;color:#c0392b;margin-top:2px;">لم يُرفع بعد</div></div>';
     });
-    html += '</table></div></div>';
+    html += '</div></div>';
   }
 
   // ---- مستندات الموكل ----
+  // نفس نظام الـTiles (وliدون تكرار fileIconEmoji — انظر ملاحظة التوكيلات
+  // أعلاه). حالة الظهور للموكل محفوظة كما كانت، معروضة أسفل كل Tile.
   var _docs = _cfParseArr(c['المستندات']);
   if (_docs.length) {
-    html += '<div class="view-section"><div class="view-section-title">&#128193; مستندات الموكل (' + _docs.length + ')</div>' +
-      '<div class="view-field-full"><div class="view-value">' +
-      _docs.map(function(d) {
-        var _dVisible = d.visible === 'نعم';
-        var _label = d.fileUrl
-          ? '<a href="' + escapeHtml(d.fileUrl) + '" target="_blank">' + f(d.name) + '</a>'
-          : f(d.name);
-        return _label + ' <span style="font-size:11px;' + (_dVisible ? 'color:#1e8449;' : 'color:#888;') + '">(' + (_dVisible ? '&#10003; ظاهر للموكل' : 'مخفي عن الموكل') + ')</span>';
-      }).join('<br>') +
-      '</div></div></div>';
+    html += '<div class="view-section"><div class="view-section-title">&#128193; مستندات الموكل (' + _docs.length + ')</div>';
+    html += '<div style="display:flex;flex-wrap:wrap;gap:10px;padding:12px 14px;">';
+    _docs.forEach(function(d) {
+      var _dVisible = d.visible === 'نعم';
+      var _dIcon = (typeof fileIconEmoji === 'function')
+        ? fileIconEmoji({ 'اسم_المستند': d.name, 'رابط_Drive': d.fileUrl })
+        : '&#128193;';
+      var _dInner =
+        '<div style="font-size:26px;line-height:1;">' + _dIcon + '</div>' +
+        '<div style="font-size:11px;font-weight:700;color:#0D1B2A;margin-top:4px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + f(d.name) + '</div>' +
+        '<div style="font-size:9px;margin-top:3px;' + (_dVisible ? 'color:#1e8449;font-weight:700;' : 'color:#aaa;') + '">' + (_dVisible ? '&#10003; ظاهر للموكل' : 'مخفي عن الموكل') + '</div>';
+      var _dTileStyle = 'display:flex;flex-direction:column;align-items:center;justify-content:flex-start;width:110px;padding:10px 8px;border:1px solid #e8e0d0;border-radius:10px;background:#faf8f3;text-align:center;text-decoration:none;';
+      html += d.fileUrl
+        ? '<a href="' + escapeHtml(d.fileUrl) + '" target="_blank" rel="noopener" style="' + _dTileStyle + '">' + _dInner + '</a>'
+        : '<div style="' + _dTileStyle + '">' + _dInner + '</div>';
+    });
+    html += '</div></div>';
   }
 
   // ---- Notes ----
