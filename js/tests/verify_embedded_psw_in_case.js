@@ -76,6 +76,7 @@ async function main() {
   };
 
   let saveCaseCalls = 0;
+  const toastLog = [];
   const sandboxGlobals = {
     indexedDB: fakeIndexedDB,
     data: {
@@ -85,7 +86,10 @@ async function main() {
     editIdx: { processServerWorks: -1 },
     document: { getElementById: function (id) { return fakeElements[id] || null; } },
     escapeHtml: function (s) { return String(s == null ? '' : s); },
-    toast: function () {},
+    // CASE_SAVE_CYCLE_FIX_2026 — B4: was a no-op stub; now records calls
+    // so the no-client-skip test below can assert the fix (an explicit
+    // toast instead of a silent console.error) actually fires.
+    toast: function (msg, type) { toastLog.push({ msg: msg, type: type }); },
     updateBadges: function () {},
     saveCase: function () { saveCaseCalls++; return Promise.resolve({ success: true }); }
   };
@@ -157,6 +161,7 @@ async function main() {
     fakeElements.fCaseNum.value = '2025/3003';
     fakeElements.fCaseClients.value = ''; // no client selected
     fakeElements.fCasePswNature.value = 'محاولة بلا موكل';
+    toastLog.length = 0;
 
     await assert.doesNotReject(pswModule._createEmbeddedPswIfFilled());
 
@@ -164,12 +169,24 @@ async function main() {
     assert.strictEqual(rows.length, 0, 'must NOT create an invalid record missing the required رقم_الموكل');
   });
 
+  check('B4: the skip above is NO LONGER silent — an error-type toast was shown explaining why the tab was not saved', () => {
+    assert.strictEqual(toastLog.length, 1, 'expected exactly one toast; got ' + JSON.stringify(toastLog));
+    assert.strictEqual(toastLog[0].type, 'error');
+    assert.ok(toastLog[0].msg && toastLog[0].msg.indexOf('موكل') !== -1, 'toast message should mention the missing client, got: ' + toastLog[0].msg);
+  });
+
   await checkAsync('_createEmbeddedPswIfFilled(): malformed JSON in #fCaseClients is handled gracefully (falls through to the no-client-selected skip path)', async () => {
     fakeElements.fCaseNum.value = '2025/4004';
     fakeElements.fCaseClients.value = 'not valid json {{{';
     fakeElements.fCasePswNature.value = 'محاولة أخرى';
+    toastLog.length = 0;
 
     await assert.doesNotReject(pswModule._createEmbeddedPswIfFilled());
+  });
+
+  check('B4: the malformed-JSON skip above ALSO produced the explicit error toast (same code path as the no-client-selected skip)', () => {
+    assert.strictEqual(toastLog.length, 1, 'expected exactly one toast; got ' + JSON.stringify(toastLog));
+    assert.strictEqual(toastLog[0].type, 'error');
   });
 
   await checkAsync('saveCase() wrap: still calls the original saveCase() and passes through its outcome when the tab is empty', async () => {

@@ -124,6 +124,16 @@ function loadGasContext(sheetsByName) {
     },
     setupSheets: function () {},
     isPhoneColumn: function () { return false; },
+    // CASE_SAVE_CYCLE_FIX_2026 — B5: 08_Utils.gs (where isCaseNumberColumn
+    // is really defined) is not loaded into this vm context, same reason
+    // isPhoneColumn is stubbed above — stub it identically so apiAddRow()/
+    // apiUpdateRow() (which now call it, see 06_Api.gs) keep running
+    // unmodified. Returning false here is intentional: this file's own
+    // fake sheet mock's setNumberFormat() is a no-op already, so the
+    // stub's return value has no effect on any assertion in this file —
+    // dedicated coverage for isCaseNumberColumn()'s actual behavior lives
+    // in verify_case_number_format_protection.js.
+    isCaseNumberColumn: function () { return false; },
     addToCalendar: function () { calls.addToCalendar++; return 'evt-1'; },
     updateCalendarEvent: function (oldId) { calls.updateCalendarEvent++; return oldId || 'evt-1'; },
     deleteCalendarEvent: function () { calls.deleteCalendarEvent++; },
