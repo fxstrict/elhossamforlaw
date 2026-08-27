@@ -271,21 +271,14 @@ async function main() {
 
   const saveResult1 = await global.saveCase();
 
-  // NEWLY-PROVEN FINDING (via this harness — not one of the originally
-  // scoped B1/B2/B4/B5 causes, and not fixed in this cycle — see the
-  // final report's "unfixed findings" section): cases.js's ORIGINAL
-  // saveCase() (line ~726: the validation-failure path, and line ~747:
-  // the success path) never actually `return`s the local `result`/
-  // `{success,...}` object to its own caller — both paths fall through
-  // to an implicit `return undefined`. Every wrapper's
-  // `.then(function(saveOutcome){ ... return saveOutcome; })` is
-  // therefore ALWAYS handed `undefined`, on success AND on failure
-  // alike. This assertion documents the actual, verified contract
-  // (rather than asserting a `{success:true}` shape that the real code
-  // never produces) — the outcome is proven via the toast message and
-  // repository state instead, exactly as the real UI does.
-  check('SCENARIO 1 — saveCase()\'s return value is (verified, pre-existing behavior) always undefined — success is only observable via toast + repository state, never via the return value', function () {
-    assert.strictEqual(saveResult1, undefined);
+  // CASE_SAVE_CYCLE_FIX_2026 — saveCase() now resolves to the Repository's
+  // {success, record, error} WriteResult on every exit path instead of an
+  // implicit `undefined`. Every wrapper's `saveOutcome` is therefore the
+  // REAL outcome, letting each "runs AFTER the case saves" side effect gate
+  // on saveOutcome.success (see SCENARIO 4 below for the case this fixes).
+  check('SCENARIO 1 — saveCase()\'s return value now surfaces the real Repository WriteResult (success:true, the saved record) all the way through the wrapper chain', function () {
+    assert.ok(saveResult1 && saveResult1.success === true, 'expected {success:true,...}, got ' + JSON.stringify(saveResult1));
+    assert.strictEqual(saveResult1.record['رقم_القضية'], 'C-2026-001');
   });
 
   check('SCENARIO 1 — exactly ONE case record was created', function () {
@@ -362,8 +355,8 @@ async function main() {
 
   const saveResult2 = await global.saveCase();
 
-  check('SCENARIO 2 (UPDATE) — saveCase()\'s return value is (verified, pre-existing behavior) always undefined, same as SCENARIO 1', function () {
-    assert.strictEqual(saveResult2, undefined);
+  check('SCENARIO 2 (UPDATE) — saveCase()\'s return value is still a real {success:true,...} WriteResult on the update path', function () {
+    assert.ok(saveResult2 && saveResult2.success === true, 'expected {success:true,...}, got ' + JSON.stringify(saveResult2));
   });
 
   check('SCENARIO 2 (UPDATE) — still exactly ONE case record (update, not a new row)', function () {
@@ -412,8 +405,9 @@ async function main() {
 
   const saveResult3 = await global.saveCase();
 
-  check('SCENARIO 3 (DUPLICATE-SAVE ATTEMPT) — saveCase()\'s return value is (verified, pre-existing behavior) always undefined — the ConflictError is only observable via the toast + repository state below, never via the return value', function () {
-    assert.strictEqual(saveResult3, undefined);
+  check('SCENARIO 3 (DUPLICATE-SAVE ATTEMPT) — saveCase()\'s return value now surfaces the real ConflictError WriteResult (success:false) all the way through the wrapper chain', function () {
+    assert.ok(saveResult3 && saveResult3.success === false, 'expected {success:false,...}, got ' + JSON.stringify(saveResult3));
+    assert.strictEqual(saveResult3.error && saveResult3.error.type, 'ConflictError');
   });
 
   check('SCENARIO 3 (DUPLICATE-SAVE ATTEMPT) — still exactly ONE case record (local ConflictError guard — Repository.js — holds)', function () {
@@ -426,18 +420,16 @@ async function main() {
   });
 
   // ================================================================
-  // SCENARIO 4 — NEWLY-DISCOVERED FINDING (via this integration test,
-  // not one of the originally-scoped B1/B2/B4/B5 causes — NOT fixed in
-  // this cycle, see the final report's "unfixed findings" section for
-  // why): repeat the exact duplicate-save-rejection setup of SCENARIO 3,
-  // but this time with the session tab ALSO filled in. Proves whether
-  // an embedded sub-entity still gets created even when the case save
-  // it is supposed to be attached to was REJECTED (ConflictError).
-  // Root cause (proven above, SCENARIO 1's first check): the original
-  // saveCase() never returns its {success,...} result to its caller, so
-  // every wrapper's `saveOutcome` is unconditionally undefined and every
-  // wrapper's `.then()` continuation runs unconditionally, regardless of
-  // whether the underlying case save actually succeeded.
+  // SCENARIO 4 — CASE_SAVE_CYCLE_FIX_2026: repeat the exact
+  // duplicate-save-rejection setup of SCENARIO 3, but this time with
+  // the session tab ALSO filled in. Proves that an embedded sub-entity
+  // is NO LONGER created when the case save it would be attached to is
+  // REJECTED (ConflictError). Root cause (fixed above, see cases.js
+  // saveCase()): the base saveCase() now returns its real
+  // {success, record, error} WriteResult on every exit path, so every
+  // wrapper's `saveOutcome` reflects the true outcome and each
+  // wrapper's post-save continuation is gated on `saveOutcome.success`
+  // before running.
   // ================================================================
   const sessionCountBeforeScenario4 = sessModule.sessionsRepository.getAll()
     .filter(function (s) { return s['رقم_القضية'] === 'C-2026-001'; }).length;
@@ -451,18 +443,19 @@ async function main() {
     'اسم_الموكل': 'أحمد محمود'
   };
 
-  await global.saveCase();
+  const saveResult4 = await global.saveCase();
 
   const sessionCountAfterScenario4 = sessModule.sessionsRepository.getAll()
     .filter(function (s) { return s['رقم_القضية'] === 'C-2026-001'; }).length;
 
-  check('SCENARIO 4 (NEWLY-DISCOVERED, UNFIXED — see report) — a session tab filled alongside a REJECTED (ConflictError) case save still creates a session record, orphaned from any newly-saved case', function () {
-    // This assertion documents the PROVEN current behavior (an embedded
-    // record IS still created) rather than asserting the ideally-safe
-    // behavior — see the report for why this is knowingly left unfixed
-    // in this cycle.
-    assert.strictEqual(sessionCountAfterScenario4, sessionCountBeforeScenario4 + 1,
-      'expected the session to still be created even though the case save was rejected (proving the wrapper chain does not gate embedded creation on saveOutcome); before=' + sessionCountBeforeScenario4 + ' after=' + sessionCountAfterScenario4);
+  check('SCENARIO 4 (FIXED) — saveCase() still surfaces the ConflictError WriteResult when an embedded tab is also filled', function () {
+    assert.ok(saveResult4 && saveResult4.success === false, 'expected {success:false,...}, got ' + JSON.stringify(saveResult4));
+    assert.strictEqual(saveResult4.error && saveResult4.error.type, 'ConflictError');
+  });
+
+  check('SCENARIO 4 (FIXED) — a session tab filled alongside a REJECTED (ConflictError) case save no longer creates an orphaned session record', function () {
+    assert.strictEqual(sessionCountAfterScenario4, sessionCountBeforeScenario4,
+      'expected NO new session to be created once the case save is gated on saveOutcome.success; before=' + sessionCountBeforeScenario4 + ' after=' + sessionCountAfterScenario4);
   });
 
   // ================================================================
