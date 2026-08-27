@@ -1876,6 +1876,11 @@ if (typeof saveCase === 'function') {
     var result = _origSaveCaseForClientSelector();
     if (result && typeof result.then === 'function') {
       return result.then(function (saveOutcome) {
+        // CASE_SAVE_CYCLE_FIX_2026 — only reconcile قضية_موكلين when the
+        // case itself actually saved (see tasks.js's identical fix for the
+        // full rationale — an ApplicationShell-tracked rejected/failed save
+        // must not still create/soft-delete relationship rows against it).
+        if (!saveOutcome || !saveOutcome.success) return saveOutcome;
         return _reconcileCaseClientsAfterSave().then(function () { return saveOutcome; });
       });
     }

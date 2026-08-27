@@ -1333,6 +1333,12 @@ if (typeof saveCase === 'function') {
     var result = _origSaveCaseForEmbeddedAdminWork.apply(this, arguments);
     if (result && typeof result.then === 'function') {
       return result.then(function (saveOutcome) {
+        // CASE_SAVE_CYCLE_FIX_2026 — only harvest the "عمل اداري" tab into a
+        // real record when the case itself actually saved. Before this fix
+        // saveOutcome was always undefined (the base saveCase() never
+        // returned its result), so this ran unconditionally even after a
+        // rejected/failed case save, orphaning the admin-work record.
+        if (!saveOutcome || !saveOutcome.success) return saveOutcome;
         return _createEmbeddedAdminWorkIfFilled().then(function () { return saveOutcome; });
       });
     }

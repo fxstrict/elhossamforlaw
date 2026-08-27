@@ -666,7 +666,7 @@ async function saveCase() {
 
   if (!num || !title || !client) {
     toast('يرجى ملء الحقول الإلزامية', 'error');
-    return;
+    return { success: false, record: null, error: { type: 'ValidationError', message: 'يرجى ملء الحقول الإلزامية' } };
   }
 
   // CASES_RELATIONSHIP_FINANCIAL قرار §3-E: القضية لا يمكن أن تكون
@@ -678,7 +678,7 @@ async function saveCase() {
   var parentCaseNum = parentCaseEl ? parentCaseEl.value.trim() : '';
   if (parentCaseNum && parentCaseNum === num) {
     toast('لا يمكن ربط القضية بنفسها كدرجة سابقة', 'error');
-    return;
+    return { success: false, record: null, error: { type: 'ValidationError', message: 'لا يمكن ربط القضية بنفسها كدرجة سابقة' } };
   }
 
   await ensureCasesRepositoryReady();
@@ -723,7 +723,7 @@ async function saveCase() {
     } else {
       toast('حدث خطأ أثناء حفظ بيانات القضية', 'error');
     }
-    return;
+    return result || { success: false, record: null, error: { type: 'StorageError', message: 'حدث خطأ أثناء حفظ بيانات القضية' } };
   }
 
   syncCasesMirror();
@@ -744,6 +744,18 @@ async function saveCase() {
   updateBadges();
   // PHASE 16.5.1 — DIRTY PROPAGATION (additive only, see phase brief)
   if (window.ApplicationShell) { ApplicationShell.markDirty('cases'); ApplicationShell.markDirty('dashboard'); }
+
+  // CASE_SAVE_CYCLE_FIX_2026 — saveCase() now resolves to the Repository's
+  // own {success, record, error} WriteResult on every exit path (validation
+  // failure / repository failure / success), instead of falling through to
+  // an implicit `return undefined`. This lets every wrapper layer up the
+  // chain (tasks.js/documents.js/sessions.js/process-server-works.js's
+  // embedded-child creators, clients.js's قضية_موكلين reconciliation) gate
+  // their own "runs AFTER the case saves" side effects on the case having
+  // ACTUALLY saved — see docs/CHANGELOG_SAVECASE for the full contract.
+  // onclick="saveCase()" (fire-and-forget) and any caller that never reads
+  // this return value are unaffected — byte-identical behavior for them.
+  return result;
 }
 
 /**

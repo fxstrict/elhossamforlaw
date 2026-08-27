@@ -742,6 +742,10 @@ if (typeof saveCase === 'function') {
     var result = _origSaveCaseForEmbeddedPsw.apply(this, arguments);
     if (result && typeof result.then === 'function') {
       return result.then(function (saveOutcome) {
+        // CASE_SAVE_CYCLE_FIX_2026 — only harvest the "محضرين" tab into a
+        // real record when the case itself actually saved (see tasks.js's
+        // identical fix for the full rationale).
+        if (!saveOutcome || !saveOutcome.success) return saveOutcome;
         return _createEmbeddedPswIfFilled().then(function () { return saveOutcome; });
       });
     }
