@@ -238,7 +238,7 @@
 // networkFirstShell() (always fresh), and its only change was to a
 // small inline <script> block (bootLoadFromSheets() call sites), not a
 // cached file reference.
-var SW_VERSION = 'v78'; // LEGAL DIRECTORIES — Dashboard Shortcut Navigator.
+var SW_VERSION = 'v79'; // LEGAL DIRECTORIES — Dashboard Shortcut Navigator.
                          // Two new precached files (css/dashboard-legal-
                          // directories-nav.css?v=1, js/modules/dashboard-
                          // legal-directories-nav.js?v=1) added to
