@@ -845,9 +845,18 @@ function _createEmbeddedSessionIfFilled() {
   var requiredEl = document.getElementById('fCaseSessionRequired');
   var notesEl = document.getElementById('fCaseSessionNotes');
 
+  // CASE_SAVE_CYCLE_FIX_2026 — B1: رقم الدعوى مصدره الوحيد المُثبت هو
+  // حقل القضية نفسها (#fCaseDocketNum، already required/typed on the
+  // case form — cases.js CASES_MAP.fCaseDocketNum). لا يوجد حقل مقابل
+  // فى تبويب "جلسة" المضمّن ولا فى التبويب المستقل، فلا نخترعه؛ نقرأ
+  // القيمة الحالية لحقل القضية وقت إنشاء الجلسة المضمّنة فقط.
+  var caseDocketNumEl = document.getElementById('fCaseDocketNum');
+  var caseDocketNum = caseDocketNumEl ? caseDocketNumEl.value.trim() : '';
+
   return ensureSessionsRepositoryReady().then(function () {
     return sessionsRepository.create({
       'رقم_القضية': caseNum,
+      'رقم_الدعوى': caseDocketNum,
       'التاريخ': date,
       // CASES_RELATIONSHIP_FINANCIAL: الوقت إلزامي عند SessionsRepository
       // (قرار §3-J) — قيمة افتراضية آمنة إن تُرك حقل الموعد فارغًا، بدلًا

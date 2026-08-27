@@ -1137,6 +1137,18 @@ function viewCase(i) {
     return d['رقم_القضية'] === caseNum;
   });
 
+  // CASE_SAVE_CYCLE_FIX_2026 — B2: كانا يُحفظان ويُربطان بالقضية بشكل
+  // سليم (tasks.js/process-server-works.js) لكن لم يُعرضا هنا إطلاقًا.
+  // نفس منطق الفلترة المستخدم أعلاه لـ sessions/docs بالضبط — بلا أي
+  // تغيير فى منطق الحفظ أو الـ Repository.
+  var tasks = (data.tasks || []).filter(function(t) {
+    return t['رقم_القضية'] === caseNum;
+  });
+
+  var psw = (data.processServerWorks || []).filter(function(w) {
+    return w['رقم_القضية'] === caseNum;
+  });
+
   var children = [];
   try { children = JSON.parse(c['أطفال_القضية'] || '[]'); } catch(e) {}
 
@@ -1171,7 +1183,7 @@ function viewCase(i) {
     }
   }
 
-  var html = buildCaseReport(c, sessions, docs, children);
+  var html = buildCaseReport(c, sessions, docs, children, tasks, psw);
 
   document.getElementById('viewModalTitle').innerHTML =
     '&#128065; عرض القضية: ' + escapeHtml(caseNum) + ' — ' + escapeHtml(c['عنوان_القضية'] || '');
@@ -1229,8 +1241,14 @@ function getLitigationChain(caseNum) {
 /**
  * buildCaseReport — builds the full HTML report string for a case.
  * Used by viewCase() and quickPrintCase().
+ * CASE_SAVE_CYCLE_FIX_2026 — B2: `tasks`/`psw` are new, optional
+ * (default []) trailing params — both existing call sites (viewCase(),
+ * quickPrintCase()) now pass them; backward-compatible for any other
+ * future caller that doesn't.
  */
-function buildCaseReport(c, sessions, docs, children) {
+function buildCaseReport(c, sessions, docs, children, tasks, psw) {
+  tasks = tasks || [];
+  psw = psw || [];
   var today = new Date().toLocaleDateString('ar-EG', {
     year: 'numeric', month: 'long', day: 'numeric', weekday: 'long'
   });
@@ -1406,6 +1424,46 @@ function buildCaseReport(c, sessions, docs, children) {
   }
   html += '</div>';
 
+  // CASE_SAVE_CYCLE_FIX_2026 — B2: الأعمال الإدارية المرتبطة بالقضية.
+  // كانت تُحفظ وتُربط بالقضية بشكل سليم بالفعل (tasks.js) لكن لم تُعرض
+  // هنا إطلاقًا — قسم عرض بحت، لا يمس منطق الحفظ. نفس نمط .view-section
+  // المستخدم لبقية الأقسام (لا CSS جديد، لا حاوية متداخلة، لا
+  // overflow/max-height ثابت يمكن أن يقصّ المحتوى).
+  if (tasks.length > 0) {
+    html += '<div class="view-section"><div class="view-section-title">&#128203; الأعمال الإدارية المرتبطة (' + tasks.length + ')</div>';
+    tasks.forEach(function(t) {
+      html += '<div class="view-field-full">' +
+        '<div class="view-label">' + f(t['العنوان']) + '</div>' +
+        '<div class="view-value" style="font-weight:400;font-size:12px;">' +
+          (t['الأولوية'] ? 'الأولوية: ' + escapeHtml(t['الأولوية']) + ' &nbsp;|&nbsp; ' : '') +
+          (t['الموعد_النهائي'] ? 'الموعد النهائي: ' + escapeHtml(formatDate(t['الموعد_النهائي'])) + ' &nbsp;|&nbsp; ' : '') +
+          'الحالة: ' + escapeHtml(t['الحالة'] || '—') +
+          (t['المطلوب'] ? '<br>' + escapeHtml(t['المطلوب']) : '') +
+        '</div>' +
+      '</div>';
+    });
+    html += '</div>';
+  }
+
+  // CASE_SAVE_CYCLE_FIX_2026 — B2: أعمال المحضرين المرتبطة بالقضية —
+  // نفس ملاحظة القسم أعلاه (عرض بحت فقط).
+  if (psw.length > 0) {
+    html += '<div class="view-section"><div class="view-section-title">&#128231; أعمال المحضرين المرتبطة (' + psw.length + ')</div>';
+    psw.forEach(function(w) {
+      html += '<div class="view-field-full">' +
+        '<div class="view-label">' + f(w['طبيعة_الاعلان']) + '</div>' +
+        '<div class="view-value" style="font-weight:400;font-size:12px;">' +
+          (w['رقم_المحضرين'] ? 'رقم المحضرين: ' + escapeHtml(w['رقم_المحضرين']) + ' &nbsp;|&nbsp; ' : '') +
+          (w['قلم_المحضرين'] ? 'قلم المحضرين: ' + escapeHtml(w['قلم_المحضرين']) + ' &nbsp;|&nbsp; ' : '') +
+          'الحالة: ' + escapeHtml(w['الحالة'] || '—') +
+          (w['تاريخ_التسليم'] ? '<br>تاريخ التسليم: ' + escapeHtml(formatDate(w['تاريخ_التسليم'])) : '') +
+          (w['تاريخ_الاستلام'] ? ' &nbsp;|&nbsp; تاريخ الاستلام: ' + escapeHtml(formatDate(w['تاريخ_الاستلام'])) : '') +
+        '</div>' +
+      '</div>';
+    });
+    html += '</div>';
+  }
+
   // الأحكام والتنفيذ
   if (c['قرارات_المحكمة'] || c['تاريخ_الحكم'] || c['رقم_التنفيذ']) {
     html += '<div class="view-section"><div class="view-section-title">&#128296; الأحكام والتنفيذ</div><div class="view-grid">';
@@ -1484,10 +1542,14 @@ function quickPrintCase(i) {
     return (parseLocalDate(a['التاريخ']) || 0) - (parseLocalDate(b['التاريخ']) || 0);
   });
   var docs = data.documents.filter(function(d) { return d['رقم_القضية'] === caseNum; });
+  // CASE_SAVE_CYCLE_FIX_2026 — B2: نفس الفلترة المُضافة فى viewCase()
+  // بالضبط، حتى تعرض الطباعة السريعة نفس الأقسام الجديدة.
+  var tasks = (data.tasks || []).filter(function(t) { return t['رقم_القضية'] === caseNum; });
+  var psw = (data.processServerWorks || []).filter(function(w) { return w['رقم_القضية'] === caseNum; });
   var children = [];
   try { children = JSON.parse(c['أطفال_القضية'] || '[]'); } catch(e) {}
 
-  var body = buildCaseReport(c, sessions, docs, children);
+  var body = buildCaseReport(c, sessions, docs, children, tasks, psw);
 
   var printContent =
     '<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8">' +

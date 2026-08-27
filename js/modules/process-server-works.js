@@ -778,7 +778,19 @@ function _createEmbeddedPswIfFilled() {
       if (Array.isArray(ids) && ids.length) clientId = ids[0]; // "أول موكل فى القضية"
     } catch (e) { /* malformed/absent — proceed without a client link, non-fatal */ }
   }
-  if (!clientId) return Promise.resolve(); // PSW_REQUIRED_FIELDS = ['رقم_الموكل'] — no client selected on the case yet means we genuinely cannot create a valid record; silently skip rather than fail loudly for an optional tab
+  if (!clientId) {
+    // CASE_SAVE_CYCLE_FIX_2026 — B4: PSW_REQUIRED_FIELDS = ['رقم_الموكل']
+    // — no client selected on the case yet means we genuinely cannot
+    // create a valid record. The skip itself is unchanged (still a
+    // documented, intentional tradeoff — see doc comment above), but it
+    // must no longer be silent: the tab the user just filled in was
+    // dropped, and a bare console.error is invisible to them. Non-fatal
+    // — never blocks/rolls back the case save itself.
+    if (typeof toast === 'function') {
+      toast('لم يتم حفظ "عمل المحضرين" لأنه لا يوجد موكل مختار لهذه القضية بعد — يرجى اختيار الموكل ثم إعادة إدخال بيانات عمل المحضرين', 'error');
+    }
+    return Promise.resolve();
+  }
 
   var clientName = '';
   if (typeof data !== 'undefined' && data.clients) {
