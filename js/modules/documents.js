@@ -941,6 +941,16 @@ function _createEmbeddedDocumentIfFilled() {
   }).then(function (result) {
     if (result && result.success) {
       syncDocumentsMirror();
+      // CASE_SAVE_CYCLE_AUDIT (Problem 8 wrapper-chain audit — same defect
+      // family as Problem 3/4/tasks.js above): push the new record to
+      // Google Sheets exactly like the standalone saveDocument() always
+      // does — this embedded path only ever called syncDocumentsMirror()
+      // (a local IndexedDB mirror refresh), so the مستند existed locally
+      // but never reached Sheets/Client Portal. idx is intentionally -1:
+      // this branch only runs on a successful create(), never an update.
+      if (typeof ApiService !== 'undefined' && ApiService.syncRow) {
+        ApiService.syncRow('المستندات', result.record, -1);
+      }
       [nameEl, driveUrlEl, notesEl].forEach(function (el) { if (el) el.value = ''; });
       if (typeEl) typeEl.selectedIndex = 0;
       if (typeof updateBadges === 'function') updateBadges();

@@ -703,6 +703,14 @@ function onPswCaseChange() {
 }
 
 function syncPswCaseSelectorFromRecord(record) {
+  // CASE_SAVE_CYCLE_AUDIT (Problem 4, Root Cause B): #fPswCaseNum's
+  // <option> list is only ever built by populatePswCaseDropdown(name),
+  // normally triggered by selectPswClient() when a client is picked
+  // interactively. Opening an EXISTING record (editProcessServerWork())
+  // never called it, so setting sel.value below to a case number with
+  // no matching <option> silently left the field showing unselected —
+  // even though record['رقم_القضية'] was always correct.
+  populatePswCaseDropdown(record ? (record['اسم_الموكل'] || '') : '');
   var sel = document.getElementById('fPswCaseNum');
   if (sel) sel.value = record ? (record['رقم_القضية'] || '') : '';
   onPswCaseChange();
@@ -827,6 +835,18 @@ function _createEmbeddedPswIfFilled() {
   }).then(function (result) {
     if (result && result.success) {
       syncProcessServerWorksMirror();
+      // CASE_SAVE_CYCLE_AUDIT (Problem 4, Root Cause A): push the new
+      // record to Google Sheets exactly like the standalone
+      // saveProcessServerWork() always does — this embedded path only
+      // ever called syncProcessServerWorksMirror() (a local IndexedDB
+      // mirror refresh), so the record existed locally but never
+      // reached Sheets, and therefore never reached Client Portal
+      // (Config/05_Portal.gs reads أعمال_المحضرين only from Sheets).
+      // idx is intentionally -1: this branch only runs on a successful
+      // create(), never an update.
+      if (typeof ApiService !== 'undefined' && ApiService.syncRow) {
+        ApiService.syncRow('أعمال_المحضرين', result.record, -1);
+      }
       [natureEl, numberEl, courtEl, officeEl, deliveryEl, receiptEl, sessionDateEl, notesEl].forEach(function (el) { if (el) el.value = ''; });
       if (typeof updateBadges === 'function') updateBadges();
     } else if (typeof console !== 'undefined' && console.error) {

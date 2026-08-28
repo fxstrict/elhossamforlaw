@@ -1402,6 +1402,18 @@ function _createEmbeddedAdminWorkIfFilled() {
   }).then(function (result) {
     if (result && result.success) {
       syncTasksMirror();
+      // CASE_SAVE_CYCLE_AUDIT (Problem 8 wrapper-chain audit — same defect
+      // family as Problem 3/4, found here by extending that same check to
+      // every embedded creator): push the new record to Google Sheets
+      // exactly like the standalone saveTask() always does — this
+      // embedded path only ever called syncTasksMirror() (a local
+      // IndexedDB mirror refresh), so the عمل اداري existed locally but
+      // never reached Sheets, and therefore never reached Client Portal.
+      // idx is intentionally -1: this branch only runs on a successful
+      // create(), never an update.
+      if (typeof ApiService !== 'undefined' && ApiService.syncRow) {
+        ApiService.syncRow('الأعمال الإدارية', result.record, -1);
+      }
       [titleEl, deadlineEl, locationEl, requiredEl, notesEl].forEach(function (el) { if (el) el.value = ''; });
       if (typeof updateBadges === 'function') updateBadges();
     } else if (typeof console !== 'undefined' && console.error) {

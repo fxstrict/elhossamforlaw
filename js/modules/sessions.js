@@ -857,10 +857,24 @@ function _createEmbeddedSessionIfFilled() {
   var caseDocketNumEl = document.getElementById('fCaseDocketNum');
   var caseDocketNum = caseDocketNumEl ? caseDocketNumEl.value.trim() : '';
 
+  // CASE_SAVE_CYCLE_AUDIT (Problem 5): رقم الدائرة/رقم القاعة — نفس
+  // منطق caseDocketNum أعلاه بالضبط. لا يوجد حقل مقابل فى تبويب "جلسة"
+  // المضمّن (ولا داعٍ لاختراعه — القيمة أصلًا موجودة على نموذج القضية
+  // نفسه، #fCaseCircuit/#fCaseRoom، المفروض وقت إنشاء الجلسة المضمّنة
+  // بالتحديد). المسار المستقل (autofillSessionFromCase()، cases.js) كان
+  // ينسخهما من سجل القضية المحفوظ إلى نموذج الجلسة المستقل فقط — لا شىء
+  // يوازيه هنا، فكانت الجلسة المضمّنة تُنشأ دومًا برقم دائرة/قاعة فارغين.
+  var caseCircuitEl = document.getElementById('fCaseCircuit');
+  var caseRoomEl = document.getElementById('fCaseRoom');
+  var caseCircuit = caseCircuitEl ? caseCircuitEl.value.trim() : '';
+  var caseRoom = caseRoomEl ? caseRoomEl.value.trim() : '';
+
   return ensureSessionsRepositoryReady().then(function () {
     return sessionsRepository.create({
       'رقم_القضية': caseNum,
       'رقم_الدعوى': caseDocketNum,
+      'رقم_الدائرة': caseCircuit,
+      'رقم_القاعة': caseRoom,
       'التاريخ': date,
       // CASES_RELATIONSHIP_FINANCIAL: الوقت إلزامي عند SessionsRepository
       // (قرار §3-J) — قيمة افتراضية آمنة إن تُرك حقل الموعد فارغًا، بدلًا
@@ -873,6 +887,17 @@ function _createEmbeddedSessionIfFilled() {
   }).then(function (result) {
     if (result && result.success) {
       syncSessionsMirror();
+      // CASE_SAVE_CYCLE_AUDIT (Problem 3): push the new record to Google
+      // Sheets exactly like the standalone saveSession() always does —
+      // this embedded path only ever called syncSessionsMirror() (a
+      // local IndexedDB->mirror refresh), so the session existed in
+      // local storage but never reached Sheets, and therefore never
+      // reached Client Portal (Config/05_Portal.gs reads sessions only
+      // from Sheets). idx is intentionally -1: this branch only runs on
+      // a successful create(), never an update.
+      if (typeof ApiService !== 'undefined' && ApiService.syncRow) {
+        ApiService.syncRow('الجلسات', result.record, -1);
+      }
       // Clear the tab so re-saving the same case (e.g. an immediate
       // edit right after create) doesn't duplicate this session.
       [dateEl, titleEl, timeEl, requiredEl, notesEl].forEach(function (el) { if (el) el.value = ''; });
