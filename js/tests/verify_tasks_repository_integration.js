@@ -67,18 +67,28 @@ function makeFakeStorage(seed) {
 }
 
 // ---- Fake DOM element (only the surface tasks.js actually touches) ----
-function makeFakeElement() {
+function makeFakeElement(tagName) {
   return {
     value: '',
     textContent: '',
     innerHTML: '',
+    tagName: tagName || 'DIV',
+    disabled: false,
     style: { display: '' },
     classList: {
       _classes: {},
       add: function (c) { this._classes[c] = true; },
       remove: function (c) { delete this._classes[c]; },
       contains: function (c) { return !!this._classes[c]; }
-    }
+    },
+    // CASE_SAVE_CYCLE_AUDIT (Problem 11 fix): editTask() now calls
+    // populateTaskCaseDropdown() (via syncTaskCaseSelectorFromRecord()),
+    // which builds <option> elements with setAttribute/appendChild —
+    // additive stubs only, no existing assertion depended on their
+    // absence.
+    setAttribute: function (name, val) { this['_attr_' + name] = val; },
+    getAttribute: function (name) { return this['_attr_' + name] !== undefined ? this['_attr_' + name] : null; },
+    appendChild: function () {}
   };
 }
 
@@ -189,7 +199,13 @@ async function main() {
         getElementById: function (id) {
           if (!fakeElements[id]) fakeElements[id] = makeFakeElement();
           return fakeElements[id];
-        }
+        },
+        // CASE_SAVE_CYCLE_AUDIT (Problem 11 fix): editTask() now calls
+        // syncTaskCaseSelectorFromRecord() -> populateTaskCaseDropdown(),
+        // which builds real <option> elements via document.createElement()
+        // — a capability this fake document never needed before that fix.
+        // Minimal, additive stub only; no existing assertion changed.
+        createElement: function (tag) { return makeFakeElement(tag); }
       },
       toast: function (msg, type) { toastLog.push({ msg: msg, type: type }); },
       updateBadges: function () { badgeCalls.count++; },
