@@ -817,6 +817,16 @@ function _createEmbeddedPswIfFilled() {
   var receiptEl = document.getElementById('fCasePswReceiptDate');
   var sessionDateEl = document.getElementById('fCasePswSessionDate');
   var notesEl = document.getElementById('fCasePswNotes');
+  // PROBLEM 12 (Case Save Cycle audit, v80): same tri-state field/values
+  // already used by the standalone screen (#fPswPortalVisibility ->
+  // 'ظهور_في_بوابة_الموكل') — read here so the choice made while
+  // registering the case is what actually gets saved, instead of
+  // forcing a second open-edit-save round trip on the standalone screen
+  // afterwards. No new field/Data-Model was introduced; if left
+  // untouched the value is 'مخفي' (#fCasePswPortalVisibility's own
+  // first <option>, no `selected` override) — the exact same safe
+  // default PSW_PORTAL_VISIBILITY_DEFAULT already used everywhere else.
+  var portalVisibilityEl = document.getElementById('fCasePswPortalVisibility');
 
   return ensureProcessServerWorksRepositoryReady().then(function () {
     return processServerWorksRepository.create({
@@ -830,7 +840,8 @@ function _createEmbeddedPswIfFilled() {
       'تاريخ_التسليم': deliveryEl ? deliveryEl.value.trim() : '',
       'تاريخ_الاستلام': receiptEl ? receiptEl.value.trim() : '',
       'تاريخ_الجلسة': sessionDateEl ? sessionDateEl.value.trim() : '',
-      'الملاحظات': notesEl ? notesEl.value.trim() : ''
+      'الملاحظات': notesEl ? notesEl.value.trim() : '',
+      'ظهور_في_بوابة_الموكل': portalVisibilityEl ? portalVisibilityEl.value : PSW_PORTAL_VISIBILITY_DEFAULT
     });
   }).then(function (result) {
     if (result && result.success) {
@@ -848,6 +859,7 @@ function _createEmbeddedPswIfFilled() {
         ApiService.syncRow('أعمال_المحضرين', result.record, -1);
       }
       [natureEl, numberEl, courtEl, officeEl, deliveryEl, receiptEl, sessionDateEl, notesEl].forEach(function (el) { if (el) el.value = ''; });
+      if (portalVisibilityEl) portalVisibilityEl.selectedIndex = 0;
       if (typeof updateBadges === 'function') updateBadges();
     } else if (typeof console !== 'undefined' && console.error) {
       console.error('Embedded PSW creation failed:', result && result.error);

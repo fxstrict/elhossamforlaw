@@ -1287,6 +1287,15 @@ function onTaskCaseChange() {
 }
 
 function syncTaskCaseSelectorFromRecord(record) {
+  // CASE_SAVE_CYCLE_AUDIT v80 (Problem 11, same defect family as
+  // process-server-works.js's Problem 4/Root-Cause-B): #fTaskCaseNum's
+  // <option> list is only ever built by populateTaskCaseDropdown(name),
+  // normally triggered by selectTaskClient() when a client is picked
+  // interactively. Opening an EXISTING record (editTask()) never called
+  // it, so setting sel.value below to a case number with no matching
+  // <option> silently left the field showing unselected — even though
+  // record['رقم_القضية'] was always correct.
+  populateTaskCaseDropdown(record ? (record['اسم_الموكل'] || '') : '');
   var sel = document.getElementById('fTaskCaseNum');
   if (sel) sel.value = record ? (record['رقم_القضية'] || '') : '';
   onTaskCaseChange();
@@ -1387,6 +1396,16 @@ function _createEmbeddedAdminWorkIfFilled() {
   var locationEl = document.getElementById('fCaseTaskLocation');
   var requiredEl = document.getElementById('fCaseTaskRequired');
   var notesEl = document.getElementById('fCaseTaskNotes');
+  // PROBLEM 12 (Case Save Cycle audit, v80): same field/values already
+  // used by the standalone #modalTask screen (#fTaskPortalVisible ->
+  // 'ظاهر_للموكل') — read here so the choice made while registering the
+  // case is what actually gets saved, instead of forcing a second
+  // open-edit-save round trip on the standalone screen afterwards. No
+  // new field/Data-Model was introduced; default ('لا' — hidden) is
+  // unchanged when left untouched (#fCaseTaskPortalVisible's own first
+  // <option> has no `selected` override, same convention as the
+  // standalone select).
+  var portalVisibleEl = document.getElementById('fCaseTaskPortalVisible');
 
   return ensureTasksRepositoryReady().then(function () {
     return tasksRepository.create({
@@ -1397,7 +1416,8 @@ function _createEmbeddedAdminWorkIfFilled() {
       'الموعد_النهائي': deadlineEl ? deadlineEl.value.trim() : '',
       'مكان_التنفيذ': locationEl ? locationEl.value.trim() : '',
       'المطلوب': requiredEl ? requiredEl.value.trim() : '',
-      'الملاحظات': notesEl ? notesEl.value.trim() : ''
+      'الملاحظات': notesEl ? notesEl.value.trim() : '',
+      'ظاهر_للموكل': portalVisibleEl ? portalVisibleEl.value : 'لا'
     });
   }).then(function (result) {
     if (result && result.success) {
@@ -1415,6 +1435,7 @@ function _createEmbeddedAdminWorkIfFilled() {
         ApiService.syncRow('الأعمال الإدارية', result.record, -1);
       }
       [titleEl, deadlineEl, locationEl, requiredEl, notesEl].forEach(function (el) { if (el) el.value = ''; });
+      if (portalVisibleEl) portalVisibleEl.selectedIndex = 0;
       if (typeof updateBadges === 'function') updateBadges();
     } else if (typeof console !== 'undefined' && console.error) {
       console.error('Embedded admin-work creation failed:', result && result.error);

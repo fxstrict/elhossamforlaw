@@ -928,6 +928,16 @@ function _createEmbeddedDocumentIfFilled() {
   var typeEl = document.getElementById('fCaseDocType');
   var driveUrlEl = document.getElementById('fCaseDocDriveUrl');
   var notesEl = document.getElementById('fCaseDocNotes');
+  // PROBLEM 12 (Case Save Cycle audit, v80 — extended to المستندات per
+  // user report): same field/values already used by the standalone
+  // #modalDocument screen (#fDocPortalVisible -> 'ظاهر_للموكل') — read
+  // here so the choice made while registering the case is what actually
+  // gets saved, instead of forcing a second open-edit-save round trip
+  // on the standalone screen afterwards. No new field/Data-Model was
+  // introduced; default ('لا' — hidden) is unchanged when left
+  // untouched (#fCaseDocPortalVisible's own first <option> has no
+  // `selected` override, same convention as the standalone select).
+  var portalVisibleEl = document.getElementById('fCaseDocPortalVisible');
 
   return ensureDocumentsRepositoryReady().then(function () {
     return documentsRepository.create({
@@ -936,7 +946,8 @@ function _createEmbeddedDocumentIfFilled() {
       'رقم_الموكل': clientId,
       'نوع_المستند': typeEl ? typeEl.value : '',
       'رابط_Drive': driveUrlEl ? driveUrlEl.value.trim() : '',
-      'الملاحظات': notesEl ? notesEl.value.trim() : ''
+      'الملاحظات': notesEl ? notesEl.value.trim() : '',
+      'ظاهر_للموكل': portalVisibleEl ? portalVisibleEl.value : 'لا'
     });
   }).then(function (result) {
     if (result && result.success) {
@@ -953,6 +964,7 @@ function _createEmbeddedDocumentIfFilled() {
       }
       [nameEl, driveUrlEl, notesEl].forEach(function (el) { if (el) el.value = ''; });
       if (typeEl) typeEl.selectedIndex = 0;
+      if (portalVisibleEl) portalVisibleEl.selectedIndex = 0;
       if (typeof updateBadges === 'function') updateBadges();
     } else if (typeof console !== 'undefined' && console.error) {
       console.error('Embedded document creation failed:', result && result.error);
