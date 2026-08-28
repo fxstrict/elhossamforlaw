@@ -238,7 +238,32 @@
 // networkFirstShell() (always fresh), and its only change was to a
 // small inline <script> block (bootLoadFromSheets() call sites), not a
 // cached file reference.
-var SW_VERSION = 'v66'; // LEGAL DIRECTORIES — Back-button tree-navigation fix.
+// v80 -> v81: CASE_SAVE_CYCLE_AUDIT (Problems 11 & 12). Per the exact
+// "Cache Versioning" rule documented at every prior bump in this file
+// (see the v42/v50 notes above): js/modules/tasks.js, js/modules/
+// process-server-works.js and js/modules/documents.js are all already
+// listed in PRECACHE_URLS below and served cacheFirstIn(SHELL_CACHE) —
+// keyed by SW_VERSION, "NEVER re-check the network" — and all three had
+// their CONTENT changed here (Problem 11: syncTaskCaseSelectorFromRecord()
+// in tasks.js now populates #fTaskCaseNum's <option> list before setting
+// its value; Problem 12: all three embedded-creator functions now read
+// and persist a Portal-visibility choice) while keeping their existing
+// filenames/?v= query strings. An SW_VERSION bump alone forces a full
+// SHELL_CACHE recreation regardless of the ?v= values not changing, so
+// no PRECACHE_URLS entries needed editing — only this line, exactly
+// matching the current convention. index.html itself needed no bump: it
+// is served networkFirstShell() (always fresh), and its only change was
+// to add three new <select> controls inside existing case-form tabs
+// (no cached-file reference changed).
+var SW_VERSION = 'v82'; // PROBLEM 13 (Case Wizard / Next Flow) + PROBLEM 14 (Global Scroll Position Reset).
+                         // Two new precached files (css/dashboard-legal-
+                         // directories-nav.css?v=1, js/modules/dashboard-
+                         // legal-directories-nav.js?v=1) added to
+                         // PRECACHE_URLS below — bumped so already-
+                         // installed clients pick them up, same
+                         // "Cache Versioning" rule as every previous bump
+                         // in this file.
+// (v68 note, kept for history) LEGAL DIRECTORIES — Back-button tree-navigation fix.
                          // js/modules/legal-directories.js?v=1 is listed in
                          // PRECACHE_URLS and served cacheFirstIn(SHELL_CACHE), keyed
                          // by SW_VERSION — same "Cache Versioning" rule as every
@@ -286,7 +311,7 @@ var SW_VERSION = 'v66'; // LEGAL DIRECTORIES — Back-button tree-navigation fix
                          // of silently missing them until some unrelated future bump.
 // (v60 note, kept for history) ADMINISTRATIVE WORKS TRANSFORM — "المهام" -> "الأعمال الإدارية".
                          // RANK 1 FIX (Android Fixed-Surface Reduction) —
-                         // css/components.css?v=53 is listed in PRECACHE_URLS below and
+                         // css/components.css?v=54 is listed in PRECACHE_URLS below and
                          // served cacheFirstIn(SHELL_CACHE), which is keyed by SW_VERSION
                          // (see SHELL_CACHE definition a few lines down), so an already-
                          // installed client keeps serving its OLD cached copy of that file
@@ -425,7 +450,7 @@ var PRECACHE_URLS = [
   'css/variables.css?v=42',
   'css/base.css?v=42',
   'css/layout.css?v=42',
-  'css/components.css?v=53',
+  'css/components.css?v=54',
   'css/responsive.css?v=42',
   'css/utilities.css?v=42',
   'css/skeleton.css?v=42',
@@ -436,6 +461,7 @@ var PRECACHE_URLS = [
   'css/auth.css?v=42',
   'css/voice-input.css?v=42',
   'css/legal-directories.css?v=1',
+  'css/dashboard-legal-directories-nav.css?v=1',
   'assets/favicon/favicon.ico',
   'assets/favicon/favicon-16.png',
   'assets/favicon/favicon-32.png',
@@ -507,7 +533,7 @@ var PRECACHE_URLS = [
   'js/auth/TopbarSessionBadge.js?v=42',
   'js/auth/SidebarSessionBadge.js?v=42',
   'js/core/RepositoryReadyTimeout.js?v=42',
-  'js/modules/cases.js?v=42',
+  'js/modules/cases.js?v=43',
   'js/modules/settings.js?v=42',
   'js/modules/firstrun.js?v=42',
   'js/modules/calendar.js?v=42',
@@ -532,6 +558,7 @@ var PRECACHE_URLS = [
   'js/utils/DirectoryValidation.js?v=1',
   'js/utils/DirectoryRenderer.js?v=1',
   'js/modules/legal-directories.js?v=1',
+  'js/modules/dashboard-legal-directories-nav.js?v=1',
   'js/data/directories/legal-directories.json',
   'js/modules/historypanel-ui.js?v=42',
   'js/core/RepositoryReadyCoordinator.js?v=42',
@@ -566,7 +593,7 @@ var PRECACHE_URLS = [
   'js/core/modal/ScrollLockManager.js?v=42',
   'js/core/modal/FocusManager.js?v=42',
   'js/core/modal/ModalHistoryBridge.js?v=42',
-  'js/core/modal/ModalManager.js?v=42',
+  'js/core/modal/ModalManager.js?v=43',
   'js/core/boot/SafeModeController.js?v=42',
   'js/core/pwa/ServiceWorkerRegistrar.js?v=42',
   'js/core/pwa/InstallPromptManager.js?v=42',

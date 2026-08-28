@@ -56,6 +56,28 @@
   });
 })();
 </script>
+<!-- PROBLEM 14 (Global Scroll Position Reset, v82) — ROOT CAUSE part 1/3:
+     history.scrollRestoration defaults to 'auto' in every browser that
+     supports it, which means the browser itself re-applies whatever
+     scrollY the page/section had the LAST time this history entry was
+     current on every popstate (Back/Forward) — fighting any manual
+     scrollTo(0,0) navigate() does on its own. Since js/core/shell/
+     NavigationManager.js (loaded later) drives page changes through
+     history.pushState/popstate (hash-based, see that file's own header
+     comment), this must be turned off as early as possible, before any
+     navigation/popstate can occur — same "as early as physically
+     possible" placement rule already used for the beforeinstallprompt
+     capture directly above. Guarded (some very old browsers/webviews
+     don't expose the property) and a pure no-op otherwise: it does not
+     touch scrollY itself, does not run on every render, and does not
+     affect in-page anchor scrolling or typing. -->
+<script>
+(function () {
+  try {
+    if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+  } catch (err) {}
+})();
+</script>
 <!-- PHASE UX-BUGFIX — DYNAMIC VIEWPORT HEIGHT (ROOT CAUSE FIX)
      ----------------------------------------------------------------------
      SYMPTOM REPORTED: intermittent "page reload"/glitch look — parts of
@@ -246,7 +268,7 @@
 <link href="css/variables.css?v=42" rel="stylesheet">
 <link href="css/base.css?v=42" rel="stylesheet">
 <link href="css/layout.css?v=42" rel="stylesheet">
-<link href="css/components.css?v=53" rel="stylesheet">
+<link href="css/components.css?v=54" rel="stylesheet">
 <link href="css/responsive.css?v=42" rel="stylesheet">
 <link href="css/utilities.css?v=42" rel="stylesheet">
 <link href="css/skeleton.css?v=42" rel="stylesheet">
@@ -271,6 +293,16 @@
      free-text field. New, standalone file; no other CSS file was touched
      for this phase. -->
 <link href="css/voice-input.css?v=42" rel="stylesheet">
+<!-- PHASE — Legal Directories: Generic UI (Stage 2). Additive-only
+     stylesheet for the generic Directory/Node card UI; does not
+     modify any existing CSS file — see css/legal-directories.css
+     header for details. -->
+<link href="css/legal-directories.css?v=1" rel="stylesheet">
+<!-- PHASE — Legal Directories: Dashboard Shortcut Navigator. Additive-only
+     stylesheet, scoped under .dash-legaldir-* selectors; reuses
+     css/legal-directories.css's .legal-dir-card component as-is — see
+     css/dashboard-legal-directories-nav.css header for details. -->
+<link href="css/dashboard-legal-directories-nav.css?v=1" rel="stylesheet">
 <!-- ================================================================
      PHASE 17.1 — LOADER OPTIMIZATION (preload + priority hints, additive only)
      WHY THIS BLOCK EXISTS
@@ -333,6 +365,9 @@
 <link rel="preload" as="script" href="js/repositories/CasesRepository.js?v=42" fetchpriority="high">
 <link rel="preload" as="script" href="js/repositories/ClientsRepository.js?v=42" fetchpriority="high">
 <link rel="preload" as="script" href="js/repositories/OpponentsRepository.js?v=42" fetchpriority="high">
+<!-- CASES_RELATIONSHIP_FINANCIAL. Same preload-priority convention as OpponentsRepository.js just above. -->
+<link rel="preload" as="script" href="js/repositories/CaseClientsRepository.js?v=1" fetchpriority="high">
+<link rel="preload" as="script" href="js/repositories/ExpensesRepository.js?v=1" fetchpriority="high">
 <!-- PHASE 38 — Process Server Works Module (أعمال المحضرين). Same
      preload-priority convention as OpponentsRepository.js just above. -->
 <link rel="preload" as="script" href="js/repositories/ProcessServerWorksRepository.js?v=42" fetchpriority="high">
@@ -347,7 +382,7 @@
 <link rel="preload" as="script" href="js/repositories/SettingsRepository.js?v=42" fetchpriority="high">
 <link rel="preload" as="script" href="js/repositories/SettingsRepositoryWiring.js?v=42" fetchpriority="high">
 <link rel="preload" as="script" href="js/core/RepositoryReadyTimeout.js?v=42" fetchpriority="high">
-<link rel="preload" as="script" href="js/modules/cases.js?v=42" fetchpriority="high">
+<link rel="preload" as="script" href="js/modules/cases.js?v=43" fetchpriority="high">
 <link rel="preload" as="script" href="js/modules/settings.js?v=42" fetchpriority="high">
 <link rel="preload" as="script" href="js/modules/firstrun.js?v=42" fetchpriority="high">
 <link rel="preload" as="script" href="js/modules/calendar.js?v=42" fetchpriority="low">
@@ -403,7 +438,7 @@
 <link rel="preload" as="script" href="js/core/modal/ScrollLockManager.js?v=42" fetchpriority="high">
 <link rel="preload" as="script" href="js/core/modal/FocusManager.js?v=42" fetchpriority="high">
 <link rel="preload" as="script" href="js/core/modal/ModalHistoryBridge.js?v=42" fetchpriority="high">
-<link rel="preload" as="script" href="js/core/modal/ModalManager.js?v=42" fetchpriority="high">
+<link rel="preload" as="script" href="js/core/modal/ModalManager.js?v=43" fetchpriority="high">
 <!-- END PHASE 17.1 LOADER OPTIMIZATION BLOCK -->
 </head>
 <body>
@@ -600,10 +635,13 @@ style="color:var(--muted);font-size:12px;margin-top:4px;"> جارٍ تحميل
     <div class="nav-item" tabindex="0" role="link"
     onclick="navigate('tasks')"><span class="nav-icon">&#9989;</span> الأعمال الإدارية<span class="nav-badge" id="badgeTasks">0</span></div>
     <div class="nav-item" tabindex="0" role="link" onclick="navigate('fees')"><span class="nav-icon">&#128176;</span> الأتعاب <span class="nav-badge" id="badgeFees">0</span></div>
+    <div class="nav-item" tabindex="0" role="link" onclick="navigate('expenses')"><span class="nav-icon">&#128181;</span> المصروفات <span class="nav-badge" id="badgeExpenses">0</span></div>
     <div class="nav-section-label">الأدوات</div>
     <div class="nav-item" tabindex="0" role="link" onclick="navigate('calendar')"><span class="nav-icon">&#128467;</span> التقويم</div>
     <div class="nav-item" tabindex="0" role="link" onclick="navigate('library')"><span class="nav-icon">&#128218;</span> المكتبة القانونية</div>
     <div class="nav-item" tabindex="0" role="link" onclick="navigate('templates')"><span class="nav-icon">&#128196;</span> صيغ الدعاوى</div>
+    <!-- PHASE — Legal Directories: Generic UI (Stage 2) — additive nav item, same markup pattern as every item above. -->
+    <div class="nav-item" tabindex="0" role="link" onclick="navigate('legalDirectories')"><span class="nav-icon">&#127760;</span> الأجندة والمواقع الرسمية</div>
     <div class="nav-item" tabindex="0" role="link" onclick="navigate('settings')"><span class="nav-icon">&#9881;</span> الإعدادات</div>
     <!-- SIDEBAR QUICK LOGOUT — additive, third entry point to the exact
          same HossamSession.clear() + LoginScreen.init() action already
@@ -657,6 +695,22 @@ style="color:var(--muted);font-size:12px;margin-top:4px;"> جارٍ تحميل
   <div class="quick-search">
     <input type="text" id="dashQuickSearchInput" placeholder="بحث شامل: قضايا، موكلين، خصوم، مستندات، مهام، جلسات..." oninput="performDashboardQuickSearch(this.value)" onfocus="if(this.value)performDashboardQuickSearch(this.value)" onblur="setTimeout(function(){var r=document.getElementById('dashQuickSearchResults');if(r)r.classList.remove('open');},150)">
     <div class="quick-search-results" id="dashQuickSearchResults"></div>
+  </div>
+  <!-- PHASE — Legal Directories: Dashboard Shortcut Navigator. New,
+       additive widget only — js/modules/dashboard-legal-directories-
+       nav.js is the only thing that writes into it. No existing
+       element on this page was moved, edited, or removed. Reuses the
+       same dataset singleton and DirectoryRenderer cards as
+       #page-legalDirectories (see that module's header comment for
+       why this is not a second data source). -->
+  <div class="dash-legaldir-nav" id="dashLegalDirNav">
+    <div class="dash-legaldir-header" id="dashLegalDirHeader" role="link" tabindex="0" onclick="navigate('legalDirectories')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();navigate('legalDirectories');}">
+      <span class="dash-legaldir-header-title">الأجندة والمواقع الرسمية</span>
+      <span class="dash-legaldir-header-icon" aria-hidden="true">&#127968;</span>
+    </div>
+    <div class="dash-legaldir-strip" id="dashLegalDirStrip"></div>
+    <div class="dash-legaldir-empty" id="dashLegalDirEmpty" style="display:none;">لا توجد عناصر بعد.</div>
+    <div class="dash-legaldir-error" id="dashLegalDirError" style="display:none;">تعذر تحميل الأجندة والمواقع الرسمية.</div>
   </div>
   <div id="dashAlerts"></div>
   <!-- PHASE UX-01: shown instead of the (all-zero) stats/dashboard grids
@@ -926,6 +980,23 @@ style="color:var(--muted);font-size:12px;margin-top:4px;"> جارٍ تحميل
   <div class="mobile-card-list list-container" id="feesMobileList"></div>
 </div>
 
+<!-- CASES_RELATIONSHIP_FINANCIAL قرار §3-G -->
+<div class="page" id="page-expenses">
+  <div class="toolbar page-toolbar">
+    <div class="search-wrap"><span class="icon">&#128269;</span><input type="text" id="searchExpenses" placeholder="بحث في المصروفات..." oninput="renderExpenses()"></div>
+    <button class="btn btn-primary btn-sm" onclick="openAddExpenseModal()">&#65291; تسجيل مصروف</button>
+  </div>
+  <div class="stats-grid" style="margin-bottom:18px;">
+    <div class="stat-card" style="cursor:default;"><div class="stat-icon">&#128181;</div><div class="stat-num" id="expensesTotalNum">0</div><div class="stat-label">إجمالي المصروفات (ج.م)</div></div>
+    <div class="stat-card" style="cursor:default;"><div class="stat-icon">&#128203;</div><div class="stat-num" id="expensesCountNum">0</div><div class="stat-label">عدد العمليات</div></div>
+  </div>
+  <div class="card card-section"><div class="card-body u-p-0">
+    <div class="table-wrap table-container"><table><thead><tr><th>النطاق</th><th>المرتبط به</th><th>التصنيف</th><th>المبلغ</th><th>التاريخ</th><th>الحالة</th><th>ملاحظات</th><th>إجراءات</th></tr></thead><tbody id="expensesTableBody"></tbody></table></div>
+    <div id="expensesEmpty" class="empty-state empty-container" style="display:none;"><div class="icon">&#128181;</div><h3>لا توجد مصروفات مسجلة بعد</h3><p>سجّل مصروفات الموكلين/القضايا/المكتب لمتابعة الإجمالي وحساب صافي العائد.</p><button class="btn btn-primary" onclick="openAddExpenseModal()">&#65291; تسجيل مصروف</button></div>
+  </div></div>
+  <div class="mobile-card-list list-container" id="expensesMobileList"></div>
+</div>
+
 <!-- CALENDAR -->
 <div class="page" id="page-calendar">
   <div style="max-width:700px;">
@@ -988,6 +1059,26 @@ style="color:var(--muted);font-size:12px;margin-top:4px;"> جارٍ تحميل
   <div class="section-tabs" id="templateTabs"><button class="tab-btn active" onclick="filterTemplates('all')">&#128203; الكل</button></div>
   <div class="lib-grid" id="templatesGrid"></div>
   <div id="templatesEmpty" class="empty-state empty-container" style="display:none;"><div class="icon">&#128196;</div><h3>لا توجد صيغ دعاوى بعد</h3><p>أضف نماذج الصحف والمذكرات الجاهزة لتوفير وقتك عند إعداد قضايا مشابهة مستقبلاً.</p><button class="btn btn-primary" onclick="openAddTemplateModal()">&#65291; إضافة صيغة دعوى</button></div>
+</div>
+
+<!-- LEGAL DIRECTORIES -->
+<!-- PHASE — Legal Directories: Generic UI (Stage 2). Read-only browser
+     for the static Directory/Node dataset (js/data/directories/
+     legal-directories.json), built entirely by js/modules/
+     legal-directories.js + js/utils/DirectoryRenderer.js. No add/edit/
+     delete controls in this phase (Stage-1 §28 — no admin panel yet). -->
+<div class="page" id="page-legalDirectories">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:9px;">
+    <div><h2 style="font-size:17px;font-weight:700;">&#127760; الأجندة والمواقع الرسمية</h2><p class="u-meta-muted-sm">محاكم، نيابات، نقابة المحامين، ومواقع قانونية مرجعية</p></div>
+  </div>
+  <div class="legal-dir-breadcrumb" id="legalDirBreadcrumb"></div>
+  <!-- PHASE — Legal Directories: Admin Panel (Stage 3). Empty by default;
+       js/modules/legal-directories.js only fills this in when the
+       current user (or fail-open default) is allowed CanManageRawData. -->
+  <div class="legal-dir-admin-bar" id="legalDirAdminBar"></div>
+  <div class="legal-dir-grid" id="legalDirGrid"></div>
+  <div id="legalDirEmpty" class="legal-dir-empty" style="display:none;">لا توجد عناصر في هذا القسم حالياً.</div>
+  <div id="legalDirError" class="legal-dir-error" style="display:none;"></div>
 </div>
 
 <!-- SETTINGS -->
@@ -1182,111 +1273,276 @@ style="color:var(--muted);font-size:12px;margin-top:4px;"> جارٍ تحميل
 <div class="modal-overlay" id="modalCase">
   <div class="modal modal-wide">
     <div class="modal-header"><div class="modal-title"><span class="icon">&#9878;</span><span id="modalCaseTitle">إضافة قضية</span></div><button class="modal-close" onclick="closeModal('modalCase')">&#10005;</button></div>
-    <div class="modal-body"><div class="form-grid">
-      <div class="section-divider full"><h4>&#128203; البيانات الأساسية</h4></div>
-      <div class="form-group"><label>رقم قيد الدعوى بالمحكمة<span class="req">*</span></label><input type="text" id="fCaseNum" placeholder="2025/1234"></div>
-      <div class="form-group"><label>رقم الدائرة</label><input type="text" id="fCaseCircuit" placeholder="مثال: 5"></div>
-      <div class="form-group"><label>رقم القاعة</label><input type="text" id="fCaseRoom" placeholder="مثال: 3"></div>
-      <div class="form-group"><label>رقم الملف داخل المكتب</label><input type="text" id="fCaseDocketNum" placeholder="مثال: أي رقم كودي"></div>
-      <div class="form-group"><label>نوع الدعوى<span class="req">*</span></label>
-        <select id="fCaseType"><option value="">اختر...</option>
-          <optgroup label="أحوال شخصية">
-            <option>أحوال شخصية — زوجة</option><option>أحوال شخصية — زوج</option>
-            <option>طلاق للضرر</option><option>خلع</option><option>نفقة زوجية</option>
-            <option>نفقة صغار</option><option>رؤية أطفال</option><option>حضانة</option>
-            <option>تمكين مسكن</option><option>إسقاط حضانة</option><option>تخفيض نفقة</option>
-            <option>طاعة</option><option>إثبات نسب</option>
-          </optgroup>
-          <optgroup label="فروع أخرى">
-            <option>مدني</option><option>جنائي</option><option>تجاري</option>
-            <option>عمالي</option><option>إداري</option><option>عقاري</option>
-            <option>جنح</option><option>استئناف</option><option>نقض</option>
-          </optgroup>
-        </select>
-      </div>
-      <div class="form-group"><label>المحكمة</label><input type="text"
-      id="fCaseCourt" placeholder="محكمة استئناف الاسكندرية "></div>
-      <div class="form-group full"><label>عنوان القضية<span class="req">*</span></label><input type="text" id="fCaseTitle" placeholder="وصف مختصر للقضية"></div>
-      <div class="form-group"><label>حالة القضية</label>
-        <select id="fCaseStatus"><option>نشطة</option><option>معلقة</option><option>منتهية</option><option>مُحالة</option><option>مُرجأة</option></select>
-      </div>
-      <div class="form-group"><label>تاريخ القيد</label><input type="date" id="fCaseDate"></div>
-      <div class="form-group"><label>تاريخ الجلسة القادمة</label><input type="date" id="fCaseNextSession"></div>
-      <div class="form-group"><label>أتعاب المحاماة (ج.م)</label><input type="number" id="fCaseFees" placeholder="0"></div>
+    <!-- CASES_RELATIONSHIP_FINANCIAL — تبويبات مطابقة للصور المرجعية،
+         بإعادة استخدام حرفي لنمط .section-tabs/.tab-btn/switchXFormTab()
+         الموجود فعلاً (#clientFormTabs/switchClientFormTab) — لا معمارية
+         جديدة. كل حقل/id/onclick محفوظ دون أي تغيير — فقط إعادة تجميع
+         بصري + غلاف تبويبات. تبويبا "المستندات/محضرين/عمل اداري/جلسة"
+         المستقلة فى الصور المرجعية (تدفقات إنشاء كيانات فرعية مضمّنة)
+         متروكة لمرحلة لاحقة عمدًا — تحويلها بعجالة الآن كان سيعنى بناء
+         تدفقات غير مُختبرة بالكامل؛ حقول القضية الفعلية كلها هنا. -->
+    <div class="section-tabs case-form-tabs" id="caseFormTabs">
+      <button type="button" class="tab-btn active" data-case-tab="info" onclick="switchCaseFormTab('info')">&#128203; المعلومات</button>
+      <button type="button" class="tab-btn" data-case-tab="stage" onclick="switchCaseFormTab('stage')">&#127963; الدرجة</button>
+      <button type="button" class="tab-btn" data-case-tab="parties" onclick="switchCaseFormTab('parties')">&#128101; الأطراف</button>
+      <button type="button" class="tab-btn" data-case-tab="session" onclick="switchCaseFormTab('session')">&#128197; جلسة</button>
+      <button type="button" class="tab-btn" data-case-tab="adminwork" onclick="switchCaseFormTab('adminwork')">&#128203; عمل اداري</button>
+      <button type="button" class="tab-btn" data-case-tab="psw" onclick="switchCaseFormTab('psw')">&#9997; محضرين</button>
+      <button type="button" class="tab-btn" data-case-tab="docs" onclick="switchCaseFormTab('docs')">&#128193; المستندات</button>
+      <button type="button" class="tab-btn" data-case-tab="other" onclick="switchCaseFormTab('other')">&#128220; أخرى</button>
+    </div>
+    <!-- PROBLEM 13 (Case Wizard / Next Flow, v82): step guidance banner.
+         Populated/updated by _updateCaseWizardUI() (js/modules/cases.js),
+         called from inside switchCaseFormTab() on every tab switch —
+         whatever triggers it (Next/Previous/direct tab click/editCase()/
+         openAddModal()). Static text below is only the pre-JS fallback. -->
+    <div class="case-wizard-hint" id="caseWizardHint">الخطوة 1 من 8 — أكمل بيانات هذا التبويب ثم اضغط "التالي".</div>
+    <div class="modal-body">
 
-      <div class="section-divider full"><h4>&#128100; بيانات الموكل</h4></div>
-      <div class="form-group"><label>نوع الموكل</label>
-        <select id="fCaseClientType"><option> شخص طبيعى</option><option>شخص اعتباري</option></select>
-      </div>
-      <div class="form-group full client-selector-group">
-        <label>اسم الموكل (يمكن اختيار أكثر من موكل)<span class="req">*</span></label>
-        <div class="client-selector-box" id="clientSelectorBox" onclick="toggleClientSelector(event)">
-          <div class="client-selector-chips" id="clientSelectorChips"><span class="client-selector-placeholder">اختر موكلاً واحداً أو أكثر من القائمة...</span></div>
-          <span class="client-selector-arrow">&#9662;</span>
+      <!-- ============== تبويب 1: المعلومات ============== -->
+      <div class="case-form-pane" id="casePane-info">
+        <div class="form-grid">
+          <div class="form-group"><label>رقم قيد الدعوى بالمحكمة<span class="req">*</span></label><input type="text" id="fCaseNum" placeholder="2025/1234"></div>
+          <div class="form-group"><label>نوع الدعوى<span class="req">*</span></label>
+            <select id="fCaseType"><option value="">اختر...</option>
+              <optgroup label="أحوال شخصية">
+                <option>أحوال شخصية — زوجة</option><option>أحوال شخصية — زوج</option>
+                <option>طلاق للضرر</option><option>خلع</option><option>نفقة زوجية</option>
+                <option>نفقة صغار</option><option>رؤية أطفال</option><option>حضانة</option>
+                <option>تمكين مسكن</option><option>إسقاط حضانة</option><option>تخفيض نفقة</option>
+                <option>طاعة</option><option>إثبات نسب</option>
+              </optgroup>
+              <optgroup label="فروع أخرى">
+                <option>مدني</option><option>جنائي</option><option>تجاري</option>
+                <option>عمالي</option><option>إداري</option><option>عقاري</option>
+                <option>جنح</option><option>استئناف</option><option>نقض</option>
+              </optgroup>
+            </select>
+          </div>
+          <div class="form-group full"><label>عنوان القضية<span class="req">*</span></label><input type="text" id="fCaseTitle" placeholder="وصف مختصر للقضية"></div>
+          <div class="form-group"><label>حالة القضية</label>
+            <select id="fCaseStatus"><option>نشطة</option><option>معلقة</option><option>منتهية</option><option>مُحالة</option><option>مُرجأة</option></select>
+          </div>
+          <div class="form-group"><label>تاريخ القيد</label><input type="date" id="fCaseDate"></div>
+          <div class="form-group"><label>تاريخ الجلسة القادمة</label><input type="date" id="fCaseNextSession"></div>
+          <div class="form-group"><label>أتعاب المحاماة (ج.م)</label><input type="number" id="fCaseFees" placeholder="0"></div>
         </div>
-        <div class="client-selector-panel" id="clientSelectorPanel" onclick="event.stopPropagation()">
-          <input type="text" id="clientSelectorSearch" class="client-selector-search" placeholder="بحث عن موكل بالاسم..." oninput="renderClientSelectorList()">
-          <div class="client-selector-list" id="clientSelectorList"></div>
+      </div>
+
+      <!-- ============== تبويب 2: الدرجة ============== -->
+      <div class="case-form-pane" id="casePane-stage" style="display:none;">
+        <div class="form-grid">
+          <!-- CASES_RELATIONSHIP_FINANCIAL قرار §3-E: درجات التقاضي — كل درجة سجل Case مستقل، مرتبط بسابقه عبر قضية_أصل -->
+          <div class="form-group"><label>درجة التقاضي</label>
+            <select id="fCaseStage"><option value="">اختر...</option>
+              <option>ابتدائي</option><option>استئناف</option><option>نقض</option><option>تنفيذ</option>
+            </select>
+          </div>
+          <div class="form-group"><label>ربط بدرجة سابقة (اختياري)</label>
+            <select id="fCaseParentCase"><option value="">-- بدون --</option></select>
+          </div>
+          <div class="form-group"><label>رقم الدعوى</label><input type="text" id="fCaseDocketNum" placeholder="مثال: أي رقم كودي"></div>
+          <div class="form-group"><label>رقم الدائرة</label><input type="text" id="fCaseCircuit" placeholder="مثال: 5"></div>
+          <div class="form-group"><label>رقم القاعة</label><input type="text" id="fCaseRoom" placeholder="مثال: 3"></div>
+          <div class="form-group"><label>المحكمة</label><input type="text"
+          id="fCaseCourt" placeholder="محكمة استئناف الاسكندرية "></div>
         </div>
-        <input type="hidden" id="fCaseClient">
       </div>
-      <div class="form-group"><label>الرقم القومي</label><input type="text" id="fCaseClientNID" placeholder="14 رقم" maxlength="14"></div>
-      <div class="form-group"><label>هاتف الموكل</label><input type="tel" id="fCaseClientPhone" placeholder="01xxxxxxxxx"></div>
-      <div class="form-group"><label>عنوان الموكل</label><input type="text" id="fCaseClientAddr" placeholder="المحافظة — المدينة"></div>
-      <div class="form-group"><label>وظيفة الموكل</label><input type="text" id="fCaseClientJob" placeholder="اختياري"></div>
-      <div class="form-group"><label>جهة عمل الموكل</label><input type="text" id="fCaseClientEmployer" placeholder="اختياري"></div>
 
-      <div class="section-divider full"><h4>&#128100; بيانات الخصم</h4></div>
-      <div class="form-group full client-selector-group">
-        <label>اسم الخصم (يمكن اختيار أكثر من خصم)</label>
-        <div class="client-selector-box" id="opponentSelectorBox" onclick="toggleOpponentSelector(event)">
-          <div class="client-selector-chips" id="opponentSelectorChips"><span class="client-selector-placeholder">اختر خصماً واحداً أو أكثر من القائمة...</span></div>
-          <span class="client-selector-arrow">&#9662;</span>
+      <!-- ============== تبويب 3: الأطراف ============== -->
+      <div class="case-form-pane" id="casePane-parties" style="display:none;">
+        <div class="form-grid">
+          <div class="section-divider full"><h4>&#128100; بيانات الموكل</h4></div>
+          <div class="form-group"><label>نوع الموكل</label>
+            <select id="fCaseClientType"><option> شخص طبيعى</option><option>شخص اعتباري</option></select>
+          </div>
+          <div class="form-group full client-selector-group">
+            <label>اسم الموكل (يمكن اختيار أكثر من موكل)<span class="req">*</span></label>
+            <div class="client-selector-box" id="clientSelectorBox" onclick="toggleClientSelector(event)">
+              <div class="client-selector-chips" id="clientSelectorChips"><span class="client-selector-placeholder">اختر موكلاً واحداً أو أكثر من القائمة...</span></div>
+              <span class="client-selector-arrow">&#9662;</span>
+            </div>
+            <div class="client-selector-panel" id="clientSelectorPanel" onclick="event.stopPropagation()">
+              <input type="text" id="clientSelectorSearch" class="client-selector-search" placeholder="بحث عن موكل بالاسم..." oninput="renderClientSelectorList()">
+              <div class="client-selector-list" id="clientSelectorList"></div>
+            </div>
+            <input type="hidden" id="fCaseClient">
+            <!-- CASES_RELATIONSHIP_FINANCIAL قرار §3-C: رقم_الموكل ID array (JSON) — إضافي بحت، لا يمس fCaseClient أعلاه -->
+            <input type="hidden" id="fCaseClients">
+          </div>
+          <div class="form-group"><label>الرقم القومي</label><input type="text" id="fCaseClientNID" placeholder="14 رقم" maxlength="14"></div>
+          <div class="form-group"><label>هاتف الموكل</label><input type="tel" id="fCaseClientPhone" placeholder="01xxxxxxxxx"></div>
+          <div class="form-group"><label>عنوان الموكل</label><input type="text" id="fCaseClientAddr" placeholder="المحافظة — المدينة"></div>
+          <div class="form-group"><label>وظيفة الموكل</label><input type="text" id="fCaseClientJob" placeholder="اختياري"></div>
+          <div class="form-group"><label>جهة عمل الموكل</label><input type="text" id="fCaseClientEmployer" placeholder="اختياري"></div>
+
+          <div class="section-divider full"><h4>&#128100; بيانات الخصم</h4></div>
+          <div class="form-group full client-selector-group">
+            <label>اسم الخصم (يمكن اختيار أكثر من خصم)</label>
+            <div class="client-selector-box" id="opponentSelectorBox" onclick="toggleOpponentSelector(event)">
+              <div class="client-selector-chips" id="opponentSelectorChips"><span class="client-selector-placeholder">اختر خصماً واحداً أو أكثر من القائمة...</span></div>
+              <span class="client-selector-arrow">&#9662;</span>
+            </div>
+            <div class="client-selector-panel" id="opponentSelectorPanel" onclick="event.stopPropagation()">
+              <input type="text" id="opponentSelectorSearch" class="client-selector-search" placeholder="بحث عن خصم بالاسم..." oninput="renderOpponentSelectorList()">
+              <div class="client-selector-list" id="opponentSelectorList"></div>
+            </div>
+            <input type="hidden" id="fCaseOpponents">
+            <!-- CASES_RELATIONSHIP_FINANCIAL قرار §3-D: صفة لكل خصم (JSON id->صفة) — إضافي بحت -->
+            <input type="hidden" id="fCaseOpponentRoles">
+          </div>
+          <div class="form-group"><label>اسم الخصم (نص حر — يُملأ تلقائياً عند اختيار خصم واحد)</label><input type="text" id="fCaseOpponent" placeholder="الاسم الكامل"></div>
+          <div class="form-group"><label>الرقم القومي للخصم</label><input type="text" id="fCaseOpponentNID" placeholder="اختياري" maxlength="14"></div>
+          <div class="form-group"><label>هاتف الخصم</label><input type="tel" id="fCaseOpponentPhone" placeholder="اختياري"></div>
+          <div class="form-group"><label>عنوان الخصم</label><input type="text" id="fCaseOpponentAddr" placeholder="اختياري"></div>
+          <div class="form-group"><label>وظيفة الخصم</label><input type="text" id="fCaseOpponentJob" placeholder="اختياري"></div>
+          <div class="form-group"><label>جهة عمل الخصم</label><input type="text" id="fCaseOpponentEmployer" placeholder="اختياري"></div>
         </div>
-        <div class="client-selector-panel" id="opponentSelectorPanel" onclick="event.stopPropagation()">
-          <input type="text" id="opponentSelectorSearch" class="client-selector-search" placeholder="بحث عن خصم بالاسم..." oninput="renderOpponentSelectorList()">
-          <div class="client-selector-list" id="opponentSelectorList"></div>
+      </div>
+
+      <!-- ============== تبويب: جلسة (اختياري) ============== -->
+      <div class="case-form-pane" id="casePane-session" style="display:none;">
+        <div class="form-grid">
+          <!-- CASES_RELATIONSHIP_FINANCIAL: جلسة اختيارية تُنشأ مع حفظ القضية —
+               معرّفات فريدة جديدة (fCaseSession*)، لا تتشارك أي id مع نافذة
+               الجلسة المستقلة #modalSession (fSessionDate/fSessionTime/...)
+               تفاديًا لتكرار id فى نفس المستند. -->
+          <div class="form-group full"><label>عنوان الجلسة (اختياري)</label><input type="text" id="fCaseSessionTitle" placeholder="أدخل عنوان الجلسة"></div>
+          <div class="form-group"><label>تاريخ الجلسة</label><input type="date" id="fCaseSessionDate"></div>
+          <div class="form-group"><label>الموعد</label><input type="time" id="fCaseSessionTime"></div>
+          <div class="form-group full"><label>المطلوب فى الجلسة</label><textarea id="fCaseSessionRequired" placeholder="المطلوب فى الجلسة" style="min-height:60px;"></textarea></div>
+          <div class="form-group full"><label>ملاحظات الجلسة</label><textarea id="fCaseSessionNotes" placeholder="ملاحظات الجلسة" style="min-height:60px;"></textarea></div>
         </div>
-        <input type="hidden" id="fCaseOpponents">
-      </div>
-      <div class="form-group"><label>اسم الخصم (نص حر — يُملأ تلقائياً عند اختيار خصم واحد)</label><input type="text" id="fCaseOpponent" placeholder="الاسم الكامل"></div>
-      <div class="form-group"><label>الرقم القومي للخصم</label><input type="text" id="fCaseOpponentNID" placeholder="اختياري" maxlength="14"></div>
-      <div class="form-group"><label>هاتف الخصم</label><input type="tel" id="fCaseOpponentPhone" placeholder="اختياري"></div>
-      <div class="form-group"><label>عنوان الخصم</label><input type="text" id="fCaseOpponentAddr" placeholder="اختياري"></div>
-      <div class="form-group"><label>وظيفة الخصم</label><input type="text" id="fCaseOpponentJob" placeholder="اختياري"></div>
-      <div class="form-group"><label>جهة عمل الخصم</label><input type="text" id="fCaseOpponentEmployer" placeholder="اختياري"></div>
-
-      <div class="section-divider full"><h4>&#128141; بيانات الزواج (أحوال شخصية)</h4></div>
-      <div class="form-group"><label>تاريخ عقد الزواج</label><input type="date" id="fCaseMarriageDate"></div>
-      <div class="form-group"><label>رقم وثيقة الزواج</label><input type="text" id="fCaseMarriageDoc" placeholder="رقم العقد"></div>
-      <div class="form-group"><label>مكتب التوثيق / المأذون</label><input type="text" id="fCaseNotaryOffice" placeholder="اسم المأذون"></div>
-      <div class="form-group"><label>وجود قائمة منقولات</label>
-        <select id="fCaseHasInventory"><option value="">—</option><option>نعم</option><option>لا</option></select>
-      </div>
-      <div class="form-group"><label>وجود أطفال</label>
-        <select id="fCaseHasChildren" onchange="toggleChildrenSection()"><option value="">—</option><option>نعم</option><option>لا</option></select>
-      </div>
-      <div class="section-divider full" id="childrenSectionDiv" style="display:none;"><h4>&#128118; بيانات الأطفال</h4>
-        <div id="childrenRows"></div>
-        <button type="button" class="btn btn-ghost btn-sm" onclick="addChildRow()" style="margin-top:6px;">&#65291; إضافة طفل</button>
-        <input type="hidden" id="fCaseChildrenData" value="[]">
       </div>
 
-      <div class="section-divider full"><h4>&#128220; تفاصيل القضية والإجراءات</h4></div>
-      <div class="form-group full"><label>الطلبات القانونية</label><textarea id="fCaseDemands" placeholder="الطلبات المقدمة بالتفصيل..."></textarea></div>
-      <div class="form-group full"><label>الدفوع القانونية</label><textarea id="fCaseDefenses" placeholder="الدفوع والاعتراضات..."></textarea></div>
-      <div class="form-group full"><label>إجراءات الدعوى</label><textarea id="fCaseProcedures" placeholder="القيد، الإعلان، التحقيق..."></textarea></div>
-      <div class="form-group full"><label>قرارات المحكمة</label><textarea id="fCaseDecisions" placeholder="القرارات الصادرة حتى الآن..."></textarea></div>
+      <!-- ============== تبويب: عمل اداري (اختياري) ============== -->
+      <div class="case-form-pane" id="casePane-adminwork" style="display:none;">
+        <div class="form-grid">
+          <!-- CASES_RELATIONSHIP_FINANCIAL: عمل إداري اختياري يُنشأ مع حفظ
+               القضية، ويُربط تلقائيًا بأول موكل فى القضية (Convention مؤكَّد
+               فى tasks.js/process-server-works.js) — معرّفات فريدة جديدة
+               (fCaseTask*)، لا تتشارك أي id مع نافذة المهمة المستقلة #modalTask. -->
+          <div class="form-group full"><label>عنوان العمل الإداري (اختياري)</label><input type="text" id="fCaseTaskTitle" placeholder="أدخل عنوان العمل الإداري"></div>
+          <div class="form-group"><label>تاريخ التنفيذ</label><input type="date" id="fCaseTaskDeadline"></div>
+          <div class="form-group"><label>مكان التنفيذ</label><input type="text" id="fCaseTaskLocation" placeholder="أدخل مكان التنفيذ"></div>
+          <div class="form-group full"><label>المطلوب</label><textarea id="fCaseTaskRequired" placeholder="المطلوب أثناء التنفيذ" style="min-height:60px;"></textarea></div>
+          <div class="form-group full"><label>ملاحظات العمل الإداري</label><textarea id="fCaseTaskNotes" placeholder="ملاحظات العمل الإداري" style="min-height:60px;"></textarea></div>
+          <!-- PROBLEM 12 (Case Save Cycle audit, v80): نفس field/values
+               الموجودة بالفعل فى النافذة المستقلة #modalTask
+               (#fTaskPortalVisible -> 'ظاهر_للموكل')، بمعرّف جديد خاص
+               بهذا التبويب فقط. لا تغيير فى الـData Model/الـdefault. -->
+          <div class="form-group"><label>ظاهر لبوابة الموكل؟</label>
+            <select id="fCaseTaskPortalVisible"><option value="لا">لا</option><option value="نعم">نعم</option></select>
+          </div>
+        </div>
+      </div>
 
-      <div class="section-divider full"><h4>&#128296; التنفيذ</h4></div>
-      <div class="form-group"><label>تاريخ الحكم النهائي</label><input type="date" id="fCaseJudgmentDate"></div>
-      <div class="form-group"><label>رقم التنفيذ</label><input type="text" id="fCaseEnforcement" placeholder="رقم محضر التنفيذ"></div>
-      <div class="form-group full"><label>إجراءات التنفيذ ونتائجه</label><textarea id="fCaseEnforcementDetails" placeholder="ما تم تنفيذه..."></textarea></div>
+      <!-- ============== تبويب: محضرين (اختياري) ============== -->
+      <div class="case-form-pane" id="casePane-psw" style="display:none;">
+        <div class="form-grid">
+          <!-- CASES_RELATIONSHIP_FINANCIAL: عمل محضرين اختياري يُنشأ مع حفظ
+               القضية، ويُربط تلقائيًا بأول موكل فى القضية (نفس Convention
+               عمل اداري أعلاه) — معرّفات فريدة جديدة (fCasePsw*)، لا تتشارك
+               أي id مع نافذة عمل المحضرين المستقلة. -->
+          <div class="form-group full"><label>طبيعة الإعلان (اختياري)</label><input type="text" id="fCasePswNature" placeholder="مثل: إعادة إعلان"></div>
+          <div class="form-group"><label>رقم المحضرين</label><input type="text" id="fCasePswNumber" placeholder="الرقم كما فى الجهة"></div>
+          <div class="form-group"><label>المحكمة</label><input type="text" id="fCasePswCourt" placeholder="مثل: محكمة الإسكندرية الجزئية"></div>
+          <div class="form-group"><label>قلم المحضرين</label><input type="text" id="fCasePswOffice" placeholder="مثل: قلم المحضرين بمحكمة الجيزة"></div>
+          <div class="form-group"><label>تاريخ التسليم</label><input type="date" id="fCasePswDeliveryDate"></div>
+          <div class="form-group"><label>تاريخ الاستلام</label><input type="date" id="fCasePswReceiptDate"></div>
+          <div class="form-group"><label>تاريخ الجلسة</label><input type="date" id="fCasePswSessionDate"></div>
+          <div class="form-group full"><label>ملاحظات</label><textarea id="fCasePswNotes" placeholder="أضف أي ملاحظات إضافية" style="min-height:60px;"></textarea></div>
+          <!-- PROBLEM 12 (Case Save Cycle audit, v80): نفس field/values
+               الموجودة بالفعل فى النافذة المستقلة (#fPswPortalVisibility
+               -> 'ظهور_في_بوابة_الموكل')، بمعرّف جديد خاص بهذا التبويب
+               فقط. لا تغيير فى الـData Model/الـdefault الآمن (مخفي). -->
+          <div class="form-group full">
+            <label>&#128274; الظهور في بوابة الموكل</label>
+            <select id="fCasePswPortalVisibility">
+              <option value="مخفي">مخفي — لا يظهر للموكل إطلاقاً</option>
+              <option value="بيانات_فقط">إظهار بيانات العمل فقط</option>
+              <option value="بيانات_ومستندات">إظهار بيانات العمل والمستندات المرفوعة</option>
+            </select>
+          </div>
+        </div>
+      </div>
 
-      <div class="section-divider full"><h4>&#128221; ملاحظات المحامي</h4></div>
-      <div class="form-group full"><label>ملاحظات عامة</label><textarea id="fCaseNotes" placeholder="ملاحظات خاصة بالقضية..."></textarea></div>
-    </div></div>
-    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal('modalCase')">إلغاء</button><button class="btn btn-primary" onclick="saveCase()">&#128190; حفظ القضية</button></div>
+      <!-- ============== تبويب: المستندات (اختياري) ============== -->
+      <div class="case-form-pane" id="casePane-docs" style="display:none;">
+        <div class="form-grid">
+          <!-- CASES_RELATIONSHIP_FINANCIAL: مستند اختياري يُنشأ مع حفظ
+               القضية، ويُربط بها مباشرة (رقم_القضية معروف دائمًا هنا، بخلاف
+               محضرين — لا حاجة لتخطٍّ صامت). معرّفات فريدة جديدة
+               (fCaseDoc*)، لا تتشارك أي id مع نافذة المستندات المستقلة
+               #modalDocument (fDocName/fDocType/...). -->
+          <div class="form-group full"><label>اسم المستند (اختياري)</label><input type="text" id="fCaseDocName" placeholder="مثال: عقد الزواج"></div>
+          <div class="form-group"><label>نوع المستند</label>
+            <select id="fCaseDocType"><option>عقد زواج</option><option>شهادة ميلاد</option><option>مفردات مرتب</option><option>محضر</option><option>إيصال</option><option>حكم</option><option>بيان مدرسي</option><option>تحريات</option><option>مراسلة</option><option>مستند آخر</option></select>
+          </div>
+          <div class="form-group"><label>رابط Google Drive</label><input type="url" id="fCaseDocDriveUrl" placeholder="https://drive.google.com/file/d/..."></div>
+          <!-- PROBLEM 12 (Case Save Cycle audit, v80 — extended to
+               المستندات per user report): نفس field/values الموجودة
+               بالفعل فى النافذة المستقلة #modalDocument
+               (#fDocPortalVisible -> 'ظاهر_للموكل')، بمعرّف جديد خاص
+               بهذا التبويب فقط. لا تغيير فى الـData Model/الـdefault. -->
+          <div class="form-group"><label>ظاهر لبوابة الموكل؟</label>
+            <select id="fCaseDocPortalVisible"><option value="لا">لا</option><option value="نعم">نعم</option></select>
+          </div>
+          <div class="form-group full"><label>ملاحظات</label><textarea id="fCaseDocNotes" placeholder="ملاحظات المستند" style="min-height:60px;"></textarea></div>
+        </div>
+      </div>
+
+      <!-- ============== تبويب 4: أخرى ============== -->
+      <div class="case-form-pane" id="casePane-other" style="display:none;">
+        <div class="form-grid">
+          <div class="section-divider full"><h4>&#128141; بيانات الزواج (أحوال شخصية)</h4></div>
+          <div class="form-group"><label>تاريخ عقد الزواج</label><input type="date" id="fCaseMarriageDate"></div>
+          <div class="form-group"><label>رقم وثيقة الزواج</label><input type="text" id="fCaseMarriageDoc" placeholder="رقم العقد"></div>
+          <div class="form-group"><label>مكتب التوثيق / المأذون</label><input type="text" id="fCaseNotaryOffice" placeholder="اسم المأذون"></div>
+          <div class="form-group"><label>وجود قائمة منقولات</label>
+            <select id="fCaseHasInventory"><option value="">—</option><option>نعم</option><option>لا</option></select>
+          </div>
+          <div class="form-group"><label>وجود أطفال</label>
+            <select id="fCaseHasChildren" onchange="toggleChildrenSection()"><option value="">—</option><option>نعم</option><option>لا</option></select>
+          </div>
+          <div class="section-divider full" id="childrenSectionDiv" style="display:none;"><h4>&#128118; بيانات الأطفال</h4>
+            <div id="childrenRows"></div>
+            <button type="button" class="btn btn-ghost btn-sm" onclick="addChildRow()" style="margin-top:6px;">&#65291; إضافة طفل</button>
+            <input type="hidden" id="fCaseChildrenData" value="[]">
+          </div>
+
+          <div class="section-divider full"><h4>&#128220; تفاصيل القضية والإجراءات</h4></div>
+          <div class="form-group full"><label>الطلبات القانونية</label><textarea id="fCaseDemands" placeholder="الطلبات المقدمة بالتفصيل..."></textarea></div>
+          <div class="form-group full"><label>الدفوع القانونية</label><textarea id="fCaseDefenses" placeholder="الدفوع والاعتراضات..."></textarea></div>
+          <div class="form-group full"><label>إجراءات الدعوى</label><textarea id="fCaseProcedures" placeholder="القيد، الإعلان، التحقيق..."></textarea></div>
+          <div class="form-group full"><label>قرارات المحكمة</label><textarea id="fCaseDecisions" placeholder="القرارات الصادرة حتى الآن..."></textarea></div>
+
+          <div class="section-divider full"><h4>&#128296; التنفيذ</h4></div>
+          <div class="form-group"><label>تاريخ الحكم النهائي</label><input type="date" id="fCaseJudgmentDate"></div>
+          <div class="form-group"><label>رقم التنفيذ</label><input type="text" id="fCaseEnforcement" placeholder="رقم محضر التنفيذ"></div>
+          <div class="form-group full"><label>إجراءات التنفيذ ونتائجه</label><textarea id="fCaseEnforcementDetails" placeholder="ما تم تنفيذه..."></textarea></div>
+
+          <div class="section-divider full"><h4>&#128221; ملاحظات المحامي</h4></div>
+          <div class="form-group full"><label>ملاحظات عامة</label><textarea id="fCaseNotes" placeholder="ملاحظات خاصة بالقضية..."></textarea></div>
+        </div>
+      </div>
+
+    </div>
+    <!-- PROBLEM 13 (Case Wizard / Next Flow, v82): "حفظ" replaced as the
+         mid-flow action by "التالي"/"السابق" (caseWizardNext/caseWizardPrev
+         — js/modules/cases.js). Neither calls saveCase(); they only switch
+         panes via the existing switchCaseFormTab(). The real, one-time
+         saveCase() call stays on this same button/onclick as before
+         (#btnCaseSave), now shown only on the last tab in the real DOM
+         order ("أخرى") — see _updateCaseWizardUI(). Initial display:none/
+         '' values below match tab "info" being first, so there is no
+         flash before JS runs. -->
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modalCase')">إلغاء</button>
+      <button class="btn btn-ghost" id="btnCasePrev" onclick="caseWizardPrev()" style="display:none;">السابق</button>
+      <button class="btn btn-primary" id="btnCaseNext" onclick="caseWizardNext()">التالي</button>
+      <button class="btn btn-primary" id="btnCaseSave" onclick="saveCase()" style="display:none;">&#128190; حفظ القضية</button>
+    </div>
   </div>
 </div>
 
@@ -1592,10 +1848,25 @@ style="color:var(--muted);font-size:12px;margin-top:4px;"> جارٍ تحميل
   <div class="modal">
     <div class="modal-header"><div class="modal-title"><span class="icon">&#128206;</span><span id="modalDocTitle">إضافة مستند</span></div><button class="modal-close" onclick="closeModal('modalDocument')">&#10005;</button></div>
     <div class="modal-body"><div class="form-grid">
-      <div class="form-group"><label>رقم القضية<span class="req">*</span></label>
+      <!-- CASES_RELATIONSHIP_FINANCIAL قرار §3-L: "إذا كان المستند خاصًا
+           بموكل بدون قضية، لا تجبر المستخدم على إنشاء قضية." رقم القضية
+           لم يعد إلزاميًا وحده — يكفي أحد الحقلين (قضية أو موكل). -->
+      <div class="form-group"><label>رقم القضية (اختياري إن اخترت موكلًا)</label>
         <select id="fDocCaseNum" style="width:100%;">
           <option value="">-- اختر القضية --</option>
         </select>
+      </div>
+      <div class="form-group full client-selector-group">
+        <label>الموكل (اختياري إن اخترت قضية)</label>
+        <div class="client-selector-box" id="docClientSelectorBox" onclick="toggleDocClientSelector(event)">
+          <div class="client-selector-chips" id="docClientSelectorChips"><span class="client-selector-placeholder">اضغط لاختيار الموكل...</span></div>
+          <span class="client-selector-arrow">&#9662;</span>
+        </div>
+        <div class="client-selector-panel" id="docClientSelectorPanel" onclick="event.stopPropagation()">
+          <input type="text" id="docClientSelectorSearch" class="client-selector-search" placeholder="بحث عن موكل بالاسم أو الرقم القومي..." oninput="renderDocClientSelectorList()">
+          <div class="client-selector-list" id="docClientSelectorList"></div>
+        </div>
+        <input type="hidden" id="fDocClientId">
       </div>
       <div class="form-group"><label>اسم المستند<span class="req">*</span></label><input type="text" id="fDocName" placeholder="مثال: عقد الزواج"></div>
       <div class="form-group"><label>نوع المستند</label>
@@ -1742,6 +2013,38 @@ style="color:var(--muted);font-size:12px;margin-top:4px;"> جارٍ تحميل
   </div>
 </div>
 
+<!-- CASES_RELATIONSHIP_FINANCIAL قرار §3-G: نظام المصروفات — 3 مستويات (موكل/قضية/مكتب) عبر عمود النطاق الواحد -->
+<div class="modal-overlay" id="modalExpense">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title"><span class="icon">&#128181;</span><span id="modalExpenseTitle">تسجيل مصروف</span></div><button class="modal-close" onclick="closeModal('modalExpense')">&#10005;</button></div>
+    <div class="modal-body"><div class="form-grid">
+      <div class="form-group"><label>النطاق<span class="req">*</span></label>
+        <select id="fExpenseScope" onchange="toggleExpenseScopeFields(this.value)">
+          <option value="">-- اختر --</option>
+          <option value="موكل">مصروف موكل</option>
+          <option value="قضية">مصروف قضية</option>
+          <option value="مكتب">مصروف مكتب</option>
+        </select>
+      </div>
+      <div class="form-group" id="expenseClientFieldGroup" style="display:none;"><label>الموكل<span class="req">*</span></label>
+        <select id="fExpenseClientId" style="width:100%;"><option value="">-- اختر الموكل --</option></select>
+      </div>
+      <div class="form-group" id="expenseCaseFieldGroup" style="display:none;"><label>القضية<span class="req">*</span></label>
+        <select id="fExpenseCaseNum" style="width:100%;"><option value="">-- اختر القضية --</option></select>
+      </div>
+      <div class="form-group"><label>المبلغ (ج.م)<span class="req">*</span></label><input type="number" id="fExpenseAmount" placeholder="0" min="0"></div>
+      <div class="form-group"><label>التصنيف<span class="req">*</span></label><input type="text" id="fExpenseCategory" placeholder="مثال: رسوم إعلان، إيجار، انتقال"></div>
+      <div class="form-group"><label>المصدر</label><input type="text" id="fExpenseSource" placeholder="اختياري"></div>
+      <div class="form-group"><label>التاريخ</label><input type="date" id="fExpenseDate"></div>
+      <div class="form-group"><label>الحالة</label>
+        <select id="fExpenseStatus"><option>مدفوع</option><option>معلق</option></select>
+      </div>
+      <div class="form-group full"><label>ملاحظات</label><textarea id="fExpenseNotes" placeholder="ملاحظات..." style="min-height:60px;"></textarea></div>
+    </div></div>
+    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal('modalExpense')">إلغاء</button><button class="btn btn-primary" onclick="saveExpense()">&#128190; حفظ</button></div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modalLibrary">
   <div class="modal">
     <div class="modal-header"><div class="modal-title"><span class="icon">&#128218;</span><span id="modalLibTitle">إضافة كتاب</span></div><button class="modal-close" onclick="closeModal('modalLibrary')">&#10005;</button></div>
@@ -1870,6 +2173,9 @@ style="color:var(--muted);font-size:12px;margin-top:4px;"> جارٍ تحميل
 <script src="js/repositories/LibraryRepository.js?v=42"></script>
 <script src="js/repositories/TemplatesRepository.js?v=42"></script>
 <script src="js/repositories/SettingsRepository.js?v=42"></script>
+<!-- CASES_RELATIONSHIP_FINANCIAL: two new repositories this phase added — js/modules/clients.js (CaseClientsRepository) and js/modules/financial-reports.js (ExpensesRepository) both hard-require these classes to exist as globals at their own module-load time; without these tags the app would crash the moment clients.js loads. -->
+<script src="js/repositories/CaseClientsRepository.js?v=1"></script>
+<script src="js/repositories/ExpensesRepository.js?v=1"></script>
 <script src="js/repositories/SettingsRepositoryWiring.js?v=42"></script>
 <!-- OFFICE PROFILE — office identity data (office name, lawyer name,
      address, branches, phones, WhatsApp) that replaces the hardcoded
@@ -1916,7 +2222,7 @@ style="color:var(--muted);font-size:12px;margin-top:4px;"> جارٍ تحميل
      top-level parse time. New, standalone file; no other <script> tag
      was moved, removed, or reordered. -->
 <script src="js/core/RepositoryReadyTimeout.js?v=42"></script>
-<script src="js/modules/cases.js?v=42"></script>
+<script src="js/modules/cases.js?v=43"></script>
 <script>
 'use strict';
 var API_URL=localStorage.getItem('apiUrl')||'';
@@ -1972,7 +2278,7 @@ function toast(msg,type){
 }
 function showLoading(v){document.getElementById('loadingOverlay').classList.toggle('show',v);}
 
-var PAGE_TITLES={dashboard:'لوحة التحكم',cases:'القضايا',sessions:'الجلسات',clients:'الموكلون',opponents:'الخصوم',processServerWorks:'أعمال المحضرين',children:'الأطفال',documents:'المستندات',tasks:'المهام',fees:'الأتعاب',calendar:'التقويم',library:'المكتبة القانونية',templates:'صيغ الدعاوى',settings:'الإعدادات'};
+var PAGE_TITLES={dashboard:'لوحة التحكم',cases:'القضايا',sessions:'الجلسات',clients:'الموكلون',opponents:'الخصوم',processServerWorks:'أعمال المحضرين',children:'الأطفال',documents:'المستندات',tasks:'المهام',fees:'الأتعاب',expenses:'المصروفات',calendar:'التقويم',library:'المكتبة القانونية',templates:'صيغ الدعاوى',legalDirectories:'الأجندة والمواقع الرسمية',settings:'الإعدادات'};
 var ADDABLE=['cases','sessions','clients','tasks','opponents','processServerWorks'];
 
 function navigate(page){
@@ -1995,6 +2301,22 @@ function navigate(page){
   // hasn't loaded, throws internally, or Safe Mode was never triggered
   // (the overwhelmingly common case). See js/core/boot/SafeModeController.js.
   if(window.SafeModeController)SafeModeController.onNavigate(page);
+  // PROBLEM 14 (Global Scroll Position Reset, v82) — ROOT CAUSE part 2/3:
+  // window/document is the app's real page-scroll container (css/base.css
+  // sets no overflow on body; .main/.page carry no overflow either — see
+  // docs audit), and nothing anywhere previously reset it. navigate() is
+  // the SINGLE central "activate a page/section" entry point every page
+  // switch already funnels through (sidebar links, topbar, deep links via
+  // ShellNavigationManager, programmatic calls like
+  // navigate('cases');openAddModal()) — so resetting scroll exactly once,
+  // here, covers every kind of navigation without a single per-page
+  // window.scrollTo() call. This line only runs when navigate() itself
+  // runs (a real page activation), never during in-page scrolling, typing,
+  // or a modal opening on top of the current page (opening a modal never
+  // calls navigate()) — so it cannot interrupt natural scroll or modal
+  // scroll. window.scrollTo also resets documentElement/body scrollTop in
+  // every supported browser, so no separate fallback is needed.
+  try { window.scrollTo(0, 0); } catch (__scrollResetErr) {}
   currentPage=page;
   document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active');});
   document.querySelectorAll('.nav-item').forEach(function(n){n.classList.remove('active');});
@@ -2013,7 +2335,7 @@ function navigate(page){
   // and the calendar branch's calYear/calMonth reset still runs
   // unconditionally, same as before — only its renderCalendar() call is
   // now guarded, same as every other render call.
-  var __vcTrackedPages=['dashboard','cases','sessions','clients','opponents','processServerWorks','children','documents','tasks','fees','calendar','library','templates'];
+  var __vcTrackedPages=['dashboard','cases','sessions','clients','opponents','processServerWorks','children','documents','tasks','fees','expenses','calendar','library','templates'];
   var __vcNeedsRender=true;
   if(__vcTrackedPages.indexOf(page)>=0&&window.ApplicationShell&&typeof ApplicationShell.isDirty==='function'){
     try{__vcNeedsRender=ApplicationShell.isDirty(page);}catch(__vcErr){__vcNeedsRender=true;}
@@ -2103,19 +2425,45 @@ function navigate(page){
   else if(page==='documents'){if(__vcNeedsRender)__vcRunRender('documents',renderDocuments);}
   else if(page==='tasks'){if(__vcNeedsRender)__vcRunRender('tasks',renderTasks);}
   else if(page==='fees'){if(__vcNeedsRender)__vcRunRender('fees',renderFees);}
+  else if(page==='expenses'){if(__vcNeedsRender)__vcRunRender('expenses',renderExpenses);}
   else if(page==='calendar'){var n=new Date();calYear=n.getFullYear();calMonth=n.getMonth();if(__vcNeedsRender)__vcRunRender('calendar',renderCalendar);}
   else if(page==='library'){if(__vcNeedsRender)__vcRunRender('library',renderLibrary);}
   else if(page==='templates'){if(__vcNeedsRender)__vcRunRender('templates',renderTemplates);}
+  else if(page==='legalDirectories'){if(__vcNeedsRender)__vcRunRender('legalDirectories',renderLegalDirectories);}
   else if(page==='settings'){document.getElementById('apiUrlInput').value=API_URL;document.getElementById('driveUrlInput').value=DRIVE_URL;var db=document.getElementById('driveOpenBtn');if(DRIVE_URL){db.href=DRIVE_URL;db.style.display='';}else db.style.display='none';if(typeof refreshDeveloperDiagnosticsToggle==='function')refreshDeveloperDiagnosticsToggle();if(window.OfficeProfilePanel)OfficeProfilePanel.render();if(typeof switchSettingsTab==='function')switchSettingsTab('office');}
   if(__vcNeedsRender&&__vcTrackedPages.indexOf(page)>=0&&window.ViewLifecycle){
     try{ViewLifecycle.recordRendered(page);}catch(__vcErr2){}
   }
   if(window.innerWidth<=768){document.getElementById('sidebar').classList.remove('open');document.getElementById('sidebarOverlay').classList.remove('open');}
 }
-function toggleSidebar(){document.getElementById('sidebar').classList.toggle('open');document.getElementById('sidebarOverlay').classList.toggle('open');}
-function openAddModal(){var m={cases:'Case',sessions:'Session',clients:'Client',tasks:'Task',opponents:'Opponent',processServerWorks:'ProcessServerWork'};var k=m[currentPage];if(!k){toast('اختر قسماً أولاً','info');return;}editIdx[currentPage]=-1;resetForm(currentPage);var titles={cases:'إضافة قضية جديدة',sessions:'إضافة جلسة',clients:'إضافة موكل',tasks:'إضافة عمل إداري جديد',opponents:'إضافة خصم جديد',processServerWorks:'إضافة عمل محضرين جديد'};document.getElementById('modal'+k+'Title').textContent=titles[currentPage];document.getElementById('modal'+k).classList.add('open');if(currentPage==='sessions')populateCaseDropdown('fSessionCaseNum');if(currentPage==='clients'&&window.ClientFields){ClientFields.reset();switchClientFormTab('basic');}if(currentPage==='opponents'&&window.OpponentFields){OpponentFields.reset();}if(currentPage==='processServerWorks'){if(window.ProcessServerFields)ProcessServerFields.reset();if(typeof resetPswClientSelector==='function')resetPswClientSelector();}if(currentPage==='tasks'){if(window.AdministrativeWorkFields)AdministrativeWorkFields.reset();if(typeof resetTaskClientSelector==='function')resetTaskClientSelector();}}
-function openAddDocModal(){editIdx.documents=-1;resetForm('documents');document.getElementById('modalDocTitle').textContent='إضافة مستند';document.getElementById('modalDocument').classList.add('open');populateCaseDropdown('fDocCaseNum');}
+// PROBLEM 14 (Global Scroll Position Reset, v82) — ROOT CAUSE part 3/3:
+// .sidebar-nav (css/layout.css) is its own independent overflow-y:auto
+// scroll container, separate from the window/document reset in
+// navigate() above, and is a single persistent DOM node that is only
+// ever shown/hidden via the .open class toggle below — it is never
+// recreated, so its scrollTop naturally survives close/reopen unless
+// reset. Reset only fires on OPEN (isOpen true after the toggle), never
+// on close, and only touches this one container — it cannot affect
+// page scroll, modal scroll, or scrolling while the sidebar stays open.
+function toggleSidebar(){
+  var isOpen=document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('sidebarOverlay').classList.toggle('open');
+  if(isOpen){
+    var nav=document.querySelector('#sidebar .sidebar-nav');
+    if(nav)nav.scrollTop=0;
+  }
+}
+function openAddModal(){var m={cases:'Case',sessions:'Session',clients:'Client',tasks:'Task',opponents:'Opponent',processServerWorks:'ProcessServerWork'};var k=m[currentPage];if(!k){toast('اختر قسماً أولاً','info');return;}editIdx[currentPage]=-1;resetForm(currentPage);var titles={cases:'إضافة قضية جديدة',sessions:'إضافة جلسة',clients:'إضافة موكل',tasks:'إضافة عمل إداري جديد',opponents:'إضافة خصم جديد',processServerWorks:'إضافة عمل محضرين جديد'};document.getElementById('modal'+k+'Title').textContent=titles[currentPage];document.getElementById('modal'+k).classList.add('open');if(currentPage==='sessions')populateCaseDropdown('fSessionCaseNum');if(currentPage==='cases'){populateCaseDropdown('fCaseParentCase');if(typeof switchCaseFormTab==='function')switchCaseFormTab('info');}if(currentPage==='clients'&&window.ClientFields){ClientFields.reset();switchClientFormTab('basic');}if(currentPage==='opponents'&&window.OpponentFields){OpponentFields.reset();}if(currentPage==='processServerWorks'){if(window.ProcessServerFields)ProcessServerFields.reset();if(typeof resetPswClientSelector==='function')resetPswClientSelector();}if(currentPage==='tasks'){if(window.AdministrativeWorkFields)AdministrativeWorkFields.reset();if(typeof resetTaskClientSelector==='function')resetTaskClientSelector();}}
+function openAddDocModal(){editIdx.documents=-1;resetForm('documents');document.getElementById('modalDocTitle').textContent='إضافة مستند';document.getElementById('modalDocument').classList.add('open');populateCaseDropdown('fDocCaseNum');if(typeof syncDocClientSelectorFromRecord==='function')syncDocClientSelectorFromRecord(null);}
 function openAddFeeModal(){editIdx.fees=-1;resetForm('fees');document.getElementById('modalFeeTitle').textContent='تسجيل أتعاب';document.getElementById('modalFee').classList.add('open');populateCaseDropdown('fFeeCaseNum');}
+// CASES_RELATIONSHIP_FINANCIAL قرار §3-G
+function openAddExpenseModal(){editIdx.expenses=-1;resetForm('expenses');document.getElementById('modalExpenseTitle').textContent='تسجيل مصروف';document.getElementById('modalExpense').classList.add('open');populateCaseDropdown('fExpenseCaseNum');if(typeof populateExpenseClientDropdown==='function')populateExpenseClientDropdown();toggleExpenseScopeFields('');}
+function toggleExpenseScopeFields(scope){
+  var clientGroup=document.getElementById('expenseClientFieldGroup');
+  var caseGroup=document.getElementById('expenseCaseFieldGroup');
+  if(clientGroup)clientGroup.style.display=(scope==='موكل')?'':'none';
+  if(caseGroup)caseGroup.style.display=(scope==='قضية')?'':'none';
+}
 function openAddLibModal(){editIdx.library=-1;resetForm('library');document.getElementById('modalLibTitle').textContent='إضافة كتاب';document.getElementById('modalLibrary').classList.add('open');}
 function openAddTemplateModal(){editIdx.templates=-1;resetForm('templates');document.getElementById('modalTplTitle').textContent='إضافة صيغة دعوى';document.getElementById('modalTemplate').classList.add('open');}
 function openDriveModal(){document.getElementById('fDriveUrl').value=DRIVE_URL;document.getElementById('modalDrive').classList.add('open');}
@@ -2165,29 +2513,49 @@ function confirmDialog(message, title){
 }
 
 var FIELDS={
-  cases:['fCaseNum','fCaseCircuit','fCaseRoom','fCaseDocketNum','fCaseType','fCaseCourt','fCaseTitle','fCaseClientType','fCaseClient','fCaseClientNID','fCaseClientPhone','fCaseClientAddr','fCaseClientJob','fCaseClientEmployer','fCaseOpponents','fCaseOpponent','fCaseOpponentNID','fCaseOpponentPhone','fCaseOpponentAddr','fCaseOpponentJob','fCaseOpponentEmployer','fCaseStatus','fCaseDate','fCaseNextSession','fCaseFees','fCaseMarriageDate','fCaseMarriageDoc','fCaseNotaryOffice','fCaseHasInventory','fCaseHasChildren','fCaseDemands','fCaseDefenses','fCaseProcedures','fCaseDecisions','fCaseJudgmentDate','fCaseEnforcement','fCaseEnforcementDetails','fCaseNotes'],
+  // CASE_SAVE_CYCLE_AUDIT (Problem 2): the trailing fCaseSession*/
+  // fCaseTask*/fCasePsw* entries + fCaseClients were added here. Before
+  // this fix, resetForm('cases') (called by openAddModal() when
+  // "إضافة قضية" is reopened, e.g. after Cancel following a rejected
+  // save) only cleared the case's own fields — the embedded
+  // جلسة/عمل اداري/محضرين tab fields and the #fCaseClients selector have
+  // no other reset path (each embedded tab's own field-clearing only
+  // runs on ITS OWN successful create(), which never happens when the
+  // case save itself was rejected — see sessions.js/tasks.js/process-
+  // server-works.js's saveCase() wraps), so stale data from a failed
+  // attempt survived into the next "إضافة قضية" session.
+  // ADDENDUM (Problem 9 — comprehensive integration test): the same gap
+  // also applied to fCaseDocName/fCaseDocType/fCaseDocDriveUrl/
+  // fCaseDocNotes (the "مستند" tab) — missed in Problem 2's original
+  // fix because that report only mentioned جلسة/عمل اداري/محضرين. Found
+  // by verify_case_save_cycle_end_to_end.js exercising Cancel/reopen in
+  // the FULL combined chain (documents.js included) rather than the
+  // three-tab subset Problem 2 tested in isolation. Added here too.
+  cases:['fCaseNum','fCaseCircuit','fCaseRoom','fCaseDocketNum','fCaseType','fCaseCourt','fCaseTitle','fCaseStage','fCaseParentCase','fCaseClientType','fCaseClient','fCaseClientNID','fCaseClientPhone','fCaseClientAddr','fCaseClientJob','fCaseClientEmployer','fCaseOpponents','fCaseOpponentRoles','fCaseOpponent','fCaseOpponentNID','fCaseOpponentPhone','fCaseOpponentAddr','fCaseOpponentJob','fCaseOpponentEmployer','fCaseStatus','fCaseDate','fCaseNextSession','fCaseFees','fCaseMarriageDate','fCaseMarriageDoc','fCaseNotaryOffice','fCaseHasInventory','fCaseHasChildren','fCaseDemands','fCaseDefenses','fCaseProcedures','fCaseDecisions','fCaseJudgmentDate','fCaseEnforcement','fCaseEnforcementDetails','fCaseNotes','fCaseClients','fCaseSessionDate','fCaseSessionTime','fCaseSessionTitle','fCaseSessionRequired','fCaseSessionNotes','fCaseTaskTitle','fCaseTaskDeadline','fCaseTaskLocation','fCaseTaskRequired','fCaseTaskNotes','fCaseTaskPortalVisible','fCasePswNature','fCasePswNumber','fCasePswCourt','fCasePswOffice','fCasePswDeliveryDate','fCasePswReceiptDate','fCasePswSessionDate','fCasePswNotes','fCasePswPortalVisibility','fCaseDocName','fCaseDocType','fCaseDocDriveUrl','fCaseDocNotes','fCaseDocPortalVisible'],
   sessions:['fSessionCaseNum','fSessionCaseTitle','fSessionCaseType','fSessionCourt','fSessionCircuit','fSessionRoom','fSessionDate','fSessionTime','fSessionJudge','fSessionStatus','fSessionWhat','fSessionDecision','fSessionNextDate','fSessionNotes'],
   clients:['fClientName','fClientType','fClientNID','fClientPower','fClientPhone','fClientEmail','fClientAddress','fClientJob','fClientEmployer','fClientMarital','fClientNotes','fClientNationality','fClientPassport','fClientBirthDate','fClientGender','fClientCompanyType','fClientCompanyActivity','fClientGoverningLaw','fClientRegNumber','fClientRegDateFrom','fClientRegDateTo','fClientUnifiedNumber','fClientTaxNumber','fClientCreateAccount'],
   opponents:['fOpponentName','fOpponentType','fOpponentNID','fOpponentNationality','fOpponentPassport','fOpponentJob','fOpponentEmployer'],
   processServerWorks:['fPswClientId','fPswClientNameHidden','fPswCaseNum','fPswCaseTitle','fPswAnnounceNature','fPswNumber','fPswCourt','fPswPen','fPswStatus','fPswDeliveryDate','fPswReceiptDate','fPswSessionDate','fPswNotes','fPswPortalVisibility'],
   children:['fChildCaseNum','fChildName','fChildBirth','fChildAge','fChildSchool','fChildAddress','fChildCustody','fChildAlimony','fChildNotes'],
-  documents:['fDocCaseNum','fDocName','fDocType','fDocDate','fDocDriveUrl','fDocPortalVisible','fDocNotes'],
+  documents:['fDocCaseNum','fDocClientId','fDocName','fDocType','fDocDate','fDocDriveUrl','fDocPortalVisible','fDocNotes'],
   tasks:['fTaskTitle','fTaskClientId','fTaskClientNameHidden','fTaskCaseNum','fTaskCaseTitle','fTaskPriority','fTaskDue','fTaskLocation','fTaskRequired','fTaskStatus','fTaskPortalVisible','fTaskNotes','fTaskCompletionReason','fTaskReopenReason'],
   fees:['fFeeCaseNum','fFeeClient','fFeeType','fFeeAmount','fFeeDate','fFeeMethod','fFeeNotes'],
+  expenses:['fExpenseScope','fExpenseClientId','fExpenseCaseNum','fExpenseAmount','fExpenseCategory','fExpenseSource','fExpenseDate','fExpenseStatus','fExpenseNotes'],
   library:['fLibTitle','fLibType','fLibCat','fLibUrl','fLibDesc'],
   templates:['fTplTitle','fTplType','fTplCat','fTplUrl','fTplDesc'],
   clientMessages:['fMsgClientId','fMsgCaseNum','fMsgType','fMsgText','fMsgAttachUrl','fMsgAttachName','fMsgPortalVisible']
 };
 var MAP={
-  cases:{fCaseNum:'رقم_القضية',fCaseCircuit:'رقم_الدائرة',fCaseRoom:'رقم_القاعة',fCaseDocketNum:'رقم_الدعوى',fCaseType:'نوع_الدعوى',fCaseCourt:'المحكمة',fCaseTitle:'عنوان_القضية',fCaseClientType:'نوع_الموكل',fCaseClient:'اسم_الموكل',fCaseClientNID:'رقم_قومي_الموكل',fCaseClientPhone:'هاتف_الموكل',fCaseClientAddr:'عنوان_الموكل',fCaseClientJob:'عمل_الموكل',fCaseClientEmployer:'جهة_عمل_الموكل',fCaseOpponents:'رقم_الخصوم',fCaseOpponent:'اسم_الخصم',fCaseOpponentNID:'رقم_قومي_الخصم',fCaseOpponentPhone:'هاتف_الخصم',fCaseOpponentAddr:'عنوان_الخصم',fCaseOpponentJob:'عمل_الخصم',fCaseOpponentEmployer:'جهة_عمل_الخصم',fCaseStatus:'الحالة',fCaseDate:'تاريخ_القيد',fCaseNextSession:'تاريخ_الجلسة_القادمة',fCaseFees:'أتعاب_المحاماة',fCaseMarriageDate:'تاريخ_عقد_الزواج',fCaseMarriageDoc:'رقم_وثيقة_الزواج',fCaseNotaryOffice:'مكتب_التوثيق',fCaseHasInventory:'وجود_قائمة_منقولات',fCaseHasChildren:'وجود_أطفال',fCaseDemands:'الطلبات_القانونية',fCaseDefenses:'الدفوع_القانونية',fCaseProcedures:'إجراءات_الدعوى',fCaseDecisions:'قرارات_المحكمة',fCaseJudgmentDate:'تاريخ_الحكم',fCaseEnforcement:'رقم_التنفيذ',fCaseEnforcementDetails:'إجراءات_التنفيذ',fCaseNotes:'الملاحظات'},
+  cases:{fCaseNum:'رقم_القضية',fCaseCircuit:'رقم_الدائرة',fCaseRoom:'رقم_القاعة',fCaseDocketNum:'رقم_الدعوى',fCaseType:'نوع_الدعوى',fCaseCourt:'المحكمة',fCaseTitle:'عنوان_القضية',fCaseStage:'درجة_التقاضي',fCaseParentCase:'قضية_أصل',fCaseClientType:'نوع_الموكل',fCaseClient:'اسم_الموكل',fCaseClientNID:'رقم_قومي_الموكل',fCaseClientPhone:'هاتف_الموكل',fCaseClientAddr:'عنوان_الموكل',fCaseClientJob:'عمل_الموكل',fCaseClientEmployer:'جهة_عمل_الموكل',fCaseOpponents:'رقم_الخصوم',fCaseOpponentRoles:'صفات_الخصوم',fCaseOpponent:'اسم_الخصم',fCaseOpponentNID:'رقم_قومي_الخصم',fCaseOpponentPhone:'هاتف_الخصم',fCaseOpponentAddr:'عنوان_الخصم',fCaseOpponentJob:'عمل_الخصم',fCaseOpponentEmployer:'جهة_عمل_الخصم',fCaseStatus:'الحالة',fCaseDate:'تاريخ_القيد',fCaseNextSession:'تاريخ_الجلسة_القادمة',fCaseFees:'أتعاب_المحاماة',fCaseMarriageDate:'تاريخ_عقد_الزواج',fCaseMarriageDoc:'رقم_وثيقة_الزواج',fCaseNotaryOffice:'مكتب_التوثيق',fCaseHasInventory:'وجود_قائمة_منقولات',fCaseHasChildren:'وجود_أطفال',fCaseDemands:'الطلبات_القانونية',fCaseDefenses:'الدفوع_القانونية',fCaseProcedures:'إجراءات_الدعوى',fCaseDecisions:'قرارات_المحكمة',fCaseJudgmentDate:'تاريخ_الحكم',fCaseEnforcement:'رقم_التنفيذ',fCaseEnforcementDetails:'إجراءات_التنفيذ',fCaseNotes:'الملاحظات'},
   sessions:{fSessionCaseNum:'رقم_القضية',fSessionCaseTitle:'عنوان_القضية',fSessionCaseType:'نوع_الدعوى',fSessionCourt:'المحكمة',fSessionCircuit:'رقم_الدائرة',fSessionRoom:'رقم_القاعة',fSessionDate:'التاريخ',fSessionTime:'الوقت',fSessionJudge:'القاضي',fSessionStatus:'الحالة',fSessionWhat:'ما_تم_في_الجلسة',fSessionDecision:'القرار',fSessionNextDate:'التأجيل_إلى',fSessionNotes:'الملاحظات'},
   clients:{fClientName:'الاسم',fClientType:'النوع',fClientNID:'الرقم_القومي',fClientPower:'رقم_التوكيل',fClientPhone:'الهاتف',fClientEmail:'البريد',fClientAddress:'العنوان',fClientJob:'الوظيفة',fClientEmployer:'جهة_العمل',fClientMarital:'الحالة_الاجتماعية',fClientNotes:'ملاحظات',fClientNationality:'الجنسية',fClientPassport:'رقم_جواز_السفر',fClientBirthDate:'تاريخ_الميلاد',fClientGender:'الجنس',fClientCompanyType:'نوع_الشركة',fClientCompanyActivity:'نشاط_الشركة',fClientGoverningLaw:'القانون_التابع_له',fClientRegNumber:'رقم_السجل',fClientRegDateFrom:'تاريخ_بداية_السجل',fClientRegDateTo:'تاريخ_نهاية_السجل',fClientUnifiedNumber:'الرقم_الموحد',fClientTaxNumber:'الرقم_الضريبي',fClientCreateAccount:'حساب_مفعل'},
   opponents:{fOpponentName:'الاسم',fOpponentType:'النوع',fOpponentNID:'الرقم_القومي',fOpponentNationality:'الجنسية',fOpponentPassport:'رقم_جواز_السفر',fOpponentJob:'الوظيفة',fOpponentEmployer:'جهة_العمل'},
   processServerWorks:{fPswClientId:'رقم_الموكل',fPswClientNameHidden:'اسم_الموكل',fPswCaseNum:'رقم_القضية',fPswCaseTitle:'عنوان_القضية',fPswAnnounceNature:'طبيعة_الاعلان',fPswNumber:'رقم_المحضرين',fPswCourt:'المحكمة',fPswPen:'قلم_المحضرين',fPswStatus:'الحالة',fPswDeliveryDate:'تاريخ_التسليم',fPswReceiptDate:'تاريخ_الاستلام',fPswSessionDate:'تاريخ_الجلسة',fPswNotes:'الملاحظات',fPswPortalVisibility:'ظهور_في_بوابة_الموكل'},
   children:{fChildCaseNum:'رقم_القضية',fChildName:'الاسم',fChildBirth:'تاريخ_الميلاد',fChildAge:'السن',fChildSchool:'المدرسة',fChildAddress:'محل_الإقامة',fChildCustody:'الحضانة_الحالية',fChildAlimony:'النفقة_الحالية',fChildNotes:'ملاحظات'},
-  documents:{fDocCaseNum:'رقم_القضية',fDocName:'اسم_المستند',fDocType:'نوع_المستند',fDocDate:'تاريخ_الإيداع',fDocDriveUrl:'رابط_Drive',fDocPortalVisible:'ظاهر_للموكل',fDocNotes:'الملاحظات'},
+  documents:{fDocCaseNum:'رقم_القضية',fDocClientId:'رقم_الموكل',fDocName:'اسم_المستند',fDocType:'نوع_المستند',fDocDate:'تاريخ_الإيداع',fDocDriveUrl:'رابط_Drive',fDocPortalVisible:'ظاهر_للموكل',fDocNotes:'الملاحظات'},
   tasks:{fTaskTitle:'العنوان',fTaskClientId:'رقم_الموكل',fTaskClientNameHidden:'اسم_الموكل',fTaskCaseNum:'رقم_القضية',fTaskCaseTitle:'عنوان_القضية',fTaskPriority:'الأولوية',fTaskDue:'الموعد_النهائي',fTaskLocation:'مكان_التنفيذ',fTaskRequired:'المطلوب',fTaskStatus:'الحالة',fTaskPortalVisible:'ظاهر_للموكل',fTaskNotes:'الملاحظات',fTaskCompletionReason:'سبب_الإنجاز',fTaskReopenReason:'سبب_إعادة_الفتح'},
   fees:{fFeeCaseNum:'رقم_القضية',fFeeClient:'اسم_الموكل',fFeeType:'نوع_الأتعاب',fFeeAmount:'المبلغ',fFeeDate:'تاريخ_الاستلام',fFeeMethod:'طريقة_الدفع',fFeeNotes:'الملاحظات'},
+  expenses:{fExpenseScope:'النطاق',fExpenseClientId:'رقم_الموكل',fExpenseCaseNum:'رقم_القضية',fExpenseAmount:'المبلغ',fExpenseCategory:'التصنيف',fExpenseSource:'المصدر',fExpenseDate:'التاريخ',fExpenseStatus:'الحالة',fExpenseNotes:'الملاحظات'},
   library:{fLibTitle:'العنوان',fLibType:'النوع',fLibCat:'القسم',fLibUrl:'الرابط',fLibDesc:'الوصف'},
   templates:{fTplTitle:'العنوان',fTplType:'النوع',fTplCat:'القسم',fTplUrl:'الرابط',fTplDesc:'الوصف'},
   clientMessages:{fMsgClientId:'رقم_الموكل',fMsgCaseNum:'رقم_القضية',fMsgType:'نوع_الرسالة',fMsgText:'نص_الرسالة',fMsgAttachUrl:'رابط_مرفق',fMsgAttachName:'اسم_المرفق',fMsgPortalVisible:'ظاهر_للموكل'}
@@ -2461,6 +2829,8 @@ window.addEventListener('DOMContentLoaded',function(){
 <script src="js/modules/clients.js?v=42"></script>
 <script src="js/modules/client-fields.js?v=42"></script>
 <script src="js/modules/opponents.js?v=42"></script>
+<script src="js/modules/financial-reports.js?v=1"></script>
+<script src="js/modules/expenses.js?v=1"></script>
 <script src="js/modules/opponent-fields.js?v=42"></script>
 <script src="js/modules/process-server-works.js?v=42"></script>
 <script src="js/modules/process-server-fields.js?v=42"></script>
@@ -2469,6 +2839,30 @@ window.addEventListener('DOMContentLoaded',function(){
 <script src="js/modules/fees.js?v=42"></script>
 <script src="js/modules/library.js?v=42"></script>
 <script src="js/modules/templates.js?v=42"></script>
+<!-- PHASE — Legal Directories: Data Model (Stage 1) + Generic UI (Stage 2)
+     + Admin Panel (Stage 3) + Architecture hardening / Publisher (Stage 4).
+     Load order: model -> validation -> renderer -> publisher -> admin
+     module -> page module (each depends only on the ones before it;
+     none depend on any Repository, IndexedDB, or Google Sheets script).
+     legal-directories-admin.js and DirectoryPublisher.js are Admin-only
+     and deliberately NOT in service-worker.js's PRECACHE_URLS — see
+     that file's comment near the "Legal Directories" precache entries. -->
+<script src="js/utils/DirectoryModel.js?v=1"></script>
+<script src="js/utils/DirectoryValidation.js?v=1"></script>
+<script src="js/utils/DirectoryRenderer.js?v=1"></script>
+<script src="js/utils/DirectoryPublisher.js?v=1"></script>
+<script src="js/modules/legal-directories-admin.js?v=1"></script>
+<script src="js/modules/legal-directories.js?v=1"></script>
+<!-- PHASE — Legal Directories: Dashboard Shortcut Navigator. Depends on
+     DirectoryModel.js, DirectoryRenderer.js, and legal-directories.js's
+     ensureDatasetLoaded()/getDataset()/getLoadError() accessors above —
+     must load after all three, same "load order = dependency order"
+     convention as the block above. Called from js/modules/dashboard.js's
+     renderDashboard() (guarded with a typeof check there), so, exactly
+     like dashboard.js's own documented load-order note, it is safe for
+     this file to load AFTER dashboard.js's <script> tag earlier in this
+     document — the actual function call only happens at runtime. -->
+<script src="js/modules/dashboard-legal-directories-nav.js?v=1"></script>
 <script src="js/modules/historypanel-ui.js?v=42"></script>
 <!-- PHASE 13.3D — PART 2A: RepositoryReadyCoordinator.js is deliberately
      the LAST <script> tag on the page, not grouped with the other
@@ -2580,7 +2974,7 @@ window.addEventListener('DOMContentLoaded',function(){
 <script src="js/core/modal/ScrollLockManager.js?v=42"></script>
 <script src="js/core/modal/FocusManager.js?v=42"></script>
 <script src="js/core/modal/ModalHistoryBridge.js?v=42"></script>
-<script src="js/core/modal/ModalManager.js?v=42"></script>
+<script src="js/core/modal/ModalManager.js?v=43"></script>
 <!-- PHASE 17.6 — Safe Mode Boot. Additive-only: after BootManager.js
      completes the boot sequence, marks any entity Repository that never
      became ready (nav-item ✓/✕, a non-blocking banner, and a per-page
