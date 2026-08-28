@@ -255,7 +255,7 @@
 // is served networkFirstShell() (always fresh), and its only change was
 // to add three new <select> controls inside existing case-form tabs
 // (no cached-file reference changed).
-var SW_VERSION = 'v81'; // LEGAL DIRECTORIES — Dashboard Shortcut Navigator.
+var SW_VERSION = 'v84'; // PROBLEM 13 (Case Wizard / Next Flow) + PROBLEM 14 (Global Scroll Position Reset).
                          // Two new precached files (css/dashboard-legal-
                          // directories-nav.css?v=1, js/modules/dashboard-
                          // legal-directories-nav.js?v=1) added to
@@ -311,7 +311,7 @@ var SW_VERSION = 'v81'; // LEGAL DIRECTORIES — Dashboard Shortcut Navigator.
                          // of silently missing them until some unrelated future bump.
 // (v60 note, kept for history) ADMINISTRATIVE WORKS TRANSFORM — "المهام" -> "الأعمال الإدارية".
                          // RANK 1 FIX (Android Fixed-Surface Reduction) —
-                         // css/components.css?v=53 is listed in PRECACHE_URLS below and
+                         // css/components.css?v=54 is listed in PRECACHE_URLS below and
                          // served cacheFirstIn(SHELL_CACHE), which is keyed by SW_VERSION
                          // (see SHELL_CACHE definition a few lines down), so an already-
                          // installed client keeps serving its OLD cached copy of that file
@@ -450,7 +450,7 @@ var PRECACHE_URLS = [
   'css/variables.css?v=42',
   'css/base.css?v=42',
   'css/layout.css?v=42',
-  'css/components.css?v=53',
+  'css/components.css?v=54',
   'css/responsive.css?v=42',
   'css/utilities.css?v=42',
   'css/skeleton.css?v=42',
@@ -533,7 +533,7 @@ var PRECACHE_URLS = [
   'js/auth/TopbarSessionBadge.js?v=42',
   'js/auth/SidebarSessionBadge.js?v=42',
   'js/core/RepositoryReadyTimeout.js?v=42',
-  'js/modules/cases.js?v=42',
+  'js/modules/cases.js?v=43',
   'js/modules/settings.js?v=42',
   'js/modules/firstrun.js?v=42',
   'js/modules/calendar.js?v=42',
@@ -593,7 +593,7 @@ var PRECACHE_URLS = [
   'js/core/modal/ScrollLockManager.js?v=42',
   'js/core/modal/FocusManager.js?v=42',
   'js/core/modal/ModalHistoryBridge.js?v=42',
-  'js/core/modal/ModalManager.js?v=42',
+  'js/core/modal/ModalManager.js?v=43',
   'js/core/boot/SafeModeController.js?v=42',
   'js/core/pwa/ServiceWorkerRegistrar.js?v=42',
   'js/core/pwa/InstallPromptManager.js?v=42',
