@@ -255,7 +255,15 @@
 // is served networkFirstShell() (always fresh), and its only change was
 // to add three new <select> controls inside existing case-form tabs
 // (no cached-file reference changed).
-var SW_VERSION = 'v86'; // PROBLEM 13 (Case Wizard / Next Flow) + PROBLEM 14 (Global Scroll Position Reset).
+var SW_VERSION = 'v87'; // PROBLEM 15 (Floating Information Views Scroll Reset). Only
+                         // js/core/modal/ModalManager.js changed (its own `?v=` bumped
+                         // 43 -> 44 above and in index.html, matching the exact
+                         // established convention of this file) — no other precached
+                         // file's content changed, so no other `?v=` was touched.
+                         // An SW_VERSION bump alone still forces full SHELL_CACHE
+                         // recreation regardless, per every prior SW_VERSION comment
+                         // in this file. Previous line: PROBLEM 13 (Case Wizard / Next
+                         // Flow) + PROBLEM 14 (Global Scroll Position Reset).
                          // Two new precached files (css/dashboard-legal-
                          // directories-nav.css?v=1, js/modules/dashboard-
                          // legal-directories-nav.js?v=1) added to
@@ -593,7 +601,7 @@ var PRECACHE_URLS = [
   'js/core/modal/ScrollLockManager.js?v=42',
   'js/core/modal/FocusManager.js?v=42',
   'js/core/modal/ModalHistoryBridge.js?v=42',
-  'js/core/modal/ModalManager.js?v=43',
+  'js/core/modal/ModalManager.js?v=44',
   'js/core/boot/SafeModeController.js?v=42',
   'js/core/pwa/ServiceWorkerRegistrar.js?v=42',
   'js/core/pwa/InstallPromptManager.js?v=42',
