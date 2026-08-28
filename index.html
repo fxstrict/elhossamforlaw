@@ -2412,7 +2412,25 @@ function confirmDialog(message, title){
 }
 
 var FIELDS={
-  cases:['fCaseNum','fCaseCircuit','fCaseRoom','fCaseDocketNum','fCaseType','fCaseCourt','fCaseTitle','fCaseStage','fCaseParentCase','fCaseClientType','fCaseClient','fCaseClientNID','fCaseClientPhone','fCaseClientAddr','fCaseClientJob','fCaseClientEmployer','fCaseOpponents','fCaseOpponentRoles','fCaseOpponent','fCaseOpponentNID','fCaseOpponentPhone','fCaseOpponentAddr','fCaseOpponentJob','fCaseOpponentEmployer','fCaseStatus','fCaseDate','fCaseNextSession','fCaseFees','fCaseMarriageDate','fCaseMarriageDoc','fCaseNotaryOffice','fCaseHasInventory','fCaseHasChildren','fCaseDemands','fCaseDefenses','fCaseProcedures','fCaseDecisions','fCaseJudgmentDate','fCaseEnforcement','fCaseEnforcementDetails','fCaseNotes'],
+  // CASE_SAVE_CYCLE_AUDIT (Problem 2): the trailing fCaseSession*/
+  // fCaseTask*/fCasePsw* entries + fCaseClients were added here. Before
+  // this fix, resetForm('cases') (called by openAddModal() when
+  // "إضافة قضية" is reopened, e.g. after Cancel following a rejected
+  // save) only cleared the case's own fields — the embedded
+  // جلسة/عمل اداري/محضرين tab fields and the #fCaseClients selector have
+  // no other reset path (each embedded tab's own field-clearing only
+  // runs on ITS OWN successful create(), which never happens when the
+  // case save itself was rejected — see sessions.js/tasks.js/process-
+  // server-works.js's saveCase() wraps), so stale data from a failed
+  // attempt survived into the next "إضافة قضية" session.
+  // ADDENDUM (Problem 9 — comprehensive integration test): the same gap
+  // also applied to fCaseDocName/fCaseDocType/fCaseDocDriveUrl/
+  // fCaseDocNotes (the "مستند" tab) — missed in Problem 2's original
+  // fix because that report only mentioned جلسة/عمل اداري/محضرين. Found
+  // by verify_case_save_cycle_end_to_end.js exercising Cancel/reopen in
+  // the FULL combined chain (documents.js included) rather than the
+  // three-tab subset Problem 2 tested in isolation. Added here too.
+  cases:['fCaseNum','fCaseCircuit','fCaseRoom','fCaseDocketNum','fCaseType','fCaseCourt','fCaseTitle','fCaseStage','fCaseParentCase','fCaseClientType','fCaseClient','fCaseClientNID','fCaseClientPhone','fCaseClientAddr','fCaseClientJob','fCaseClientEmployer','fCaseOpponents','fCaseOpponentRoles','fCaseOpponent','fCaseOpponentNID','fCaseOpponentPhone','fCaseOpponentAddr','fCaseOpponentJob','fCaseOpponentEmployer','fCaseStatus','fCaseDate','fCaseNextSession','fCaseFees','fCaseMarriageDate','fCaseMarriageDoc','fCaseNotaryOffice','fCaseHasInventory','fCaseHasChildren','fCaseDemands','fCaseDefenses','fCaseProcedures','fCaseDecisions','fCaseJudgmentDate','fCaseEnforcement','fCaseEnforcementDetails','fCaseNotes','fCaseClients','fCaseSessionDate','fCaseSessionTime','fCaseSessionTitle','fCaseSessionRequired','fCaseSessionNotes','fCaseTaskTitle','fCaseTaskDeadline','fCaseTaskLocation','fCaseTaskRequired','fCaseTaskNotes','fCasePswNature','fCasePswNumber','fCasePswCourt','fCasePswOffice','fCasePswDeliveryDate','fCasePswReceiptDate','fCasePswSessionDate','fCasePswNotes','fCaseDocName','fCaseDocType','fCaseDocDriveUrl','fCaseDocNotes'],
   sessions:['fSessionCaseNum','fSessionCaseTitle','fSessionCaseType','fSessionCourt','fSessionCircuit','fSessionRoom','fSessionDate','fSessionTime','fSessionJudge','fSessionStatus','fSessionWhat','fSessionDecision','fSessionNextDate','fSessionNotes'],
   clients:['fClientName','fClientType','fClientNID','fClientPower','fClientPhone','fClientEmail','fClientAddress','fClientJob','fClientEmployer','fClientMarital','fClientNotes','fClientNationality','fClientPassport','fClientBirthDate','fClientGender','fClientCompanyType','fClientCompanyActivity','fClientGoverningLaw','fClientRegNumber','fClientRegDateFrom','fClientRegDateTo','fClientUnifiedNumber','fClientTaxNumber','fClientCreateAccount'],
   opponents:['fOpponentName','fOpponentType','fOpponentNID','fOpponentNationality','fOpponentPassport','fOpponentJob','fOpponentEmployer'],
