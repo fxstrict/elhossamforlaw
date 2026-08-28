@@ -116,6 +116,22 @@
     // Tab must never escape into a stacked-but-hidden modal or the page.
     if (this._disposeTrap) { this._disposeTrap(); this._disposeTrap = null; }
     var modalBox = el.querySelector('.modal') || el;
+    // PROBLEM 14 (Global Scroll Position Reset, v82): `.modal` itself is
+    // the scroll container inside every `.modal-overlay` (css/components.
+    // css sets overflow-y:auto on `.modal`, not `.modal-body`), and every
+    // modal box is a persistent DOM node reused across opens/closes (same
+    // 28-call-site pattern this file's header comment already documents
+    // for `.open`) — so a modal scrolled down, closed, and reopened would
+    // otherwise resurface mid-scroll instead of at the top. This
+    // MutationObserver-driven `_onOpen()` is the single point every one of
+    // those 28 call sites already funnels through, so resetting here
+    // covers all of them with no new call site and no risk of missing
+    // one. Only runs on OPEN, only touches the modal box's own scrollTop
+    // — it does not touch window/page scroll (see navigate() in
+    // index.html) or `.sidebar-nav` (see toggleSidebar()), and does not
+    // fire again while the modal stays open (mutation records only land
+    // here on an actual class-attribute open/close transition).
+    try { modalBox.scrollTop = 0; } catch (__scrollResetErr) {}
     this._disposeTrap = global.ModalFocusManager.trap(modalBox);
     global.ModalFocusManager.focusFirst(modalBox);
 
