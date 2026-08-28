@@ -32,6 +32,10 @@
 .lic-card h2{margin:0 0 6px;color:var(--white);font-size:20px;}
 .lic-card p.lic-sub{margin:0 0 20px;color:var(--muted);font-size:13.5px;}
 
+/* ---- First-run activation explanation (additive, no new stacking/overlay) ---- */
+.lic-steps{margin:0 0 18px;padding-inline-start:20px;color:var(--muted);font-size:12.5px;line-height:1.7;}
+.lic-steps li{margin-bottom:4px;}
+
 .lic-field{margin-bottom:14px;}
 .lic-field label{display:block;font-size:12.5px;color:var(--muted);margin-bottom:6px;font-weight:600;}
 .lic-machine-id{
@@ -44,6 +48,20 @@
   border-radius:6px;padding:5px 10px;font-size:12px;cursor:pointer;transition:var(--transition);
 }
 .lic-machine-id button:hover{background:var(--gold-dk);}
+
+/* WhatsApp trial-request CTA — reuses the existing --success token
+   (already used for the ACTIVE badge) instead of a new raw color.
+   No filter/backdrop-filter/transform; hover uses opacity only. */
+.lic-whatsapp-btn{
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  margin-top:10px;padding:10px 12px;border-radius:8px;
+  background:var(--success);color:var(--white);
+  font-weight:700;font-size:13px;text-decoration:none;
+  transition:var(--transition);
+}
+.lic-whatsapp-btn:hover{opacity:0.9;}
+.lic-whatsapp-btn:active{opacity:0.8;}
+.lic-whatsapp-btn svg{flex-shrink:0;}
 
 .lic-textarea{
   width:100%;min-height:110px;border:1px solid rgba(0,0,0,0.12);border-radius:8px;
