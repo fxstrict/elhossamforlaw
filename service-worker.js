@@ -255,7 +255,16 @@
 // is served networkFirstShell() (always fresh), and its only change was
 // to add three new <select> controls inside existing case-form tabs
 // (no cached-file reference changed).
-var SW_VERSION = 'v87'; // PROBLEM 15 (Floating Information Views Scroll Reset). Only
+var SW_VERSION = 'v88'; // PROBLEM 16 (License Startup Persistence — Activation Wizard
+                         // shown despite a valid stored license, fixed by Refresh).
+                         // js/license/LicenseCrypto.js changed (stale SUBTLE snapshot ->
+                         // live getSubtle() check on every call). Cache-busting query
+                         // string on that one file bumped v42 -> v43 below, and this
+                         // SW_VERSION bump alone still forces full SHELL_CACHE
+                         // recreation regardless, per every prior SW_VERSION comment
+                         // in this file. No other PRECACHE_URLS entry needed editing —
+                         // only these two lines, exactly per the established convention.
+// (v87 note, kept for history) PROBLEM 15 (Floating Information Views Scroll Reset). Only
                          // js/core/modal/ModalManager.js changed (its own `?v=` bumped
                          // 43 -> 44 above and in index.html, matching the exact
                          // established convention of this file) — no other precached
@@ -481,7 +490,7 @@ var PRECACHE_URLS = [
   'assets/icons/maskable/icon-maskable-512.png',
   'js/debug/RuntimeDebugLayer.js?v=42',
   'js/license/license-public-key.js?v=42',
-  'js/license/LicenseCrypto.js?v=42',
+  'js/license/LicenseCrypto.js?v=43',
   'js/license/MachineFingerprint.js?v=42',
   'js/license/LicenseCore.js?v=42',
   'js/license/ReadOnlyGuard.js?v=42',
