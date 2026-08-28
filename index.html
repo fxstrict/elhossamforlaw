@@ -1399,6 +1399,13 @@ style="color:var(--muted);font-size:12px;margin-top:4px;"> جارٍ تحميل
           <div class="form-group"><label>مكان التنفيذ</label><input type="text" id="fCaseTaskLocation" placeholder="أدخل مكان التنفيذ"></div>
           <div class="form-group full"><label>المطلوب</label><textarea id="fCaseTaskRequired" placeholder="المطلوب أثناء التنفيذ" style="min-height:60px;"></textarea></div>
           <div class="form-group full"><label>ملاحظات العمل الإداري</label><textarea id="fCaseTaskNotes" placeholder="ملاحظات العمل الإداري" style="min-height:60px;"></textarea></div>
+          <!-- PROBLEM 12 (Case Save Cycle audit, v80): نفس field/values
+               الموجودة بالفعل فى النافذة المستقلة #modalTask
+               (#fTaskPortalVisible -> 'ظاهر_للموكل')، بمعرّف جديد خاص
+               بهذا التبويب فقط. لا تغيير فى الـData Model/الـdefault. -->
+          <div class="form-group"><label>ظاهر لبوابة الموكل؟</label>
+            <select id="fCaseTaskPortalVisible"><option value="لا">لا</option><option value="نعم">نعم</option></select>
+          </div>
         </div>
       </div>
 
@@ -1417,6 +1424,18 @@ style="color:var(--muted);font-size:12px;margin-top:4px;"> جارٍ تحميل
           <div class="form-group"><label>تاريخ الاستلام</label><input type="date" id="fCasePswReceiptDate"></div>
           <div class="form-group"><label>تاريخ الجلسة</label><input type="date" id="fCasePswSessionDate"></div>
           <div class="form-group full"><label>ملاحظات</label><textarea id="fCasePswNotes" placeholder="أضف أي ملاحظات إضافية" style="min-height:60px;"></textarea></div>
+          <!-- PROBLEM 12 (Case Save Cycle audit, v80): نفس field/values
+               الموجودة بالفعل فى النافذة المستقلة (#fPswPortalVisibility
+               -> 'ظهور_في_بوابة_الموكل')، بمعرّف جديد خاص بهذا التبويب
+               فقط. لا تغيير فى الـData Model/الـdefault الآمن (مخفي). -->
+          <div class="form-group full">
+            <label>&#128274; الظهور في بوابة الموكل</label>
+            <select id="fCasePswPortalVisibility">
+              <option value="مخفي">مخفي — لا يظهر للموكل إطلاقاً</option>
+              <option value="بيانات_فقط">إظهار بيانات العمل فقط</option>
+              <option value="بيانات_ومستندات">إظهار بيانات العمل والمستندات المرفوعة</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -1433,6 +1452,14 @@ style="color:var(--muted);font-size:12px;margin-top:4px;"> جارٍ تحميل
             <select id="fCaseDocType"><option>عقد زواج</option><option>شهادة ميلاد</option><option>مفردات مرتب</option><option>محضر</option><option>إيصال</option><option>حكم</option><option>بيان مدرسي</option><option>تحريات</option><option>مراسلة</option><option>مستند آخر</option></select>
           </div>
           <div class="form-group"><label>رابط Google Drive</label><input type="url" id="fCaseDocDriveUrl" placeholder="https://drive.google.com/file/d/..."></div>
+          <!-- PROBLEM 12 (Case Save Cycle audit, v80 — extended to
+               المستندات per user report): نفس field/values الموجودة
+               بالفعل فى النافذة المستقلة #modalDocument
+               (#fDocPortalVisible -> 'ظاهر_للموكل')، بمعرّف جديد خاص
+               بهذا التبويب فقط. لا تغيير فى الـData Model/الـdefault. -->
+          <div class="form-group"><label>ظاهر لبوابة الموكل؟</label>
+            <select id="fCaseDocPortalVisible"><option value="لا">لا</option><option value="نعم">نعم</option></select>
+          </div>
           <div class="form-group full"><label>ملاحظات</label><textarea id="fCaseDocNotes" placeholder="ملاحظات المستند" style="min-height:60px;"></textarea></div>
         </div>
       </div>
@@ -2430,7 +2457,7 @@ var FIELDS={
   // by verify_case_save_cycle_end_to_end.js exercising Cancel/reopen in
   // the FULL combined chain (documents.js included) rather than the
   // three-tab subset Problem 2 tested in isolation. Added here too.
-  cases:['fCaseNum','fCaseCircuit','fCaseRoom','fCaseDocketNum','fCaseType','fCaseCourt','fCaseTitle','fCaseStage','fCaseParentCase','fCaseClientType','fCaseClient','fCaseClientNID','fCaseClientPhone','fCaseClientAddr','fCaseClientJob','fCaseClientEmployer','fCaseOpponents','fCaseOpponentRoles','fCaseOpponent','fCaseOpponentNID','fCaseOpponentPhone','fCaseOpponentAddr','fCaseOpponentJob','fCaseOpponentEmployer','fCaseStatus','fCaseDate','fCaseNextSession','fCaseFees','fCaseMarriageDate','fCaseMarriageDoc','fCaseNotaryOffice','fCaseHasInventory','fCaseHasChildren','fCaseDemands','fCaseDefenses','fCaseProcedures','fCaseDecisions','fCaseJudgmentDate','fCaseEnforcement','fCaseEnforcementDetails','fCaseNotes','fCaseClients','fCaseSessionDate','fCaseSessionTime','fCaseSessionTitle','fCaseSessionRequired','fCaseSessionNotes','fCaseTaskTitle','fCaseTaskDeadline','fCaseTaskLocation','fCaseTaskRequired','fCaseTaskNotes','fCasePswNature','fCasePswNumber','fCasePswCourt','fCasePswOffice','fCasePswDeliveryDate','fCasePswReceiptDate','fCasePswSessionDate','fCasePswNotes','fCaseDocName','fCaseDocType','fCaseDocDriveUrl','fCaseDocNotes'],
+  cases:['fCaseNum','fCaseCircuit','fCaseRoom','fCaseDocketNum','fCaseType','fCaseCourt','fCaseTitle','fCaseStage','fCaseParentCase','fCaseClientType','fCaseClient','fCaseClientNID','fCaseClientPhone','fCaseClientAddr','fCaseClientJob','fCaseClientEmployer','fCaseOpponents','fCaseOpponentRoles','fCaseOpponent','fCaseOpponentNID','fCaseOpponentPhone','fCaseOpponentAddr','fCaseOpponentJob','fCaseOpponentEmployer','fCaseStatus','fCaseDate','fCaseNextSession','fCaseFees','fCaseMarriageDate','fCaseMarriageDoc','fCaseNotaryOffice','fCaseHasInventory','fCaseHasChildren','fCaseDemands','fCaseDefenses','fCaseProcedures','fCaseDecisions','fCaseJudgmentDate','fCaseEnforcement','fCaseEnforcementDetails','fCaseNotes','fCaseClients','fCaseSessionDate','fCaseSessionTime','fCaseSessionTitle','fCaseSessionRequired','fCaseSessionNotes','fCaseTaskTitle','fCaseTaskDeadline','fCaseTaskLocation','fCaseTaskRequired','fCaseTaskNotes','fCaseTaskPortalVisible','fCasePswNature','fCasePswNumber','fCasePswCourt','fCasePswOffice','fCasePswDeliveryDate','fCasePswReceiptDate','fCasePswSessionDate','fCasePswNotes','fCasePswPortalVisibility','fCaseDocName','fCaseDocType','fCaseDocDriveUrl','fCaseDocNotes','fCaseDocPortalVisible'],
   sessions:['fSessionCaseNum','fSessionCaseTitle','fSessionCaseType','fSessionCourt','fSessionCircuit','fSessionRoom','fSessionDate','fSessionTime','fSessionJudge','fSessionStatus','fSessionWhat','fSessionDecision','fSessionNextDate','fSessionNotes'],
   clients:['fClientName','fClientType','fClientNID','fClientPower','fClientPhone','fClientEmail','fClientAddress','fClientJob','fClientEmployer','fClientMarital','fClientNotes','fClientNationality','fClientPassport','fClientBirthDate','fClientGender','fClientCompanyType','fClientCompanyActivity','fClientGoverningLaw','fClientRegNumber','fClientRegDateFrom','fClientRegDateTo','fClientUnifiedNumber','fClientTaxNumber','fClientCreateAccount'],
   opponents:['fOpponentName','fOpponentType','fOpponentNID','fOpponentNationality','fOpponentPassport','fOpponentJob','fOpponentEmployer'],

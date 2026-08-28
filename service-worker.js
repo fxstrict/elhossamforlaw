@@ -238,7 +238,24 @@
 // networkFirstShell() (always fresh), and its only change was to a
 // small inline <script> block (bootLoadFromSheets() call sites), not a
 // cached file reference.
-var SW_VERSION = 'v80'; // LEGAL DIRECTORIES — Dashboard Shortcut Navigator.
+// v80 -> v81: CASE_SAVE_CYCLE_AUDIT (Problems 11 & 12). Per the exact
+// "Cache Versioning" rule documented at every prior bump in this file
+// (see the v42/v50 notes above): js/modules/tasks.js, js/modules/
+// process-server-works.js and js/modules/documents.js are all already
+// listed in PRECACHE_URLS below and served cacheFirstIn(SHELL_CACHE) —
+// keyed by SW_VERSION, "NEVER re-check the network" — and all three had
+// their CONTENT changed here (Problem 11: syncTaskCaseSelectorFromRecord()
+// in tasks.js now populates #fTaskCaseNum's <option> list before setting
+// its value; Problem 12: all three embedded-creator functions now read
+// and persist a Portal-visibility choice) while keeping their existing
+// filenames/?v= query strings. An SW_VERSION bump alone forces a full
+// SHELL_CACHE recreation regardless of the ?v= values not changing, so
+// no PRECACHE_URLS entries needed editing — only this line, exactly
+// matching the current convention. index.html itself needed no bump: it
+// is served networkFirstShell() (always fresh), and its only change was
+// to add three new <select> controls inside existing case-form tabs
+// (no cached-file reference changed).
+var SW_VERSION = 'v81'; // LEGAL DIRECTORIES — Dashboard Shortcut Navigator.
                          // Two new precached files (css/dashboard-legal-
                          // directories-nav.css?v=1, js/modules/dashboard-
                          // legal-directories-nav.js?v=1) added to
