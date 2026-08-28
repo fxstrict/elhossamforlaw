@@ -807,7 +807,81 @@ style="color:var(--muted);font-size:12px;margin-top:4px;"> جارٍ تحميل
   <div class="toolbar page-toolbar">
     <div class="search-wrap"><span class="icon">&#128269;</span><input type="text" id="searchCases" placeholder="بحث في القضايا..." oninput="renderCases()"></div>
     <select id="filterCaseStatus" onchange="renderCases()" style="width:auto;min-width:120px;"><option value="">كل الحالات</option><option>نشطة</option><option>معلقة</option><option>منتهية</option><option>مُحالة</option></select>
-    <select id="filterCaseType" onchange="renderCases()" style="width:auto;min-width:150px;"><option value="">كل الأنواع</option><option>أحوال شخصية — زوجة</option><option>أحوال شخصية — زوج</option><option>طلاق للضرر</option><option>خلع</option><option>نفقة زوجية</option><option>نفقة صغار</option><option>رؤية أطفال</option><option>حضانة</option><option>مدني</option><option>جنائي</option><option>تجاري</option><option>عمالي</option><option>إداري</option><option>عقاري</option></select>
+    <select id="filterCaseType" onchange="renderCases()" style="width:auto;min-width:150px;"><option value="">كل الأنواع</option>
+              <optgroup label="أحوال شخصية وأسرة">
+                <option>أحوال شخصية — زوجة</option><option>أحوال شخصية — زوج</option>
+                <option>طلاق للضرر</option><option>خلع</option><option>نفقة زوجية</option>
+                <option>نفقة صغار</option><option>رؤية أطفال</option><option>حضانة</option>
+                <option>تمكين مسكن</option><option>إسقاط حضانة</option><option>تخفيض نفقة</option>
+                <option>طاعة</option><option>إثبات نسب</option>
+                <option>تطليق للغيبة</option><option>تطليق للضرر بالضرب</option>
+                <option>نفقة متعة</option><option>نفقة أقارب</option><option>زيادة نفقة</option>
+                <option>إسقاط رؤية</option><option>ضم صغير</option><option>الإذن بالزواج</option>
+                <option>إثبات زواج عرفي</option><option>إثبات طلاق</option><option>تصادق على طلاق</option>
+                <option>بطلان عقد زواج</option><option>دعوى ميراث</option><option>دعوى وصية</option>
+                <option>إثبات وفاة ووراثة</option><option>قسمة تركة</option><option>رد وإبراء</option>
+              </optgroup>
+              <optgroup label="مدني">
+                <option>مدني</option><option>مطالبة بدين</option><option>فسخ عقد</option>
+                <option>صحة ونفاذ عقد</option><option>بطلان عقد</option><option>صورية عقد</option>
+                <option>تعويض (مسئولية عقدية)</option><option>تعويض (مسئولية تقصيرية)</option>
+                <option>إخلاء عين مؤجرة</option><option>طرد للغصب</option><option>صحة توقيع</option>
+                <option>إثبات حالة</option><option>منع تعرض</option><option>دعوى استحقاق</option>
+                <option>فرز وتجنيب</option><option>دعوى ملكية</option><option>إلزام بالتنفيذ العيني</option>
+              </optgroup>
+              <optgroup label="تجاري">
+                <option>تجاري</option><option>دعوى تجارية</option><option>إفلاس تجاري</option>
+                <option>أوراق تجارية (كمبيالة/سند لأمر)</option><option>نزاع شركات</option>
+                <option>تصفية شركة</option><option>منافسة غير مشروعة</option>
+                <option>عقد وكالة تجارية</option><option>عقد توزيع</option>
+                <option>ملكية فكرية تجارية</option><option>تحكيم تجاري</option>
+              </optgroup>
+              <optgroup label="عمالي">
+                <option>عمالي</option><option>فصل تعسفي</option><option>مستحقات عمالية</option>
+                <option>إصابة عمل</option><option>تعويض عن فصل</option>
+                <option>مكافأة نهاية خدمة</option><option>نزاع عقد عمل</option>
+                <option>إنهاء خدمة</option>
+              </optgroup>
+              <optgroup label="إداري">
+                <option>إداري</option><option>إلغاء قرار إداري</option>
+                <option>تعويض عن قرار إداري</option><option>تسوية موقف وظيفي</option>
+                <option>دعوى ترقية</option><option>منازعة عقد إداري</option>
+                <option>دعوى تأديبية</option><option>وقف تنفيذ قرار إداري</option>
+              </optgroup>
+              <optgroup label="عقاري">
+                <option>عقاري</option><option>صحة ونفاذ عقد بيع عقار</option>
+                <option>فرز وتجنيب عقاري</option><option>قسمة عقار</option>
+                <option>تسجيل عقاري</option><option>منازعة حيازة</option>
+                <option>إزالة تعدي</option><option>استرداد حيازة</option>
+                <option>نزع ملكية للمنفعة العامة</option>
+              </optgroup>
+              <optgroup label="جنائي (جنايات)">
+                <option>جنائي</option><option>قتل عمد</option><option>قتل خطأ</option>
+                <option>شروع في قتل</option><option>سرقة بإكراه</option><option>هتك عرض</option>
+                <option>اغتصاب</option><option>خطف</option><option>تزوير في محرر رسمي</option>
+                <option>رشوة</option><option>إتجار في مواد مخدرة</option>
+              </optgroup>
+              <optgroup label="جنح">
+                <option>جنح</option><option>ضرب أفضى لعاهة</option><option>نصب</option>
+                <option>خيانة أمانة</option><option>تبديد</option><option>سب وقذف</option>
+                <option>شيك بدون رصيد</option><option>تهديد</option><option>سرقة بسيطة</option>
+                <option>تزوير في محرر عرفي</option>
+              </optgroup>
+              <optgroup label="الدوائر الاقتصادية">
+                <option>اقتصادي</option><option>منازعات استثمار</option>
+                <option>منازعات شركات اقتصادية</option><option>ملكية فكرية</option>
+                <option>منازعات مصرفية وتمويل</option><option>أوراق مالية وبورصة</option>
+                <option>إفلاس اقتصادي</option><option>منازعات إلكترونية وتقنية معلومات</option>
+              </optgroup>
+              <optgroup label="دستوري">
+                <option>دعوى عدم دستورية</option><option>تنازع اختصاص</option>
+                <option>تفسير نص تشريعي</option>
+              </optgroup>
+              <optgroup label="مراحل تقاضٍ (مرجعية)">
+                <option>استئناف</option><option>نقض</option>
+              </optgroup>
+              <option>أخرى</option>
+            </select>
     <span id="casesCount" style="font-size:12px;color:var(--muted);white-space:nowrap;align-self:center;"></span>
   </div>
   <div class="card card-section"><div class="card-body u-p-0">
@@ -925,7 +999,7 @@ style="color:var(--muted);font-size:12px;margin-top:4px;"> جارٍ تحميل
 <div class="page" id="page-documents">
   <div class="toolbar page-toolbar">
     <div class="search-wrap"><span class="icon">&#128269;</span><input type="text" id="searchDocuments" placeholder="بحث في المستندات..." oninput="renderDocuments()"></div>
-    <select id="filterDocType" onchange="renderDocuments()" style="width:auto;min-width:130px;"><option value="">كل الأنواع</option><option>عقد زواج</option><option>شهادة ميلاد</option><option>مفردات مرتب</option><option>محضر</option><option>إيصال</option><option>حكم</option><option>مستند آخر</option></select>
+    <select id="filterDocType" onchange="renderDocuments()" style="width:auto;min-width:130px;"><option value="">كل الأنواع</option><option>عقد زواج</option><option>شهادة ميلاد</option><option>مفردات مرتب</option><option>محضر</option><option>إيصال</option><option>حكم</option><option>بيان مدرسي</option><option>تحريات</option><option>مراسلة</option><option>توكيل رسمي</option><option>توكيل عرفي</option><option>عقد بيع</option><option>عقد إيجار</option><option>عقد عمل</option><option>عقد شركة</option><option>عقد رهن</option><option>عقد قرض</option><option>إنذار رسمي</option><option>صحيفة دعوى</option><option>صحيفة استئناف</option><option>صحيفة طعن</option><option>مذكرة دفاع</option><option>تقرير خبير</option><option>شهادة رسمية</option><option>إخطار قانوني</option><option>سند لأمر</option><option>كمبيالة</option><option>شيك</option><option>إفادة بنكية</option><option>كشف حساب بنكي</option><option>بطاقة رقم قومي</option><option>جواز سفر</option><option>رخصة قيادة</option><option>رخصة تجارية</option><option>تفويض</option><option>وكالة عامة</option><option>وكالة خاصة</option><option>اتفاق تسوية</option><option>محضر جلسة</option><option>تقرير طبي</option><option>شهادة وفاة</option><option>شهادة زواج</option><option>وثيقة طلاق</option><option>إيصال أمانة</option><option>كشف ملكية عقارية</option><option>صورة رسمية طبق الأصل</option><option>مستند آخر</option></select>
     <button class="btn btn-primary btn-sm" onclick="openAddDocModal()">&#65291; إضافة مستند</button>
   </div>
   <div class="card card-section"><div class="card-body u-p-0">
@@ -1305,18 +1379,79 @@ style="color:var(--muted);font-size:12px;margin-top:4px;"> جارٍ تحميل
           <div class="form-group"><label>رقم قيد الدعوى بالمحكمة<span class="req">*</span></label><input type="text" id="fCaseNum" placeholder="2025/1234"></div>
           <div class="form-group"><label>نوع الدعوى<span class="req">*</span></label>
             <select id="fCaseType"><option value="">اختر...</option>
-              <optgroup label="أحوال شخصية">
+              <optgroup label="أحوال شخصية وأسرة">
                 <option>أحوال شخصية — زوجة</option><option>أحوال شخصية — زوج</option>
                 <option>طلاق للضرر</option><option>خلع</option><option>نفقة زوجية</option>
                 <option>نفقة صغار</option><option>رؤية أطفال</option><option>حضانة</option>
                 <option>تمكين مسكن</option><option>إسقاط حضانة</option><option>تخفيض نفقة</option>
                 <option>طاعة</option><option>إثبات نسب</option>
+                <option>تطليق للغيبة</option><option>تطليق للضرر بالضرب</option>
+                <option>نفقة متعة</option><option>نفقة أقارب</option><option>زيادة نفقة</option>
+                <option>إسقاط رؤية</option><option>ضم صغير</option><option>الإذن بالزواج</option>
+                <option>إثبات زواج عرفي</option><option>إثبات طلاق</option><option>تصادق على طلاق</option>
+                <option>بطلان عقد زواج</option><option>دعوى ميراث</option><option>دعوى وصية</option>
+                <option>إثبات وفاة ووراثة</option><option>قسمة تركة</option><option>رد وإبراء</option>
               </optgroup>
-              <optgroup label="فروع أخرى">
-                <option>مدني</option><option>جنائي</option><option>تجاري</option>
-                <option>عمالي</option><option>إداري</option><option>عقاري</option>
-                <option>جنح</option><option>استئناف</option><option>نقض</option>
+              <optgroup label="مدني">
+                <option>مدني</option><option>مطالبة بدين</option><option>فسخ عقد</option>
+                <option>صحة ونفاذ عقد</option><option>بطلان عقد</option><option>صورية عقد</option>
+                <option>تعويض (مسئولية عقدية)</option><option>تعويض (مسئولية تقصيرية)</option>
+                <option>إخلاء عين مؤجرة</option><option>طرد للغصب</option><option>صحة توقيع</option>
+                <option>إثبات حالة</option><option>منع تعرض</option><option>دعوى استحقاق</option>
+                <option>فرز وتجنيب</option><option>دعوى ملكية</option><option>إلزام بالتنفيذ العيني</option>
               </optgroup>
+              <optgroup label="تجاري">
+                <option>تجاري</option><option>دعوى تجارية</option><option>إفلاس تجاري</option>
+                <option>أوراق تجارية (كمبيالة/سند لأمر)</option><option>نزاع شركات</option>
+                <option>تصفية شركة</option><option>منافسة غير مشروعة</option>
+                <option>عقد وكالة تجارية</option><option>عقد توزيع</option>
+                <option>ملكية فكرية تجارية</option><option>تحكيم تجاري</option>
+              </optgroup>
+              <optgroup label="عمالي">
+                <option>عمالي</option><option>فصل تعسفي</option><option>مستحقات عمالية</option>
+                <option>إصابة عمل</option><option>تعويض عن فصل</option>
+                <option>مكافأة نهاية خدمة</option><option>نزاع عقد عمل</option>
+                <option>إنهاء خدمة</option>
+              </optgroup>
+              <optgroup label="إداري">
+                <option>إداري</option><option>إلغاء قرار إداري</option>
+                <option>تعويض عن قرار إداري</option><option>تسوية موقف وظيفي</option>
+                <option>دعوى ترقية</option><option>منازعة عقد إداري</option>
+                <option>دعوى تأديبية</option><option>وقف تنفيذ قرار إداري</option>
+              </optgroup>
+              <optgroup label="عقاري">
+                <option>عقاري</option><option>صحة ونفاذ عقد بيع عقار</option>
+                <option>فرز وتجنيب عقاري</option><option>قسمة عقار</option>
+                <option>تسجيل عقاري</option><option>منازعة حيازة</option>
+                <option>إزالة تعدي</option><option>استرداد حيازة</option>
+                <option>نزع ملكية للمنفعة العامة</option>
+              </optgroup>
+              <optgroup label="جنائي (جنايات)">
+                <option>جنائي</option><option>قتل عمد</option><option>قتل خطأ</option>
+                <option>شروع في قتل</option><option>سرقة بإكراه</option><option>هتك عرض</option>
+                <option>اغتصاب</option><option>خطف</option><option>تزوير في محرر رسمي</option>
+                <option>رشوة</option><option>إتجار في مواد مخدرة</option>
+              </optgroup>
+              <optgroup label="جنح">
+                <option>جنح</option><option>ضرب أفضى لعاهة</option><option>نصب</option>
+                <option>خيانة أمانة</option><option>تبديد</option><option>سب وقذف</option>
+                <option>شيك بدون رصيد</option><option>تهديد</option><option>سرقة بسيطة</option>
+                <option>تزوير في محرر عرفي</option>
+              </optgroup>
+              <optgroup label="الدوائر الاقتصادية">
+                <option>اقتصادي</option><option>منازعات استثمار</option>
+                <option>منازعات شركات اقتصادية</option><option>ملكية فكرية</option>
+                <option>منازعات مصرفية وتمويل</option><option>أوراق مالية وبورصة</option>
+                <option>إفلاس اقتصادي</option><option>منازعات إلكترونية وتقنية معلومات</option>
+              </optgroup>
+              <optgroup label="دستوري">
+                <option>دعوى عدم دستورية</option><option>تنازع اختصاص</option>
+                <option>تفسير نص تشريعي</option>
+              </optgroup>
+              <optgroup label="مراحل تقاضٍ (مرجعية)">
+                <option>استئناف</option><option>نقض</option>
+              </optgroup>
+              <option>أخرى</option>
             </select>
           </div>
           <div class="form-group full"><label>عنوان القضية<span class="req">*</span></label><input type="text" id="fCaseTitle" placeholder="وصف مختصر للقضية"></div>
@@ -1477,7 +1612,7 @@ style="color:var(--muted);font-size:12px;margin-top:4px;"> جارٍ تحميل
                #modalDocument (fDocName/fDocType/...). -->
           <div class="form-group full"><label>اسم المستند (اختياري)</label><input type="text" id="fCaseDocName" placeholder="مثال: عقد الزواج"></div>
           <div class="form-group"><label>نوع المستند</label>
-            <select id="fCaseDocType"><option>عقد زواج</option><option>شهادة ميلاد</option><option>مفردات مرتب</option><option>محضر</option><option>إيصال</option><option>حكم</option><option>بيان مدرسي</option><option>تحريات</option><option>مراسلة</option><option>مستند آخر</option></select>
+            <select id="fCaseDocType"><option>عقد زواج</option><option>شهادة ميلاد</option><option>مفردات مرتب</option><option>محضر</option><option>إيصال</option><option>حكم</option><option>بيان مدرسي</option><option>تحريات</option><option>مراسلة</option><option>توكيل رسمي</option><option>توكيل عرفي</option><option>عقد بيع</option><option>عقد إيجار</option><option>عقد عمل</option><option>عقد شركة</option><option>عقد رهن</option><option>عقد قرض</option><option>إنذار رسمي</option><option>صحيفة دعوى</option><option>صحيفة استئناف</option><option>صحيفة طعن</option><option>مذكرة دفاع</option><option>تقرير خبير</option><option>شهادة رسمية</option><option>إخطار قانوني</option><option>سند لأمر</option><option>كمبيالة</option><option>شيك</option><option>إفادة بنكية</option><option>كشف حساب بنكي</option><option>بطاقة رقم قومي</option><option>جواز سفر</option><option>رخصة قيادة</option><option>رخصة تجارية</option><option>تفويض</option><option>وكالة عامة</option><option>وكالة خاصة</option><option>اتفاق تسوية</option><option>محضر جلسة</option><option>تقرير طبي</option><option>شهادة وفاة</option><option>شهادة زواج</option><option>وثيقة طلاق</option><option>إيصال أمانة</option><option>كشف ملكية عقارية</option><option>صورة رسمية طبق الأصل</option><option>مستند آخر</option></select>
           </div>
           <div class="form-group"><label>رابط Google Drive</label><input type="url" id="fCaseDocDriveUrl" placeholder="https://drive.google.com/file/d/..."></div>
           <!-- PROBLEM 12 (Case Save Cycle audit, v80 — extended to
@@ -1870,7 +2005,7 @@ style="color:var(--muted);font-size:12px;margin-top:4px;"> جارٍ تحميل
       </div>
       <div class="form-group"><label>اسم المستند<span class="req">*</span></label><input type="text" id="fDocName" placeholder="مثال: عقد الزواج"></div>
       <div class="form-group"><label>نوع المستند</label>
-        <select id="fDocType"><option>عقد زواج</option><option>شهادة ميلاد</option><option>مفردات مرتب</option><option>محضر</option><option>إيصال</option><option>حكم</option><option>بيان مدرسي</option><option>تحريات</option><option>مراسلة</option><option>مستند آخر</option></select>
+        <select id="fDocType"><option>عقد زواج</option><option>شهادة ميلاد</option><option>مفردات مرتب</option><option>محضر</option><option>إيصال</option><option>حكم</option><option>بيان مدرسي</option><option>تحريات</option><option>مراسلة</option><option>توكيل رسمي</option><option>توكيل عرفي</option><option>عقد بيع</option><option>عقد إيجار</option><option>عقد عمل</option><option>عقد شركة</option><option>عقد رهن</option><option>عقد قرض</option><option>إنذار رسمي</option><option>صحيفة دعوى</option><option>صحيفة استئناف</option><option>صحيفة طعن</option><option>مذكرة دفاع</option><option>تقرير خبير</option><option>شهادة رسمية</option><option>إخطار قانوني</option><option>سند لأمر</option><option>كمبيالة</option><option>شيك</option><option>إفادة بنكية</option><option>كشف حساب بنكي</option><option>بطاقة رقم قومي</option><option>جواز سفر</option><option>رخصة قيادة</option><option>رخصة تجارية</option><option>تفويض</option><option>وكالة عامة</option><option>وكالة خاصة</option><option>اتفاق تسوية</option><option>محضر جلسة</option><option>تقرير طبي</option><option>شهادة وفاة</option><option>شهادة زواج</option><option>وثيقة طلاق</option><option>إيصال أمانة</option><option>كشف ملكية عقارية</option><option>صورة رسمية طبق الأصل</option><option>مستند آخر</option></select>
       </div>
       <div class="form-group"><label>تاريخ الإيداع</label><input type="date" id="fDocDate"></div>
       <div class="form-group full"><label>رابط Google Drive</label><input type="url" id="fDocDriveUrl" placeholder="https://drive.google.com/file/d/..."></div>

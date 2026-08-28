@@ -255,7 +255,7 @@
 // is served networkFirstShell() (always fresh), and its only change was
 // to add three new <select> controls inside existing case-form tabs
 // (no cached-file reference changed).
-var SW_VERSION = 'v85'; // PROBLEM 13 (Case Wizard / Next Flow) + PROBLEM 14 (Global Scroll Position Reset).
+var SW_VERSION = 'v86'; // PROBLEM 13 (Case Wizard / Next Flow) + PROBLEM 14 (Global Scroll Position Reset).
                          // Two new precached files (css/dashboard-legal-
                          // directories-nav.css?v=1, js/modules/dashboard-
                          // legal-directories-nav.js?v=1) added to
