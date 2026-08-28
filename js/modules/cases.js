@@ -774,6 +774,111 @@ function switchCaseFormTab(tabId) {
   for (var j = 0; j < btns.length; j++) {
     btns[j].classList.toggle('active', btns[j].getAttribute('data-case-tab') === tabId);
   }
+
+  // PROBLEM 13 (Case Wizard / Next Flow, v82): every caller of
+  // switchCaseFormTab() — openAddModal()/editCase() (index.html/this
+  // file), caseWizardNext()/caseWizardPrev() below, and a direct click
+  // on a tab button (data-case-tab onclick, index.html) — funnels
+  // through here, so this single call keeps the "التالي"/"السابق"/
+  // "حفظ القضية" footer buttons and the step-guidance banner in sync
+  // with whichever pane just became visible, regardless of HOW the user
+  // got there.
+  _updateCaseWizardUI(tabId);
+}
+
+/**
+ * getCaseTabOrder — PROBLEM 13: يستخرج ترتيب تبويبات نموذج القضية
+ * الحقيقى من الـDOM مباشرة (نفس querySelectorAll المستخدم فعلاً فى
+ * switchCaseFormTab أعلاه) بدل افتراض/تكرار ترتيب مكتوب يدويًا فى JS
+ * قد ينحرف عن index.html مستقبلاً.
+ * @returns {string[]} قيم data-case-tab بترتيب ظهورها الفعلى فى الـDOM
+ */
+function getCaseTabOrder() {
+  var btns = document.querySelectorAll('#caseFormTabs .tab-btn');
+  var order = [];
+  for (var i = 0; i < btns.length; i++) {
+    var t = btns[i] && typeof btns[i].getAttribute === 'function' ? btns[i].getAttribute('data-case-tab') : null;
+    if (t) order.push(t);
+  }
+  return order;
+}
+
+/**
+ * _caseFormCurrentTab — PROBLEM 13: يحدد التبويب النشط حاليًا من نفس
+ * أزرار caseFormTabs (الزر الحامل class 'active') بدل الاعتماد على
+ * متغير state منفصل قد يفقد التزامن مع نقر مباشر على تبويب.
+ * @returns {string|null}
+ */
+function _caseFormCurrentTab() {
+  var btns = document.querySelectorAll('#caseFormTabs .tab-btn');
+  for (var i = 0; i < btns.length; i++) {
+    if (btns[i] && btns[i].classList && btns[i].classList.contains('active')) {
+      return btns[i].getAttribute('data-case-tab');
+    }
+  }
+  return null;
+}
+
+/**
+ * caseWizardNext — PROBLEM 13: ينتقل خطوة واحدة للأمام فى الترتيب
+ * الحقيقى للتبويبات. لا يستدعى saveCase() ولا ينشئ/يحدّث أى Case فى
+ * الـRepository إطلاقًا — البيانات تبقى فى الـDOM (نفس الحقول، نفس
+ * الـmodal، لا reset ولا إعادة إنشاء) والحفظ الحقيقى الوحيد يحدث لاحقًا
+ * عند الضغط على "حفظ القضية" فى آخر تبويب. عند تبويب "أخرى" (آخر تبويب
+ * فى الترتيب الفعلى) لا تفعل شيئًا — لا "تالي" بعد آخر خطوة.
+ */
+function caseWizardNext() {
+  var order = getCaseTabOrder();
+  var current = _caseFormCurrentTab();
+  var idx = order.indexOf(current);
+  if (idx === -1 || idx >= order.length - 1) return;
+  switchCaseFormTab(order[idx + 1]);
+}
+
+/**
+ * caseWizardPrev — PROBLEM 13: عكس caseWizardNext تمامًا — خطوة واحدة
+ * للخلف، بلا حفظ وبلا مسح أى بيانات (فقط إظهار/إخفاء panes، تمامًا مثل
+ * أى نقر تبويب مباشر).
+ */
+function caseWizardPrev() {
+  var order = getCaseTabOrder();
+  var current = _caseFormCurrentTab();
+  var idx = order.indexOf(current);
+  if (idx <= 0) return;
+  switchCaseFormTab(order[idx - 1]);
+}
+
+/**
+ * _updateCaseWizardUI — PROBLEM 13: يحدّث أزرار "السابق"/"التالي"/"حفظ
+ * القضية" (#btnCasePrev/#btnCaseNext/#btnCaseSave) وشريط الإرشاد
+ * (#caseWizardHint) بناءً على موضع التبويب الحالى ضمن الترتيب الحقيقى
+ * المُستخرج من getCaseTabOrder(). آخر تبويب فى الترتيب الفعلى (سواء كان
+ * "أخرى" أو غيره لو تغيّر ترتيب index.html مستقبلاً) هو الوحيد الذى
+ * يُظهر "حفظ القضية" بدل "التالي" — بلا افتراض اسم تبويب بعينه.
+ * @param {string} tabId
+ */
+function _updateCaseWizardUI(tabId) {
+  var order = getCaseTabOrder();
+  var idx = order.indexOf(tabId);
+  var isFirst = idx <= 0;
+  var isLast = idx === -1 || idx === order.length - 1;
+
+  var btnPrev = document.getElementById('btnCasePrev');
+  var btnNext = document.getElementById('btnCaseNext');
+  var btnSave = document.getElementById('btnCaseSave');
+  var hint = document.getElementById('caseWizardHint');
+
+  if (btnPrev) btnPrev.style.display = isFirst ? 'none' : '';
+  if (btnNext) btnNext.style.display = isLast ? 'none' : '';
+  if (btnSave) btnSave.style.display = isLast ? '' : 'none';
+
+  if (hint) {
+    var totalSteps = order.length || 1;
+    var stepNum = idx === -1 ? totalSteps : idx + 1;
+    hint.textContent = isLast
+      ? ('الخطوة ' + stepNum + ' من ' + totalSteps + ' (الأخيرة) — يرجى مراجعة واستكمال بيانات جميع التبويبات قبل إنهاء تسجيل القضية.')
+      : ('الخطوة ' + stepNum + ' من ' + totalSteps + ' — أكمل بيانات هذا التبويب ثم اضغط "التالي".');
+  }
 }
 
 /**
@@ -1911,6 +2016,11 @@ if (typeof module !== 'undefined' && module.exports) {
     buildCaseReport: buildCaseReport,
     getLitigationChain: getLitigationChain,
     switchCaseFormTab: switchCaseFormTab,
+    getCaseTabOrder: getCaseTabOrder,
+    caseWizardNext: caseWizardNext,
+    caseWizardPrev: caseWizardPrev,
+    _caseFormCurrentTab: _caseFormCurrentTab,
+    _updateCaseWizardUI: _updateCaseWizardUI,
     quickPrintCase: quickPrintCase,
     quickCaseQR: quickCaseQR,
     toggleChildrenSection: toggleChildrenSection,
