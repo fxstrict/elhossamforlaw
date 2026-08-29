@@ -85,12 +85,17 @@ async function main() {
 
   await check('getClientNet(): a client with no fees/expenses at all returns all-zero, not an error', () => {
     const result = financialReports.getClientNet('CL-does-not-exist');
-    assert.deepStrictEqual(result, { totalFees: 0, totalExpenses: 0, net: 0 });
+    // PHASE 4 (OPTION D, approved): additive agreedTotal/collected/remaining fields.
+    assert.deepStrictEqual(result, { totalFees: 0, totalExpenses: 0, net: 0, agreedTotal: 0, collected: 0, remaining: 0 });
   });
 
   await check('getClientNet(): a falsy clientId returns all-zero without throwing', () => {
-    assert.deepStrictEqual(financialReports.getClientNet(''), { totalFees: 0, totalExpenses: 0, net: 0 });
-    assert.deepStrictEqual(financialReports.getClientNet(null), { totalFees: 0, totalExpenses: 0, net: 0 });
+    // PHASE 4 (OPTION D, approved): agreedTotal/collected/remaining are
+    // additive fields alongside the original totalFees/totalExpenses/net
+    // — see verify_fee_agreement_reporting.js for their dedicated tests.
+    const zero = { totalFees: 0, totalExpenses: 0, net: 0, agreedTotal: 0, collected: 0, remaining: 0 };
+    assert.deepStrictEqual(financialReports.getClientNet(''), zero);
+    assert.deepStrictEqual(financialReports.getClientNet(null), zero);
   });
 
   await check('getCaseNet(): sums fees + expenses scoped to رقم_القضية only, independent of client-level totals', () => {
