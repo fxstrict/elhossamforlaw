@@ -1,47 +1,40 @@
 /**
  * ================================================================
- * verify_machine_id_persistence_across_restarts.js — PROBLEM 17
+ * verify_machine_id_persistence_across_restarts.js — PROBLEM 17/18
  * نظام الحسام للمحاماة | Phase 30 Licensing — Machine ID Stability
  * ================================================================
  * Standalone Node harness, same style/conventions as
  * js/tests/verify_license_startup_state_persistence.js.
  *
+ * PROBLEM 18 UPDATE: this file originally also exercised the
+ * PROBLEM 17 "pinning" mechanism (MachineFingerprint.confirmMachineId
+ * / _getConfirmedMachineId, and a Scenario 5 simulating an
+ * old-formula pre-existing license "healing" itself via that pin).
+ * That mechanism has been REMOVED entirely in Problem 18 (see
+ * MachineFingerprint.js header) because: (a) the project confirmed
+ * there are no pre-existing licenses of any formula to migrate, so
+ * the pin's only stated justification no longer applies, and (b) the
+ * identity formula itself no longer contains anything that can drift
+ * (see js/tests/verify_license_identity_final.js), so there is
+ * nothing left for a pin to protect against. The scenarios below now
+ * test the RAW getMachineId() output directly — no pinning API exists
+ * anymore, so this is the only thing that CAN be tested, which is
+ * exactly the point: the raw computation is the single source of
+ * truth.
+ *
  * WHAT THIS PROVES
  * -----------------
- * Root cause of the NEW production evidence: the SAME device
+ * Root cause of the original production evidence: the SAME device
  * produced two different Machine IDs a few hours apart
  * (HSM-9F89-64D9-302E then HSM-DAF9-E8C4-1683) with no reset.
- *
- * js/license/MachineFingerprint.js's collectEnvironmentSignals()
- * used to fold `screen.width x screen.height` into the SHA-256 input
- * that produces the Machine ID. On every mobile browser,
- * window.screen.width/height report the CURRENT ORIENTATION's
- * dimensions and SWAP on rotation (documented browser behavior).
- * A phone opened once in portrait and again in landscape — nothing
- * more unusual than the device being rotated between two normal app
- * opens — fed a different signal string into the hash, producing a
- * different Machine ID even though the persisted device salt (the
- * dominant, supposedly-stable component) never changed.
- *
- * LicenseCore.verifyLicenseFile() compares that live-computed ID
- * against the machineId baked into the user's signed license file.
- * A mismatch -> state=INVALID, reason='machine_mismatch' ->
- * ActivationWizard.onLicenseState() shows the full-screen wizard
- * (see ActivationWizard.js, state===NOT_ACTIVATED||INVALID) even
- * though the license itself was never touched.
- *
- * THE FIX (two parts, both exercised below):
- *   1. collectEnvironmentSignals() no longer includes screen
- *      geometry at all, so brand-new installs are immune to
- *      rotation-driven drift from day one.
- *   2. MachineFingerprint.confirmMachineId() pins the machineId the
- *      moment LicenseCore verifies it as a genuine match against the
- *      signed license, and getMachineId() returns that pinned value
- *      forever after — WITHOUT recomputing from live signals. This
- *      is the migration-safety half: it heals devices that already
- *      have a valid license bound to an OLD-formula machineId, and
- *      it makes the ID immune to orientation even for edge cases the
- *      chosen signal set didn't anticipate.
+ * js/license/MachineFingerprint.js's collectEnvironmentSignals() used
+ * to fold `screen.width x screen.height` into the SHA-256 input. On
+ * every mobile browser, window.screen.width/height report the CURRENT
+ * ORIENTATION's dimensions and SWAP on rotation (documented browser
+ * behavior). Fixed in Problem 17 by dropping screen geometry; fixed
+ * further in Problem 18 by dropping every remaining environment
+ * signal (see verify_license_identity_final.js for that evidence) so
+ * ONLY the persisted device salt feeds the hash.
  *
  * Run: node js/tests/verify_machine_id_persistence_across_restarts.js
  * ================================================================
@@ -150,10 +143,12 @@ async function main() {
   }
 
   // ================================================================
-  // Scenario 3 — THE ACTUAL BUG, isolated at the MachineFingerprint
-  // layer: same persistent salt, device physically rotated between
-  // two opens. Post-fix, collectEnvironmentSignals() no longer reads
-  // screen geometry, so this must now be stable.
+  // Scenario 3 — THE ORIGINAL REPORTED BUG, isolated at the
+  // MachineFingerprint layer: same persistent salt, device physically
+  // rotated between two opens. Tested on the RAW getMachineId() output
+  // directly (no pinning API exists anymore) — this must be stable
+  // because collectEnvironmentSignals() reads nothing from `screen` at
+  // all now.
   // ================================================================
   {
     installFakeBrowserGlobals();
@@ -164,17 +159,22 @@ async function main() {
     const runLandscape = freshRequireLicenseModules();
     const idLandscape = await runLandscape.MachineFingerprint.getMachineId();
 
+    rotateToLandscape(); // back to portrait
+    const runPortraitAgain = freshRequireLicenseModules();
+    const idPortraitAgain = await runPortraitAgain.MachineFingerprint.getMachineId();
+
     check(
       'Scenario 3 — Machine ID stable across a device rotation between two opens (the exact HSM-9F89.. -> HSM-DAF9.. production report)',
-      idPortrait === idLandscape,
-      'portrait=' + idPortrait + ' landscape=' + idLandscape
+      idPortrait === idLandscape && idLandscape === idPortraitAgain,
+      'portrait=' + idPortrait + ' landscape=' + idLandscape + ' portrait2=' + idPortraitAgain
     );
   }
 
   // ================================================================
   // Scenario 4 (mandatory end-to-end) — cold start with a valid
   // stored license survives a device rotation: no machine_mismatch,
-  // no Activation Wizard, no refresh needed.
+  // no Activation Wizard, no refresh needed. No pin is involved —
+  // this passes purely because the raw formula never changes.
   // ================================================================
   {
     installFakeBrowserGlobals();
@@ -215,60 +215,33 @@ async function main() {
       }
     );
 
-    check('Scenario 4c — confirmed/pinned Machine ID was recorded after the verified match',
-      second.MachineFingerprint._getConfirmedMachineId() === originalMachineId);
+    check('Scenario 4c — Machine ID after rotation is bit-for-bit identical to the one baked into the license (no pin needed)',
+      (await second.MachineFingerprint.getMachineId()) === originalMachineId);
   }
 
   // ================================================================
-  // Scenario 5 — MIGRATION SAFETY: a device that already has a
-  // valid license bound to an OLD-formula machineId (computed WITH
-  // screen geometry, as every machineId issued before this fix was)
-  // must NOT be broken by this deploy. It heals itself the first
-  // time it happens to load in its original activation orientation,
-  // then stays pinned (ACTIVE) forever after, even through further
-  // rotations, because of confirmMachineId().
+  // Scenario 5 — NO MIGRATION, BY DESIGN: a license bearing a
+  // machineId that does not match this device's CURRENT (only, single)
+  // formula must fail closed — there is no old-formula/legacy
+  // acceptance path of any kind. This is the direct replacement for
+  // the old "Scenario 5 migration" test, which is no longer
+  // applicable now that the pinning/migration layer has been removed.
   // ================================================================
   {
     installFakeBrowserGlobals();
-    // Compute a machineId the OLD way (pre-fix formula, screen geometry
-    // included) to stand in for a license that was already issued
-    // before this deploy shipped.
-    const oldFormulaRaw = 'hossam-v1|PRE-EXISTING-SALT|' +
-      [globalThis.navigator.platform, String(globalThis.navigator.hardwareConcurrency),
-       globalThis.navigator.language, '390x844', '24',
-       Intl.DateTimeFormat().resolvedOptions().timeZone || ''].join('|');
-    const oldHex = nodeCrypto.createHash('sha256').update(oldFormulaRaw).digest('hex');
-    const oldMachineId = 'HSM-' + oldHex.slice(0, 4).toUpperCase() + '-' + oldHex.slice(4, 8).toUpperCase() + '-' + oldHex.slice(8, 12).toUpperCase();
-
-    // Seed the salt so the NEW formula, when it happens to run in the
-    // SAME (portrait) orientation the license was issued under, would
-    // independently reproduce a DIFFERENT id (proving the two formulas
-    // really do diverge) — the point of this scenario is that the app
-    // must still reach ACTIVE via the *pin*, not by coincidence.
-    globalThis.localStorage.setItem('hsm_license_device_salt_v1', 'PRE-EXISTING-SALT');
-
+    const run = freshRequireLicenseModules();
     const payload = {
-      licenseId: 'HSM-LIC-PREEXISTING', customer: {}, edition: 'Professional', type: 'lifetime',
-      machineId: oldMachineId, modules: [], issuedAt: '2025-01-01T00:00:00.000Z',
+      licenseId: 'HSM-LIC-FOREIGN', customer: {}, edition: 'Professional', type: 'lifetime',
+      machineId: 'HSM-0000-0000-0000', modules: [], issuedAt: '2025-01-01T00:00:00.000Z',
       expiresAt: null, supportUntil: null, graceDays: 15, maxTransfers: 2, transferCount: 0
     };
-    const run = freshRequireLicenseModules();
     const signature = signPayloadLikeGenerator(run.LicenseCrypto.canonicalStringify, payload, privatePem);
     globalThis.localStorage.setItem('hsm_license_record_v1', JSON.stringify({
       licenseFile: { v: 1, payload, signature }, activatedAt: '2025-01-01T00:00:00.000Z',
       lastOnlineCheck: null, revoked: false
     }));
 
-    const newFormulaId = await run.MachineFingerprint.getMachineId();
-    check('Scenario 5 setup sanity — new formula genuinely differs from the pre-existing license machineId (proves this is a real migration case)',
-      newFormulaId !== oldMachineId, 'new=' + newFormulaId + ' old(license)=' + oldMachineId);
-
-    // Without a pin this would be INVALID/machine_mismatch forever. This
-    // documents the known, disclosed limitation: this run legitimately
-    // fails closed (security is preserved — nothing was silently
-    // accepted), matching Step 10's "only a genuinely valid license
-    // bypasses activation" requirement.
-    await asyncCheck('Scenario 5 — pre-existing license with old-formula machineId is NOT silently accepted (fails closed, as required)', async () => {
+    await asyncCheck('Scenario 5 — a license for a machineId this device cannot reproduce is rejected as machine_mismatch (no migration/compat path exists)', async () => {
       const status = await run.LicenseCore.init();
       assert.strictEqual(status.state, run.LicenseCore.States.INVALID);
       assert.strictEqual(status.reason, 'machine_mismatch');
