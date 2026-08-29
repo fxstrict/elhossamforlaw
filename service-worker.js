@@ -255,7 +255,14 @@
 // is served networkFirstShell() (always fresh), and its only change was
 // to add three new <select> controls inside existing case-form tabs
 // (no cached-file reference changed).
-var SW_VERSION = 'v90'; // PROBLEM 18 (Machine ID Identity Final Audit — Activation
+var SW_VERSION = 'v91'; // CASES_RELATIONSHIP_FINANCIAL PHASE 4 (Architecture
+                         // Decision OPTION D, approved): fees.js, clients.js,
+                         // cases.js, financial-reports.js all changed content
+                         // (agreedTotal/collected/remaining reporting +
+                         // createFeePayment()) — SW_VERSION bump forces full
+                         // SHELL_CACHE recreation per every prior SW_VERSION
+                         // comment in this file.
+                         // PROBLEM 18 (Machine ID Identity Final Audit — Activation
                          // Wizard could still reappear on an otherwise-untouched
                          // device whose display language or timezone changed,
                          // because MachineFingerprint.js's collectEnvironmentSignals()
