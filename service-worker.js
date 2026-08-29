@@ -255,7 +255,15 @@
 // is served networkFirstShell() (always fresh), and its only change was
 // to add three new <select> controls inside existing case-form tabs
 // (no cached-file reference changed).
-var SW_VERSION = 'v91'; // CASES_RELATIONSHIP_FINANCIAL PHASE 4 (Architecture
+var SW_VERSION = 'v92'; // CASES_RELATIONSHIP_FINANCIAL PHASE 4 (continued):
+                         // advanced reporting layer added to
+                         // financial-reports.js (getCollectionsInRange,
+                         // getExpensesInRange, getTopRevenueCases/Clients,
+                         // getCasesWithOutstandingBalance, getTotalOutstanding)
+                         // — no other file changed this round. SW_VERSION
+                         // bump forces full SHELL_CACHE recreation per every
+                         // prior SW_VERSION comment in this file.
+                         // CASES_RELATIONSHIP_FINANCIAL PHASE 4 (Architecture
                          // Decision OPTION D, approved): fees.js, clients.js,
                          // cases.js, financial-reports.js all changed content
                          // (agreedTotal/collected/remaining reporting +
