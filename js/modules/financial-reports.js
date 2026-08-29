@@ -212,6 +212,137 @@
     return { totalFees: totalFees, totalExpenses: totalExpenses, net: totalFees - totalExpenses, agreedTotal: agreedTotal, collected: collected, remaining: remaining };
   }
 
+  /**
+   * ================================================================
+   * PHASE 4 (continued) — ADVANCED REPORTS (PHASE 3 §17, items 10-19)
+   * ================================================================
+   * All additive, read-only, over the exact same three sources
+   * (data.fees / data.expenses / data.caseClients) — no new Repository,
+   * no new storage, per PHASE 3's own instruction not to invent a data
+   * source that doesn't exist yet.
+   * ================================================================
+   */
+
+  /** _inRange(dateStr, from, to) — inclusive date-string comparison, tolerant of missing bounds. */
+  function _inRange(dateStr, from, to) {
+    if (!dateStr) return false;
+    var d = String(dateStr).slice(0, 10); // tolerate full ISO timestamps, compare by date part
+    if (from && d < String(from).slice(0, 10)) return false;
+    if (to && d > String(to).slice(0, 10)) return false;
+    return true;
+  }
+
+  /**
+   * getCollectionsInRange(from, to) — إجمالي التحصيلات (Fees) خلال فترة،
+   * بحسب تاريخ_الاستلام. from/to اختياريان (إغفال أحدهما = بلا حد من هذه الجهة).
+   * @param {string} [from] - YYYY-MM-DD
+   * @param {string} [to] - YYYY-MM-DD
+   * @returns {number}
+   */
+  function getCollectionsInRange(from, to) {
+    var d = _dataRef() || {};
+    return (d.fees || [])
+      .filter(function (f) { return _inRange(f['تاريخ_الاستلام'], from, to); })
+      .reduce(function (acc, f) { return acc + _num(f['المبلغ']); }, 0);
+  }
+
+  /**
+   * getExpensesInRange(from, to) — إجمالي المصروفات (كل المستويات) خلال فترة،
+   * بحسب التاريخ.
+   * @param {string} [from] - YYYY-MM-DD
+   * @param {string} [to] - YYYY-MM-DD
+   * @returns {number}
+   */
+  function getExpensesInRange(from, to) {
+    var d = _dataRef() || {};
+    return (d.expenses || [])
+      .filter(function (e) { return _inRange(e['التاريخ'], from, to); })
+      .reduce(function (acc, e) { return acc + _num(e['المبلغ']); }, 0);
+  }
+
+  /** _todayIso() / _monthStartIso() / _yearStartIso() — real system clock, no faking. */
+  function _todayIso() { return new Date().toISOString().slice(0, 10); }
+  function _monthStartIso() { var d = new Date(); return d.toISOString().slice(0, 7) + '-01'; }
+  function _yearStartIso() { return new Date().getFullYear() + '-01-01'; }
+
+  function getTodayCollections() { return getCollectionsInRange(_todayIso(), _todayIso()); }
+  function getMonthCollections() { return getCollectionsInRange(_monthStartIso(), _todayIso()); }
+  function getYearCollections() { return getCollectionsInRange(_yearStartIso(), _todayIso()); }
+  function getTodayExpenses() { return getExpensesInRange(_todayIso(), _todayIso()); }
+  function getMonthExpenses() { return getExpensesInRange(_monthStartIso(), _todayIso()); }
+  function getYearExpenses() { return getExpensesInRange(_yearStartIso(), _todayIso()); }
+
+  /**
+   * getTopRevenueCases(limit) — أكثر القضايا تحقيقًا للإيراد (بالمحصَّل فعليًا،
+   * وليس المتفق عليه — الإيراد الفعلي هو ما دخل الخزينة).
+   * @param {number} [limit=5]
+   * @returns {Array<{caseNum:string, collected:number}>}
+   */
+  function getTopRevenueCases(limit) {
+    var d = _dataRef() || {};
+    var byCase = {};
+    (d.fees || []).forEach(function (f) {
+      var c = f['رقم_القضية'];
+      if (!c) return;
+      byCase[c] = (byCase[c] || 0) + _num(f['المبلغ']);
+    });
+    return Object.keys(byCase)
+      .map(function (c) { return { caseNum: c, collected: byCase[c] }; })
+      .sort(function (a, b) { return b.collected - a.collected; })
+      .slice(0, limit || 5);
+  }
+
+  /**
+   * getTopRevenueClients(limit) — أكثر الموكلين تحقيقًا للإيراد. مطابقة
+   * ID-based فقط (رقم_الموكل) — سجلات قديمة بلا رقم_الموكل لا يمكن
+   * تجميعها بموكل محدد بأمان دون الاسم، فتُستبعد من هذا الترتيب تحديدًا
+   * (بخلاف getClientNet التي تملك سياق clientId واحد فتلجأ لمطابقة الاسم).
+   * @param {number} [limit=5]
+   * @returns {Array<{clientId:string, collected:number}>}
+   */
+  function getTopRevenueClients(limit) {
+    var d = _dataRef() || {};
+    var byClient = {};
+    (d.fees || []).forEach(function (f) {
+      var cl = f['رقم_الموكل'];
+      if (!cl) return;
+      byClient[cl] = (byClient[cl] || 0) + _num(f['المبلغ']);
+    });
+    return Object.keys(byClient)
+      .map(function (cl) { return { clientId: cl, collected: byClient[cl] }; })
+      .sort(function (a, b) { return b.collected - a.collected; })
+      .slice(0, limit || 5);
+  }
+
+  /**
+   * getCasesWithOutstandingBalance() — القضايا التي لها أتعاب متبقية
+   * (المتفق عليه > المحصَّل لهذه القضية تحديدًا). قضية سُدِّدت بالكامل أو
+   * دُفع فيها أكثر من المتفق عليه لا تظهر هنا.
+   * @returns {Array<{caseNum:string, agreedTotal:number, collected:number, remaining:number}>}
+   *   مرتبة تنازليًا حسب المتبقي.
+   */
+  function getCasesWithOutstandingBalance() {
+    var caseNums = {};
+    _caseClientsRows().forEach(function (r) { if (r['رقم_القضية']) caseNums[r['رقم_القضية']] = true; });
+    var list = Object.keys(caseNums).map(function (caseNum) {
+      var net = getCaseNet(caseNum);
+      return { caseNum: caseNum, agreedTotal: net.agreedTotal, collected: net.collected, remaining: net.remaining };
+    }).filter(function (r) { return r.remaining > 0; });
+    return list.sort(function (a, b) { return b.remaining - a.remaining; });
+  }
+
+  /**
+   * getTotalOutstanding() — إجمالي المبالغ المستحقة غير المحصلة.
+   * تحديدًا: مجموع "المتبقي" الموجب لكل قضية على حدة (وليس صافي المتفق
+   * عليه - المحصَّل على مستوى المكتب ككل) — حتى لا تُخفي دفعة زائدة في
+   * قضية أ استحقاقًا حقيقيًا في قضية ب. راجع getOfficeNet().remaining
+   * للصافي الإجمالي (رقم مختلف تمامًا، وله معنى محاسبي مختلف).
+   * @returns {number}
+   */
+  function getTotalOutstanding() {
+    return getCasesWithOutstandingBalance().reduce(function (acc, r) { return acc + r.remaining; }, 0);
+  }
+
   // ================================================================
   // Exports
   // ================================================================
@@ -222,7 +353,19 @@
     syncExpensesMirror: syncExpensesMirror,
     getClientNet: getClientNet,
     getCaseNet: getCaseNet,
-    getOfficeNet: getOfficeNet
+    getOfficeNet: getOfficeNet,
+    getCollectionsInRange: getCollectionsInRange,
+    getExpensesInRange: getExpensesInRange,
+    getTodayCollections: getTodayCollections,
+    getMonthCollections: getMonthCollections,
+    getYearCollections: getYearCollections,
+    getTodayExpenses: getTodayExpenses,
+    getMonthExpenses: getMonthExpenses,
+    getYearExpenses: getYearExpenses,
+    getTopRevenueCases: getTopRevenueCases,
+    getTopRevenueClients: getTopRevenueClients,
+    getCasesWithOutstandingBalance: getCasesWithOutstandingBalance,
+    getTotalOutstanding: getTotalOutstanding
   };
 
   if (typeof module !== 'undefined' && module.exports) {
@@ -235,6 +378,18 @@
     root.getClientNet = getClientNet;
     root.getCaseNet = getCaseNet;
     root.getOfficeNet = getOfficeNet;
+    root.getCollectionsInRange = getCollectionsInRange;
+    root.getExpensesInRange = getExpensesInRange;
+    root.getTodayCollections = getTodayCollections;
+    root.getMonthCollections = getMonthCollections;
+    root.getYearCollections = getYearCollections;
+    root.getTodayExpenses = getTodayExpenses;
+    root.getMonthExpenses = getMonthExpenses;
+    root.getYearExpenses = getYearExpenses;
+    root.getTopRevenueCases = getTopRevenueCases;
+    root.getTopRevenueClients = getTopRevenueClients;
+    root.getCasesWithOutstandingBalance = getCasesWithOutstandingBalance;
+    root.getTotalOutstanding = getTotalOutstanding;
   }
 
 })(typeof window !== 'undefined' ? window : (typeof globalThis !== 'undefined' ? globalThis : this));
