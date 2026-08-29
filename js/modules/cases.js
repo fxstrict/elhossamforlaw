@@ -1443,6 +1443,22 @@ function buildCaseReport(c, sessions, docs, children, tasks, psw) {
           '<td style="padding:8px 10px;border:1px solid #e8e0d0;font-weight:900;color:' + (caseNet.net >= 0 ? '#1ab46c' : '#c0392b') + ';">' + caseNet.net.toLocaleString('ar-EG') + ' ج.م</td></tr>' +
         '</table></div></div>';
     }
+    // CASES_RELATIONSHIP_FINANCIAL PHASE 4 (OPTION D, approved): agreed/
+    // collected/remaining, additive section — only rendered when at least
+    // one CaseClients relationship for this case actually carries
+    // أتعاب_العلاقة (agreedTotal > 0), so cases with no agreed-fee data
+    // show nothing new (identical to today's behavior).
+    if (caseNet.agreedTotal) {
+      html += '<div class="view-section"><div class="view-section-title">&#128176; الأتعاب المتفق عليها</div>';
+      html += '<div class="hsm-table-scroll"><table style="width:100%;min-width:320px;font-size:12px;border-collapse:collapse;">' +
+        '<tr><td style="padding:7px 10px;border:1px solid #e8e0d0;">الأتعاب المتفق عليها</td>' +
+          '<td style="padding:7px 10px;border:1px solid #e8e0d0;font-weight:700;">' + caseNet.agreedTotal.toLocaleString('ar-EG') + ' ج.م</td></tr>' +
+        '<tr><td style="padding:7px 10px;border:1px solid #e8e0d0;">المحصَّل</td>' +
+          '<td style="padding:7px 10px;border:1px solid #e8e0d0;font-weight:700;color:#1ab46c;">' + caseNet.collected.toLocaleString('ar-EG') + ' ج.م</td></tr>' +
+        '<tr style="background:#fff8ea;"><td style="padding:8px 10px;border:1px solid #e8e0d0;font-weight:900;">المتبقي</td>' +
+          '<td style="padding:8px 10px;border:1px solid #e8e0d0;font-weight:900;color:' + (caseNet.remaining > 0 ? '#c0392b' : '#1ab46c') + ';">' + caseNet.remaining.toLocaleString('ar-EG') + ' ج.م</td></tr>' +
+        '</table></div></div>';
+    }
   }
 
   // الموكل

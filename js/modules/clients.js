@@ -1212,6 +1212,21 @@ function buildClientReport(c) {
           '<td style="padding:8px 10px;border:1px solid #e8e0d0;font-weight:900;color:' + (net.net >= 0 ? '#1ab46c' : '#c0392b') + ';">' + net.net.toLocaleString('ar-EG') + ' ج.م</td></tr>' +
         '</table></div></div>';
     }
+    // CASES_RELATIONSHIP_FINANCIAL PHASE 4 (OPTION D, approved): same
+    // additive agreed/collected/remaining section as buildCaseReport()
+    // in js/modules/cases.js — only rendered when this client has at
+    // least one CaseClients relationship carrying أتعاب_العلاقة.
+    if (net.agreedTotal) {
+      html += '<div class="view-section"><div class="view-section-title">&#128176; الأتعاب المتفق عليها</div>';
+      html += '<div class="hsm-table-scroll"><table style="width:100%;min-width:320px;font-size:12px;border-collapse:collapse;">' +
+        '<tr><td style="padding:7px 10px;border:1px solid #e8e0d0;">الأتعاب المتفق عليها</td>' +
+          '<td style="padding:7px 10px;border:1px solid #e8e0d0;font-weight:700;">' + net.agreedTotal.toLocaleString('ar-EG') + ' ج.م</td></tr>' +
+        '<tr><td style="padding:7px 10px;border:1px solid #e8e0d0;">المحصَّل</td>' +
+          '<td style="padding:7px 10px;border:1px solid #e8e0d0;font-weight:700;color:#1ab46c;">' + net.collected.toLocaleString('ar-EG') + ' ج.م</td></tr>' +
+        '<tr style="background:#fff8ea;"><td style="padding:8px 10px;border:1px solid #e8e0d0;font-weight:900;">المتبقي</td>' +
+          '<td style="padding:8px 10px;border:1px solid #e8e0d0;font-weight:900;color:' + (net.remaining > 0 ? '#c0392b' : '#1ab46c') + ';">' + net.remaining.toLocaleString('ar-EG') + ' ج.م</td></tr>' +
+        '</table></div></div>';
+    }
   }
 
   // ---- Client Messages/Notes (client portal) ----
@@ -1777,7 +1792,7 @@ function renderClientSelectorChips() {
       '<div class="client-role-card-fields">' +
         '<input type="text" placeholder="الصفة *" data-client-role-id="' + escapeHtml(id) + '" ' +
           'data-client-role-field="الصفة" value="' + escapeHtml(savedRole) + '">' +
-        '<input type="text" placeholder="أتعاب القضية" data-client-role-id="' + escapeHtml(id) + '" ' +
+        '<input type="text" placeholder="الأتعاب المتفق عليها" data-client-role-id="' + escapeHtml(id) + '" ' +
           'data-client-role-field="أتعاب_العلاقة" value="' + escapeHtml(savedFee) + '">' +
       '</div></div>';
   }).join('');

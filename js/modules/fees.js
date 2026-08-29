@@ -695,6 +695,63 @@ async function restoreFee(id) {
   if (window.ApplicationShell) { ApplicationShell.markDirty('fees'); }
 }
 
+/**
+ * createFeePayment(paymentData, repoOverride) — CASES_RELATIONSHIP_
+ * FINANCIAL PHASE 4 (Architecture Decision OPTION D, approved). Additive,
+ * DOM-free helper: creates a Fees record (a collected payment) through
+ * FeesRepository exactly like saveFee() does, WITHOUT touching saveFee()
+ * or the #modalFee form in any way.
+ *
+ * WHY THIS EXISTS SEPARATELY FROM saveFee()
+ *   saveFee() is hard-wired to the #modalFee DOM form (document.
+ *   getElementById(...), collectForm('fees')). A future "إضافة دفعة"
+ *   button on the Case/Client view (PHASE 3 §21 UI/UX Flow — not yet
+ *   built) needs to create the exact same kind of record
+ *   programmatically, pre-filled with رقم_علاقة (the CaseClients
+ *   relationship id) — a plain-object entry point makes that possible
+ *   without any DOM coupling, and keeps saveFee() itself completely
+ *   unmodified (zero regression risk to the existing Fees page).
+ *
+ * رقم_علاقة — the one new thing this function actually does: it is the
+ * first code in the project to ever WRITE a value into 'رقم_علاقة' on a
+ * Fees record. The column itself is not new (Config/00_Config.gs
+ * SHEET_DEFS['الأتعاب'], FeesRepository.js's own FEES_LEGACY_FIELDS —
+ * both already declared it, unused until now, per PHASE 1 DISCOVERY).
+ * Passing it is entirely optional — a payment with no known
+ * relationship (e.g. legacy flow, or a client-level payment not tied to
+ * one specific case) is created exactly as before.
+ *
+ * @param {Object} paymentData - same field shape saveFee() would send
+ *   to feesRepository.create() (رقم_القضية, اسم_الموكل, المبلغ, ...),
+ *   plus an optional رقم_علاقة.
+ * @param {Object} [repoOverride] - test-only: an alternate FeesRepository
+ *   instance to call instead of the module's own singleton (mirrors how
+ *   other *.js test suites inject a repo — see verify_fees_repository_
+ *   integration.js). Production callers never pass this.
+ * @returns {Promise<{success:boolean, record:?Object, error:?Object}>}
+ */
+async function createFeePayment(paymentData, repoOverride) {
+  var repo = repoOverride || feesRepository;
+  await (repoOverride ? Promise.resolve() : ensureFeesRepositoryReady());
+
+  var obj = Object.assign({}, paymentData);
+  obj['تاريخ_الإنشاء'] = obj['تاريخ_الإنشاء'] || new Date().toISOString();
+
+  var result = await repo.create(obj);
+
+  if (result && result.success && repo === feesRepository) {
+    syncFeesMirror();
+    saveLocal();
+    if (typeof ApiService !== 'undefined' && ApiService.syncRow) {
+      ApiService.syncRow('الأتعاب', result.record, -1);
+    }
+    if (typeof updateBadges === 'function') updateBadges();
+    if (typeof window !== 'undefined' && window.ApplicationShell) { window.ApplicationShell.markDirty('fees'); }
+  }
+
+  return result;
+}
+
 // ================================================================
 // Node/test export (browser: `module` is undefined, this is a no-op —
 // renderFees/saveFee/editFee/deleteFee remain plain global functions
@@ -825,6 +882,11 @@ if (typeof module !== 'undefined' && module.exports) {
     saveFee: saveFee,
     editFee: editFee,
     deleteFee: deleteFee,
-    restoreFee: restoreFee
+    restoreFee: restoreFee,
+    createFeePayment: createFeePayment
   };
+}
+
+if (typeof window !== 'undefined') {
+  window.createFeePayment = createFeePayment;
 }

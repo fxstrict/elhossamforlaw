@@ -97,13 +97,60 @@
   }
 
   /**
+   * ================================================================
+   * PHASE 4 — FEE AGREEMENT / COLLECTED / REMAINING (ARCHITECTURE
+   * DECISION OPTION D, approved PHASE 3)
+   * ================================================================
+   * ADDITIVE ONLY — every function below still returns its original
+   * totalFees/totalExpenses/net fields completely unchanged (see
+   * verify_financial_reports.js, which keeps passing unmodified). This
+   * section adds three new fields (agreedTotal, collected, remaining)
+   * to each of getClientNet/getCaseNet/getOfficeNet's return value.
+   *
+   * SOURCE OF "الأتعاب المتفق عليها" (agreedTotal)
+   *   CaseClientsRepository.أتعاب_العلاقة (js/repositories/
+   *   CaseClientsRepository.js) — the field that sits next to the
+   *   مدّعي/مدّعى عليه role picker during case registration (PHASE 1
+   *   DISCOVERY). Read here via the data.caseClients mirror, which
+   *   js/modules/clients.js already maintains via syncCaseClientsMirror()
+   *   (js/modules/clients.js:1507) — same "read the mirror, don't own a
+   *   second Repository instance" pattern this file already uses for
+   *   data.fees. Soft-deleted rows (deletedAt != null) are excluded
+   *   automatically because CaseClientsRepository.getAll() already
+   *   excludes them before ever reaching the mirror — no extra filtering
+   *   needed here.
+   *
+   * SOURCE OF "المحصَّل" (collected)
+   *   Unchanged: the exact same data.fees sum totalFees already computes.
+   *   "collected" is simply totalFees under its correct accounting name
+   *   (PHASE 3 §13/§15 — Fees records ARE payments, not obligations).
+   *
+   * DUPLICATE-COUNTING GUARD
+   *   A Fees row tagged with رقم_علاقة is matched to a relationship by
+   *   id ONLY when رقم_علاقة is present (never in addition to the
+   *   existing رقم_القضية/اسم_الموكل match used for totalFees/collected
+   *   — those two numbers share the exact same underlying `fees` array
+   *   and reducer, so a payment is summed once into collected
+   *   regardless of whether it carries رقم_علاقة, exactly like today).
+   *   رقم_علاقة is used ONLY to select which CaseClients rows'
+   *   أتعاب_العلاقة feed agreedTotal — it never re-sums a fee.
+   * ================================================================
+   */
+
+  /** getCaseClientsRows — reads the data.caseClients mirror (maintained by clients.js). */
+  function _caseClientsRows() {
+    var d = _dataRef() || {};
+    return d.caseClients || [];
+  }
+
+  /**
    * getClientNet — إجمالي أتعاب الموكل - مصروفات الموكل = صافي عائد الموكل
    * @param {string} clientId — رقم_الموكل
-   * @returns {{totalFees:number, totalExpenses:number, net:number}}
+   * @returns {{totalFees:number, totalExpenses:number, net:number, agreedTotal:number, collected:number, remaining:number}}
    */
   function getClientNet(clientId) {
     var d = _dataRef() || {};
-    if (!clientId) return { totalFees: 0, totalExpenses: 0, net: 0 };
+    if (!clientId) return { totalFees: 0, totalExpenses: 0, net: 0, agreedTotal: 0, collected: 0, remaining: 0 };
 
     var client = (d.clients || []).filter(function (c) {
       return c[(typeof CLIENTS_ID_FIELD !== 'undefined') ? CLIENTS_ID_FIELD : 'رقم_الموكل'] === clientId;
@@ -118,17 +165,22 @@
     var expenses = (d.expenses || []).filter(function (e) { return e['رقم_الموكل'] === clientId; });
     var totalExpenses = expenses.reduce(function (acc, e) { return acc + _num(e['المبلغ']); }, 0);
 
-    return { totalFees: totalFees, totalExpenses: totalExpenses, net: totalFees - totalExpenses };
+    var relationships = _caseClientsRows().filter(function (r) { return r['رقم_الموكل'] === clientId; });
+    var agreedTotal = relationships.reduce(function (acc, r) { return acc + _num(r['أتعاب_العلاقة']); }, 0);
+    var collected = totalFees;
+    var remaining = agreedTotal - collected;
+
+    return { totalFees: totalFees, totalExpenses: totalExpenses, net: totalFees - totalExpenses, agreedTotal: agreedTotal, collected: collected, remaining: remaining };
   }
 
   /**
    * getCaseNet — إجمالي أتعاب القضية - مصروفات القضية = صافي عائد القضية
    * @param {string} caseNum — رقم_القضية
-   * @returns {{totalFees:number, totalExpenses:number, net:number}}
+   * @returns {{totalFees:number, totalExpenses:number, net:number, agreedTotal:number, collected:number, remaining:number}}
    */
   function getCaseNet(caseNum) {
     var d = _dataRef() || {};
-    if (!caseNum) return { totalFees: 0, totalExpenses: 0, net: 0 };
+    if (!caseNum) return { totalFees: 0, totalExpenses: 0, net: 0, agreedTotal: 0, collected: 0, remaining: 0 };
 
     var fees = (d.fees || []).filter(function (f) { return f['رقم_القضية'] === caseNum; });
     var totalFees = fees.reduce(function (acc, f) { return acc + _num(f['المبلغ']); }, 0);
@@ -136,20 +188,28 @@
     var expenses = (d.expenses || []).filter(function (e) { return e['رقم_القضية'] === caseNum; });
     var totalExpenses = expenses.reduce(function (acc, e) { return acc + _num(e['المبلغ']); }, 0);
 
-    return { totalFees: totalFees, totalExpenses: totalExpenses, net: totalFees - totalExpenses };
+    var relationships = _caseClientsRows().filter(function (r) { return r['رقم_القضية'] === caseNum; });
+    var agreedTotal = relationships.reduce(function (acc, r) { return acc + _num(r['أتعاب_العلاقة']); }, 0);
+    var collected = totalFees;
+    var remaining = agreedTotal - collected;
+
+    return { totalFees: totalFees, totalExpenses: totalExpenses, net: totalFees - totalExpenses, agreedTotal: agreedTotal, collected: collected, remaining: remaining };
   }
 
   /**
    * getOfficeNet — إجمالي إيرادات المكتب (كل الأتعاب) - كل المصروفات
    * (كل المستويات) = صافي أرباح المكتب. See file header for why this is
    * the complete P&L rather than office-scope expenses only.
-   * @returns {{totalFees:number, totalExpenses:number, net:number}}
+   * @returns {{totalFees:number, totalExpenses:number, net:number, agreedTotal:number, collected:number, remaining:number}}
    */
   function getOfficeNet() {
     var d = _dataRef() || {};
     var totalFees = (d.fees || []).reduce(function (acc, f) { return acc + _num(f['المبلغ']); }, 0);
     var totalExpenses = (d.expenses || []).reduce(function (acc, e) { return acc + _num(e['المبلغ']); }, 0);
-    return { totalFees: totalFees, totalExpenses: totalExpenses, net: totalFees - totalExpenses };
+    var agreedTotal = _caseClientsRows().reduce(function (acc, r) { return acc + _num(r['أتعاب_العلاقة']); }, 0);
+    var collected = totalFees;
+    var remaining = agreedTotal - collected;
+    return { totalFees: totalFees, totalExpenses: totalExpenses, net: totalFees - totalExpenses, agreedTotal: agreedTotal, collected: collected, remaining: remaining };
   }
 
   // ================================================================
