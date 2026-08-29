@@ -255,7 +255,7 @@
 // is served networkFirstShell() (always fresh), and its only change was
 // to add three new <select> controls inside existing case-form tabs
 // (no cached-file reference changed).
-var SW_VERSION = 'v88'; // PROBLEM 16 (License Startup Persistence — Activation Wizard
+var SW_VERSION = 'v89'; // PROBLEM 16 (License Startup Persistence — Activation Wizard
                          // shown despite a valid stored license, fixed by Refresh).
                          // js/license/LicenseCrypto.js changed (stale SUBTLE snapshot ->
                          // live getSubtle() check on every call). Cache-busting query
