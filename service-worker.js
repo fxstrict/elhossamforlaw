@@ -255,7 +255,27 @@
 // is served networkFirstShell() (always fresh), and its only change was
 // to add three new <select> controls inside existing case-form tabs
 // (no cached-file reference changed).
-var SW_VERSION = 'v89'; // PROBLEM 16 (License Startup Persistence — Activation Wizard
+var SW_VERSION = 'v90'; // PROBLEM 18 (Machine ID Identity Final Audit — Activation
+                         // Wizard could still reappear on an otherwise-untouched
+                         // device whose display language or timezone changed,
+                         // because MachineFingerprint.js's collectEnvironmentSignals()
+                         // still mixed navigator.language and Intl timeZone into the
+                         // Machine ID hash even after Problem 17 removed screen
+                         // geometry. Fixed by dropping ALL environment signals —
+                         // the persisted device salt is now the only input — and by
+                         // removing the Problem 17 confirmMachineId()/pinning layer
+                         // entirely (it existed only to migrate pre-existing
+                         // old-formula licenses, and the project confirmed no such
+                         // licenses exist, so keeping it would itself have been an
+                         // unwanted legacy-Machine-ID compatibility layer). Changed
+                         // files: js/license/MachineFingerprint.js (v42 -> v43) and
+                         // js/license/LicenseCore.js (v42 -> v43), both bumped below
+                         // in PRECACHE_URLS and in index.html's <script> tags. This
+                         // SW_VERSION bump alone still forces full SHELL_CACHE
+                         // recreation regardless, per every prior SW_VERSION comment
+                         // in this file — the per-file ?v= bumps are kept anyway,
+                         // matching the established convention exactly.
+// (v89 note, kept for history) PROBLEM 16 (License Startup Persistence — Activation Wizard
                          // shown despite a valid stored license, fixed by Refresh).
                          // js/license/LicenseCrypto.js changed (stale SUBTLE snapshot ->
                          // live getSubtle() check on every call). Cache-busting query
@@ -491,8 +511,8 @@ var PRECACHE_URLS = [
   'js/debug/RuntimeDebugLayer.js?v=42',
   'js/license/license-public-key.js?v=42',
   'js/license/LicenseCrypto.js?v=43',
-  'js/license/MachineFingerprint.js?v=42',
-  'js/license/LicenseCore.js?v=42',
+  'js/license/MachineFingerprint.js?v=43',
+  'js/license/LicenseCore.js?v=43',
   'js/license/ReadOnlyGuard.js?v=42',
   'js/license/SubscriptionManager.js?v=42',
   'js/license/ActivationWizard.js?v=42',
