@@ -40,6 +40,35 @@
 
   var SALT_KEY = 'hsm_license_device_salt_v1';
 
+  // PROBLEM 17 — MIGRATION SAFETY: the collectEnvironmentSignals() fix
+  // below (dropping screen width/height) changes the SHA-256 input for
+  // every device, including ones that were NEVER affected by rotation
+  // and already have a perfectly valid, currently-ACTIVE license bound
+  // to a machineId computed under the OLD formula. Without this pin,
+  // shipping the formula fix alone would turn every existing
+  // activation into a 'machine_mismatch' on the next boot — replacing
+  // one bug with a worse one. So: the FIRST time LicenseCore confirms
+  // a live-computed machineId matches the value stored in the user's
+  // own license file (see LicenseCore.verifyLicenseFile ->
+  // confirmMachineId call), that exact string is pinned here and
+  // returned directly on every subsequent call, bypassing
+  // recomputation entirely. This makes the Machine ID permanently
+  // stable from that point on regardless of orientation, formula
+  // tweaks, or any other environment-signal drift — while never
+  // widening what counts as a valid match (confirmation only ever
+  // records a value LicenseCore itself already verified against the
+  // signed license payload).
+  var CONFIRMED_KEY = 'hsm_license_machine_id_confirmed_v1';
+
+  function getConfirmedMachineId() {
+    try { return window.localStorage.getItem(CONFIRMED_KEY) || null; }
+    catch (e) { return null; }
+  }
+
+  function confirmMachineId(id) {
+    try { window.localStorage.setItem(CONFIRMED_KEY, id); } catch (e) {}
+  }
+
   function getOrCreateDeviceSalt() {
     try {
       var existing = window.localStorage.getItem(SALT_KEY);
@@ -58,9 +87,38 @@
     }
   }
 
+  // PROBLEM 17 ROOT CAUSE (Machine ID changes between openings of the
+  // SAME device, e.g. HSM-9F89-64D9-302E -> HSM-DAF9-E8C4-1683 with no
+  // reset performed): this function used to include
+  // `scr.width + 'x' + scr.height`. On every mobile browser,
+  // window.screen.width/height report the CURRENT ORIENTATION's
+  // dimensions and literally SWAP when the device is rotated
+  // portrait<->landscape (this is standard, documented browser
+  // behavior, not a bug in the browser). So a phone opened once in
+  // portrait (e.g. 390x844) and again in landscape (844x390) — which
+  // requires nothing more than the phone being rotated before/while
+  // the PWA is opened, an entirely normal thing to happen to a device
+  // over a few hours — fed a different signal string into the SHA-256
+  // hash, producing a completely different Machine ID even though the
+  // persisted device salt (the actually-dominant, stable component)
+  // never changed. LicenseCore.verifyLicenseFile() then compared the
+  // license's stored payload.machineId against this new, different
+  // runtime ID, got 'machine_mismatch', and set state=INVALID, which
+  // is exactly what makes ActivationWizard.show() run (see
+  // ActivationWizard.js onLicenseState()). No refresh reliably "fixes"
+  // this case — it only appears fixed if the device happens to be back
+  // in its original orientation on the next load.
+  //
+  // Fix: drop screen geometry entirely from the signal mix. platform,
+  // hardwareConcurrency, language and timeZone are all properties of
+  // the OS/browser environment itself and do not change when the
+  // device is physically rotated, so they keep contributing to "this
+  // is recognizably the same browser profile" without the rotation
+  // fragility. The persisted device salt (crypto.randomUUID(), stored
+  // once in localStorage) remains the dominant, always-stable
+  // component of the Machine ID either way.
   function collectEnvironmentSignals() {
     var nav = window.navigator || {};
-    var scr = window.screen || {};
     var tz = '';
     try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch (e) {}
 
@@ -68,8 +126,6 @@
       nav.platform || '',
       String(nav.hardwareConcurrency || ''),
       nav.language || '',
-      String(scr.width || '') + 'x' + String(scr.height || ''),
-      String(scr.colorDepth || ''),
       tz
     ].join('|');
   }
@@ -86,6 +142,12 @@
    */
   function getMachineId() {
     if (_cachedPromise) return _cachedPromise;
+
+    var confirmed = getConfirmedMachineId();
+    if (confirmed) {
+      _cachedPromise = Promise.resolve(confirmed);
+      return _cachedPromise;
+    }
 
     _cachedPromise = (async function () {
       var salt = getOrCreateDeviceSalt();
@@ -109,7 +171,9 @@
   }
 
   var api = {
-    getMachineId: getMachineId
+    getMachineId: getMachineId,
+    confirmMachineId: confirmMachineId, // called only by LicenseCore after a verified match
+    _getConfirmedMachineId: getConfirmedMachineId // exposed for tests only
   };
 
   window.MachineFingerprint = api;

@@ -158,6 +158,13 @@
       return { ok: false, reason: 'machine_mismatch', payload: payload };
     }
 
+    // PROBLEM 17: pin this confirmed-good Machine ID so future boots
+    // never re-derive it from (potentially volatile) live environment
+    // signals — see MachineFingerprint.js "MIGRATION SAFETY" note.
+    if (window.MachineFingerprint.confirmMachineId) {
+      window.MachineFingerprint.confirmMachineId(myMachineId);
+    }
+
     return { ok: true, reason: null, payload: payload };
   }
 
