@@ -92,6 +92,41 @@
     }
   };
 
+  // ---- scroll-container reset (PROBLEM 14 + PROBLEM 15) ------------------
+  // Resets scrollTop on `modalBox` itself AND on every descendant whose
+  // OWN computed overflow-y is auto/scroll — covering both the general
+  // case (`.modal` is the scroll container) and floating information
+  // views like #modalView/#viewModalBody where a nested element scrolls
+  // independently. Resetting scrollTop on an element that was never
+  // actually scrolled is a harmless no-op, so this is safe to run
+  // unconditionally on every modal-overlay open, not just #modalView's.
+  ModalManagerImpl.prototype._resetScrollContainers = function (modalBox) {
+    try { modalBox.scrollTop = 0; } catch (__scrollResetErr) {}
+
+    try {
+      var candidates = modalBox.querySelectorAll ? modalBox.querySelectorAll('*') : null;
+      if (!candidates) return;
+      var getStyle = (typeof global.getComputedStyle === 'function') ? global.getComputedStyle : null;
+      for (var i = 0; i < candidates.length; i++) {
+        var node = candidates[i];
+        var overflowY = null;
+        if (getStyle) {
+          try { overflowY = getStyle(node).overflowY; } catch (__styleErr) {}
+        } else if (node.style) {
+          // Fallback for environments with no getComputedStyle (e.g. the
+          // hand-rolled fake-DOM harnesses this project's other verify_*.
+          // js files use for plain global functions): fall back to the
+          // element's own inline style, same convention as the rest of
+          // this file's `el.querySelector(...) || el` fallbacks.
+          overflowY = node.style.overflowY || node.style['overflow-y'];
+        }
+        if (overflowY === 'auto' || overflowY === 'scroll') {
+          try { node.scrollTop = 0; } catch (__nestedScrollResetErr) {}
+        }
+      }
+    } catch (__walkErr) {}
+  };
+
   // ---- OPEN lifecycle ----------------------------------------------------
   ModalManagerImpl.prototype._onOpen = function (el) {
     if (this._isTracked(el)) return; // already registered — ignore duplicate mutation records
@@ -116,6 +151,42 @@
     // Tab must never escape into a stacked-but-hidden modal or the page.
     if (this._disposeTrap) { this._disposeTrap(); this._disposeTrap = null; }
     var modalBox = el.querySelector('.modal') || el;
+    // PROBLEM 14 (Global Scroll Position Reset, v82): `.modal` itself is
+    // the scroll container inside every `.modal-overlay` in the GENERAL
+    // case (css/components.css sets overflow-y:auto on `.modal`, not
+    // `.modal-body`), and every modal box is a persistent DOM node reused
+    // across opens/closes (same 28-call-site pattern this file's header
+    // comment already documents for `.open`) — so a modal scrolled down,
+    // closed, and reopened would otherwise resurface mid-scroll instead
+    // of at the top. This MutationObserver-driven `_onOpen()` is the
+    // single point every one of those 28 call sites already funnels
+    // through, so resetting here covers all of them with no new call
+    // site and no risk of missing one. Only runs on OPEN, only touches
+    // scroll containers found INSIDE the modal box — it does not touch
+    // window/page scroll (see navigate() in index.html) or
+    // `.sidebar-nav` (see toggleSidebar()), and does not fire again
+    // while the modal stays open (mutation records only land here on an
+    // actual class-attribute open/close transition).
+    //
+    // PROBLEM 15 (Floating Information Views Scroll Reset, v84): `.modal`
+    // is NOT always the real scroll container. #modalView — the single
+    // shared overlay behind both viewCase() (js/modules/cases.js) and
+    // viewClient() (js/modules/clients.js) — lays its `.modal` out as a
+    // flex column whose header is flex-shrink:0 and whose body
+    // (#viewModalBody) is flex:1 with its OWN independent inline
+    // overflow-y:auto. `.modal` itself never actually overflows there
+    // (the body flexes to fill exactly the remaining space and scrolls
+    // internally instead), so PROBLEM 14's `modalBox.scrollTop = 0` was
+    // resetting a container that was never scrolled, while the ACTUAL
+    // scrolled container (#viewModalBody, a persistent node whose
+    // innerHTML is replaced per view but which is never recreated) kept
+    // its position across close/reopen. Rather than special-case
+    // `#modalView`/`#viewModalBody` by id (which would only fix this one
+    // view and miss any future floating information view built the same
+    // way), reset EVERY actually-scrollable descendant found inside the
+    // modal box, identified generically by its own computed overflow-y
+    // (auto/scroll) — not by assuming `.modal` is the only candidate.
+    this._resetScrollContainers(modalBox);
     this._disposeTrap = global.ModalFocusManager.trap(modalBox);
     global.ModalFocusManager.focusFirst(modalBox);
 
