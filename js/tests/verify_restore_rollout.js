@@ -229,7 +229,7 @@ const MODULES = [
     successToast: 'تم الاسترجاع',
     errorToast: 'حدث خطأ أثناء الاسترجاع',
     deleteToast: 'تم الحذف',
-    sample: function (id, extra) { return Object.assign({ 'رقم_الجلسة': id, 'التاريخ': '2026-08-01', 'الوقت': '10:00' }, extra || {}); },
+    sample: function (id, extra) { return Object.assign({ 'رقم_الجلسة': id, 'رقم_القضية': '2026-1', 'التاريخ': '2026-08-01', 'الوقت': '10:00' }, extra || {}); },
     searchField: 'التاريخ',
     searchValue: '2026-08-01'
   },

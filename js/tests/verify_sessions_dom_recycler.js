@@ -235,6 +235,10 @@ async function main() {
 
   async function makeSession(overrides) {
     const base = {
+      // CASES_RELATIONSHIP_FINANCIAL قرار §3-J: رقم_القضية إلزامي الآن
+      // على مستوى الـ Repository (منع جلسة "يتيمة" بلا قضية) — كان هذا
+      // الـ fixture قبل القرار لا يتضمنه إطلاقًا.
+      'رقم_القضية': '2026-1',
       'التاريخ': '2026-08-01',
       'الوقت': '10:00',
       'الحالة': 'قادمة',
