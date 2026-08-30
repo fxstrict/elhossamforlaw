@@ -158,6 +158,13 @@
       return { ok: false, reason: 'machine_mismatch', payload: payload };
     }
 
+    // PROBLEM 18: no pinning step here anymore. MachineFingerprint.
+    // getMachineId() now derives the id purely from the persisted
+    // device salt (see MachineFingerprint.js) with zero live
+    // environment signals mixed in, so it is already deterministic
+    // and stable for the life of this browser profile — there is
+    // nothing left for a pin to protect against, and no old-format
+    // license exists that would need one to migrate.
     return { ok: true, reason: null, payload: payload };
   }
 

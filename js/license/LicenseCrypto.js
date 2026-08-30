@@ -34,7 +34,37 @@
 (function (window) {
   'use strict';
 
-  var SUBTLE = window.crypto && window.crypto.subtle;
+  // ROOT CAUSE FIX (PROBLEM 16 — "شاشة التفعيل تظهر رغم ترخيص صالح،
+  // ويختفي بعد Refresh"): this used to be a plain module-level
+  // constant — `var SUBTLE = window.crypto && window.crypto.subtle;`
+  // — computed exactly ONCE, at the instant this <script> tag parses.
+  // On most devices window.crypto.subtle already exists at that
+  // instant, so the snapshot is harmless. But on some devices
+  // (confirmed: certain Android WebView builds that attach
+  // SubtleCrypto lazily, and privacy/ad-block extensions that
+  // reinstall a wrapped `window.crypto` after page scripts have
+  // already run) Web Crypto is NOT yet present the moment this file
+  // executes, but IS present a few milliseconds later. A cached
+  // `false` snapshot then means isAvailable()/verify()/sha256Hex()
+  // report "unavailable" for the rest of that page's entire
+  // lifetime — permanently, not just for that one instant — which
+  // makes LicenseCore treat a perfectly valid, unexpired, correct
+  // license as INVALID ("crypto_unavailable") and show the
+  // Activation Wizard, even though the actually-correct state was
+  // simply "not determined yet". A Refresh re-parses this file from
+  // scratch, by which time Web Crypto is already attached, so the
+  // bug "fixes itself" — the classic signature of a stale-snapshot
+  // race, not an actual license problem.
+  //
+  // Fix: read window.crypto.subtle live, every time, instead of
+  // caching it. This is a pure timing/liveness fix — it does not
+  // relax verification in any way: a genuinely unavailable
+  // SubtleCrypto (very old browser / non-secure context) still makes
+  // every check below return false/null exactly as before, and
+  // callers (LicenseCore.verifyLicenseFile) still fail closed.
+  function getSubtle() {
+    return window.crypto && window.crypto.subtle;
+  }
 
   /**
    * Deterministic canonical JSON serialization: keys sorted recursively
@@ -85,13 +115,14 @@
    *   as "cannot verify" and fail closed for activation, per §4.
    */
   function importPublicKey() {
-    if (!SUBTLE) return Promise.resolve(null);
+    var subtle = getSubtle();
+    if (!subtle) return Promise.resolve(null);
     if (_publicKeyPromise) return _publicKeyPromise;
 
     var jwk = window.HOSSAM_LICENSE_PUBLIC_KEY_JWK;
     if (!jwk) return Promise.resolve(null);
 
-    _publicKeyPromise = SUBTLE.importKey(
+    _publicKeyPromise = subtle.importKey(
       'jwk',
       jwk,
       { name: 'ECDSA', namedCurve: 'P-256' },
@@ -112,14 +143,15 @@
    * @returns {Promise<boolean>}
    */
   async function verify(payload, signatureB64) {
-    if (!SUBTLE || !signatureB64 || !payload) return false;
+    var subtle = getSubtle();
+    if (!subtle || !signatureB64 || !payload) return false;
     var key = await importPublicKey();
     if (!key) return false;
 
     try {
       var data = new TextEncoder().encode(canonicalStringify(payload));
       var sigBytes = base64ToBytes(signatureB64);
-      return await SUBTLE.verify(
+      return await subtle.verify(
         { name: 'ECDSA', hash: { name: 'SHA-256' } },
         key,
         sigBytes,
@@ -138,9 +170,10 @@
    * @returns {Promise<string>}
    */
   async function sha256Hex(text) {
-    if (!SUBTLE) return null;
+    var subtle = getSubtle();
+    if (!subtle) return null;
     var data = new TextEncoder().encode(text);
-    var digest = await SUBTLE.digest('SHA-256', data);
+    var digest = await subtle.digest('SHA-256', data);
     return bytesToHex(new Uint8Array(digest));
   }
 
@@ -148,7 +181,7 @@
     canonicalStringify: canonicalStringify,
     verify: verify,
     sha256Hex: sha256Hex,
-    isAvailable: function () { return !!SUBTLE; }
+    isAvailable: function () { return !!getSubtle(); }
   };
 
   window.LicenseCrypto = api;
