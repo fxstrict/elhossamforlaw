@@ -111,7 +111,7 @@ async function main() {
   });
 
   // 4. Validation — two required fields, BOTH trimmed (no asymmetry, unlike Fees)
-  check('validate() rejects a record missing رقم_القضية and اسم_المستند (both errors reported)', () => {
+  check('validate() rejects an orphan document (missing both رقم_القضية and رقم_الموكل) AND missing اسم_المستند (both errors reported)', () => {
     const r = repo.validate({ 'نوع_المستند': 'محضر' });
     assert.strictEqual(r.valid, false);
     assert.strictEqual(r.errors.length, 2);
@@ -147,6 +147,18 @@ async function main() {
     const r = repo.validate({ 'رقم_القضية': '   ', 'اسم_المستند': '   ' });
     assert.strictEqual(r.valid, false);
     assert.strictEqual(r.errors.length, 2);
+  });
+
+  // CASES_RELATIONSHIP_FINANCIAL قرار §3-L: مستند بلا قضية — موكل فقط
+  check('validate() accepts a client-only document with NO رقم_القضية at all (decision §3-L: "لا تجبر المستخدم على إنشاء قضية")', () => {
+    const r = repo.validate({ 'رقم_الموكل': 'CL-1', 'اسم_المستند': 'صورة بطاقة الموكل' });
+    assert.strictEqual(r.valid, true, r.errors.map(e => e.message).join('; '));
+  });
+
+  check('validate() still rejects a document with NEITHER رقم_القضية NOR رقم_الموكل (orphan document — same principle as decision §3-J for Sessions)', () => {
+    const r = repo.validate({ 'اسم_المستند': 'مستند بلا أي ارتباط' });
+    assert.strictEqual(r.valid, false);
+    assert.strictEqual(r.errors[0].field, 'رقم_القضية');
   });
 
   // 5. Insert / create — hybrid id generation + duplicate protection
