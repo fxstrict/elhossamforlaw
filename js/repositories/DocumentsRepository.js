@@ -339,13 +339,19 @@
    * Matches, in the same order, Code_v4.gs's 'المستندات' sheet headers:
    *   ['رقم_المستند','رقم_القضية','اسم_المستند','نوع_المستند',
    *    'تاريخ_الإيداع','رابط_Drive','الملاحظات','تاريخ_الإنشاء']
-   * No other dynamically-added field exists for Documents — confirmed by
-   * full read of js/modules/documents.js (176 lines total, no other field
-   * ever written).
+   * No other dynamically-added field existed for Documents as of the
+   * phase that wrote this comment (confirmed then by a full read of
+   * js/modules/documents.js). CASES_RELATIONSHIP_FINANCIAL قرار §3-L
+   * later added ONE more column additively to the end of SHEET_DEFS'
+   * 'المستندات' headers (Config/00_Config.gs): 'رقم_الموكل' (ID-based
+   * client link, allowing a document to be linked to a client without
+   * a case). Included below so it participates in free-text search
+   * like every other Documents column.
    */
   var DOCUMENTS_LEGACY_FIELDS = [
     'رقم_المستند', 'رقم_القضية', 'اسم_المستند', 'نوع_المستند',
-    'تاريخ_الإيداع', 'رابط_Drive', 'الملاحظات', 'ظاهر_للموكل', 'تاريخ_الإنشاء'
+    'تاريخ_الإيداع', 'رابط_Drive', 'الملاحظات', 'ظاهر_للموكل', 'تاريخ_الإنشاء',
+    'رقم_الموكل'
   ];
 
   // ================================================================
@@ -485,11 +491,19 @@
       return { valid: true, errors: [] };
     }
     var errors = [];
+
+    // CASES_RELATIONSHIP_FINANCIAL قرار §3-L: "إذا كان المستند خاصًا
+    // بموكل بدون قضية، لا تجبر المستخدم على إنشاء قضية." رقم_القضية لم
+    // يعد إلزاميًا بمفرده — لكن المستند يجب أن يرتبط بشيء ما (قضية أو
+    // موكل)، وإلا يصبح مستندًا يتيمًا (نفس مبدأ قرار §3-J للجلسات).
     var caseNum = record ? record['رقم_القضية'] : undefined;
     var caseNumEmpty = caseNum == null || (typeof caseNum === 'string' ? caseNum.trim() === '' : false);
-    if (caseNumEmpty) {
-      errors.push({ field: 'رقم_القضية', message: 'الحقل "رقم_القضية" إلزامي ولا يمكن أن يكون فارغاً.' });
+    var clientId = record ? record['رقم_الموكل'] : undefined;
+    var clientIdEmpty = clientId == null || (typeof clientId === 'string' ? clientId.trim() === '' : false);
+    if (caseNumEmpty && clientIdEmpty) {
+      errors.push({ field: 'رقم_القضية', message: 'يجب ربط المستند بقضية أو بموكل (رقم_القضية أو رقم_الموكل).' });
     }
+
     var docName = record ? record['اسم_المستند'] : undefined;
     var docNameEmpty = docName == null || (typeof docName === 'string' ? docName.trim() === '' : false);
     if (docNameEmpty) {
