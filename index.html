@@ -24,9 +24,9 @@
      new settings-card mount point — see docs/phase30 for the full,
      itemized diff and zero-regression checklist. -->
 <script src="js/license/license-public-key.js?v=42"></script>
-<script src="js/license/LicenseCrypto.js?v=42"></script>
-<script src="js/license/MachineFingerprint.js?v=42"></script>
-<script src="js/license/LicenseCore.js?v=42"></script>
+<script src="js/license/LicenseCrypto.js?v=43"></script>
+<script src="js/license/MachineFingerprint.js?v=43"></script>
+<script src="js/license/LicenseCore.js?v=43"></script>
 <script src="js/license/ReadOnlyGuard.js?v=42"></script>
 <script src="js/license/SubscriptionManager.js?v=42"></script>
 <script src="js/license/ActivationWizard.js?v=42"></script>
@@ -382,17 +382,17 @@
 <link rel="preload" as="script" href="js/repositories/SettingsRepository.js?v=42" fetchpriority="high">
 <link rel="preload" as="script" href="js/repositories/SettingsRepositoryWiring.js?v=42" fetchpriority="high">
 <link rel="preload" as="script" href="js/core/RepositoryReadyTimeout.js?v=42" fetchpriority="high">
-<link rel="preload" as="script" href="js/modules/cases.js?v=43" fetchpriority="high">
+<link rel="preload" as="script" href="js/modules/cases.js?v=45" fetchpriority="high">
 <link rel="preload" as="script" href="js/modules/settings.js?v=42" fetchpriority="high">
 <link rel="preload" as="script" href="js/modules/firstrun.js?v=42" fetchpriority="high">
 <link rel="preload" as="script" href="js/modules/calendar.js?v=42" fetchpriority="low">
 <link rel="preload" as="script" href="js/modules/children.js?v=42" fetchpriority="low">
-<link rel="preload" as="script" href="js/modules/dashboard.js?v=42" fetchpriority="high">
+<link rel="preload" as="script" href="js/modules/dashboard.js?v=43" fetchpriority="high">
 <link rel="preload" as="script" href="js/modules/tasks.js?v=53" fetchpriority="low">
 <link rel="preload" as="script" href="js/modules/documents.js?v=42" fetchpriority="low">
 <link rel="preload" as="script" href="js/modules/sessions.js?v=42" fetchpriority="low">
 <link rel="preload" as="script" href="js/core/HistoryPanel.js?v=42" fetchpriority="high">
-<link rel="preload" as="script" href="js/modules/clients.js?v=42" fetchpriority="high">
+<link rel="preload" as="script" href="js/modules/clients.js?v=44" fetchpriority="high">
 <link rel="preload" as="script" href="js/modules/client-fields.js?v=42" fetchpriority="high">
 <link rel="preload" as="script" href="js/modules/opponents.js?v=42" fetchpriority="high">
 <link rel="preload" as="script" href="js/modules/opponent-fields.js?v=42" fetchpriority="high">
@@ -402,7 +402,7 @@
 <link rel="preload" as="script" href="js/modules/process-server-fields.js?v=42" fetchpriority="high">
 <link rel="preload" as="script" href="js/modules/administrative-work-fields.js?v=53" fetchpriority="high">
 <link rel="preload" as="script" href="js/modules/client-messages.js?v=42" fetchpriority="low">
-<link rel="preload" as="script" href="js/modules/fees.js?v=42" fetchpriority="low">
+<link rel="preload" as="script" href="js/modules/fees.js?v=44" fetchpriority="low">
 <link rel="preload" as="script" href="js/modules/library.js?v=42" fetchpriority="low">
 <link rel="preload" as="script" href="js/modules/templates.js?v=42" fetchpriority="low">
 <link rel="preload" as="script" href="js/modules/historypanel-ui.js?v=42" fetchpriority="low">
@@ -438,7 +438,7 @@
 <link rel="preload" as="script" href="js/core/modal/ScrollLockManager.js?v=42" fetchpriority="high">
 <link rel="preload" as="script" href="js/core/modal/FocusManager.js?v=42" fetchpriority="high">
 <link rel="preload" as="script" href="js/core/modal/ModalHistoryBridge.js?v=42" fetchpriority="high">
-<link rel="preload" as="script" href="js/core/modal/ModalManager.js?v=43" fetchpriority="high">
+<link rel="preload" as="script" href="js/core/modal/ModalManager.js?v=44" fetchpriority="high">
 <!-- END PHASE 17.1 LOADER OPTIMIZATION BLOCK -->
 </head>
 <body>
@@ -784,6 +784,16 @@ style="color:var(--muted);font-size:12px;margin-top:4px;"> جارٍ تحميل
        left out and why). -->
   <div class="dash-section-title"><span class="icon">&#128200;</span> مؤشرات الأداء</div>
   <div class="kpi-grid" id="dashKpiGrid"></div>
+  <!-- CASES_RELATIONSHIP_FINANCIAL PHASE 11 — Office Financial Dashboard.
+       New, additive block only — renderFinancialDashboard() in
+       dashboard.js is the only thing that writes into #dashFinancialGrid.
+       Replaces PHASE 7 §11 FAIL finding ("data.fees.length عدّاد سجلات
+       فقط") with real amounts (today/month collections & expenses,
+       agreed/collected/outstanding, office/case/client expense
+       breakdown) computed from financial-reports.js's existing,
+       already-tested functions — no new data source. -->
+  <div class="dash-section-title"><span class="icon">&#128176;</span> الملخص المالي <button class="btn btn-primary btn-sm" style="float:left;" onclick="openFinancialReports()">&#128202; التقارير المالية</button></div>
+  <div class="dashboard-grid" id="dashFinancialGrid"></div>
   <!-- PHASE 29.2 — Smart Dashboard, Charts section. New, additive
        block only — renderChartsWidget() in dashboard.js is the only
        thing that writes into these three containers. Plain HTML/CSS
@@ -807,7 +817,81 @@ style="color:var(--muted);font-size:12px;margin-top:4px;"> جارٍ تحميل
   <div class="toolbar page-toolbar">
     <div class="search-wrap"><span class="icon">&#128269;</span><input type="text" id="searchCases" placeholder="بحث في القضايا..." oninput="renderCases()"></div>
     <select id="filterCaseStatus" onchange="renderCases()" style="width:auto;min-width:120px;"><option value="">كل الحالات</option><option>نشطة</option><option>معلقة</option><option>منتهية</option><option>مُحالة</option></select>
-    <select id="filterCaseType" onchange="renderCases()" style="width:auto;min-width:150px;"><option value="">كل الأنواع</option><option>أحوال شخصية — زوجة</option><option>أحوال شخصية — زوج</option><option>طلاق للضرر</option><option>خلع</option><option>نفقة زوجية</option><option>نفقة صغار</option><option>رؤية أطفال</option><option>حضانة</option><option>مدني</option><option>جنائي</option><option>تجاري</option><option>عمالي</option><option>إداري</option><option>عقاري</option></select>
+    <select id="filterCaseType" onchange="renderCases()" style="width:auto;min-width:150px;"><option value="">كل الأنواع</option>
+              <optgroup label="أحوال شخصية وأسرة">
+                <option>أحوال شخصية — زوجة</option><option>أحوال شخصية — زوج</option>
+                <option>طلاق للضرر</option><option>خلع</option><option>نفقة زوجية</option>
+                <option>نفقة صغار</option><option>رؤية أطفال</option><option>حضانة</option>
+                <option>تمكين مسكن</option><option>إسقاط حضانة</option><option>تخفيض نفقة</option>
+                <option>طاعة</option><option>إثبات نسب</option>
+                <option>تطليق للغيبة</option><option>تطليق للضرر بالضرب</option>
+                <option>نفقة متعة</option><option>نفقة أقارب</option><option>زيادة نفقة</option>
+                <option>إسقاط رؤية</option><option>ضم صغير</option><option>الإذن بالزواج</option>
+                <option>إثبات زواج عرفي</option><option>إثبات طلاق</option><option>تصادق على طلاق</option>
+                <option>بطلان عقد زواج</option><option>دعوى ميراث</option><option>دعوى وصية</option>
+                <option>إثبات وفاة ووراثة</option><option>قسمة تركة</option><option>رد وإبراء</option>
+              </optgroup>
+              <optgroup label="مدني">
+                <option>مدني</option><option>مطالبة بدين</option><option>فسخ عقد</option>
+                <option>صحة ونفاذ عقد</option><option>بطلان عقد</option><option>صورية عقد</option>
+                <option>تعويض (مسئولية عقدية)</option><option>تعويض (مسئولية تقصيرية)</option>
+                <option>إخلاء عين مؤجرة</option><option>طرد للغصب</option><option>صحة توقيع</option>
+                <option>إثبات حالة</option><option>منع تعرض</option><option>دعوى استحقاق</option>
+                <option>فرز وتجنيب</option><option>دعوى ملكية</option><option>إلزام بالتنفيذ العيني</option>
+              </optgroup>
+              <optgroup label="تجاري">
+                <option>تجاري</option><option>دعوى تجارية</option><option>إفلاس تجاري</option>
+                <option>أوراق تجارية (كمبيالة/سند لأمر)</option><option>نزاع شركات</option>
+                <option>تصفية شركة</option><option>منافسة غير مشروعة</option>
+                <option>عقد وكالة تجارية</option><option>عقد توزيع</option>
+                <option>ملكية فكرية تجارية</option><option>تحكيم تجاري</option>
+              </optgroup>
+              <optgroup label="عمالي">
+                <option>عمالي</option><option>فصل تعسفي</option><option>مستحقات عمالية</option>
+                <option>إصابة عمل</option><option>تعويض عن فصل</option>
+                <option>مكافأة نهاية خدمة</option><option>نزاع عقد عمل</option>
+                <option>إنهاء خدمة</option>
+              </optgroup>
+              <optgroup label="إداري">
+                <option>إداري</option><option>إلغاء قرار إداري</option>
+                <option>تعويض عن قرار إداري</option><option>تسوية موقف وظيفي</option>
+                <option>دعوى ترقية</option><option>منازعة عقد إداري</option>
+                <option>دعوى تأديبية</option><option>وقف تنفيذ قرار إداري</option>
+              </optgroup>
+              <optgroup label="عقاري">
+                <option>عقاري</option><option>صحة ونفاذ عقد بيع عقار</option>
+                <option>فرز وتجنيب عقاري</option><option>قسمة عقار</option>
+                <option>تسجيل عقاري</option><option>منازعة حيازة</option>
+                <option>إزالة تعدي</option><option>استرداد حيازة</option>
+                <option>نزع ملكية للمنفعة العامة</option>
+              </optgroup>
+              <optgroup label="جنائي (جنايات)">
+                <option>جنائي</option><option>قتل عمد</option><option>قتل خطأ</option>
+                <option>شروع في قتل</option><option>سرقة بإكراه</option><option>هتك عرض</option>
+                <option>اغتصاب</option><option>خطف</option><option>تزوير في محرر رسمي</option>
+                <option>رشوة</option><option>إتجار في مواد مخدرة</option>
+              </optgroup>
+              <optgroup label="جنح">
+                <option>جنح</option><option>ضرب أفضى لعاهة</option><option>نصب</option>
+                <option>خيانة أمانة</option><option>تبديد</option><option>سب وقذف</option>
+                <option>شيك بدون رصيد</option><option>تهديد</option><option>سرقة بسيطة</option>
+                <option>تزوير في محرر عرفي</option>
+              </optgroup>
+              <optgroup label="الدوائر الاقتصادية">
+                <option>اقتصادي</option><option>منازعات استثمار</option>
+                <option>منازعات شركات اقتصادية</option><option>ملكية فكرية</option>
+                <option>منازعات مصرفية وتمويل</option><option>أوراق مالية وبورصة</option>
+                <option>إفلاس اقتصادي</option><option>منازعات إلكترونية وتقنية معلومات</option>
+              </optgroup>
+              <optgroup label="دستوري">
+                <option>دعوى عدم دستورية</option><option>تنازع اختصاص</option>
+                <option>تفسير نص تشريعي</option>
+              </optgroup>
+              <optgroup label="مراحل تقاضٍ (مرجعية)">
+                <option>استئناف</option><option>نقض</option>
+              </optgroup>
+              <option>أخرى</option>
+            </select>
     <span id="casesCount" style="font-size:12px;color:var(--muted);white-space:nowrap;align-self:center;"></span>
   </div>
   <div class="card card-section"><div class="card-body u-p-0">
@@ -925,7 +1009,7 @@ style="color:var(--muted);font-size:12px;margin-top:4px;"> جارٍ تحميل
 <div class="page" id="page-documents">
   <div class="toolbar page-toolbar">
     <div class="search-wrap"><span class="icon">&#128269;</span><input type="text" id="searchDocuments" placeholder="بحث في المستندات..." oninput="renderDocuments()"></div>
-    <select id="filterDocType" onchange="renderDocuments()" style="width:auto;min-width:130px;"><option value="">كل الأنواع</option><option>عقد زواج</option><option>شهادة ميلاد</option><option>مفردات مرتب</option><option>محضر</option><option>إيصال</option><option>حكم</option><option>مستند آخر</option></select>
+    <select id="filterDocType" onchange="renderDocuments()" style="width:auto;min-width:130px;"><option value="">كل الأنواع</option><option>عقد زواج</option><option>شهادة ميلاد</option><option>مفردات مرتب</option><option>محضر</option><option>إيصال</option><option>حكم</option><option>بيان مدرسي</option><option>تحريات</option><option>مراسلة</option><option>توكيل رسمي</option><option>توكيل عرفي</option><option>عقد بيع</option><option>عقد إيجار</option><option>عقد عمل</option><option>عقد شركة</option><option>عقد رهن</option><option>عقد قرض</option><option>إنذار رسمي</option><option>صحيفة دعوى</option><option>صحيفة استئناف</option><option>صحيفة طعن</option><option>مذكرة دفاع</option><option>تقرير خبير</option><option>شهادة رسمية</option><option>إخطار قانوني</option><option>سند لأمر</option><option>كمبيالة</option><option>شيك</option><option>إفادة بنكية</option><option>كشف حساب بنكي</option><option>بطاقة رقم قومي</option><option>جواز سفر</option><option>رخصة قيادة</option><option>رخصة تجارية</option><option>تفويض</option><option>وكالة عامة</option><option>وكالة خاصة</option><option>اتفاق تسوية</option><option>محضر جلسة</option><option>تقرير طبي</option><option>شهادة وفاة</option><option>شهادة زواج</option><option>وثيقة طلاق</option><option>إيصال أمانة</option><option>كشف ملكية عقارية</option><option>صورة رسمية طبق الأصل</option><option>مستند آخر</option></select>
     <button class="btn btn-primary btn-sm" onclick="openAddDocModal()">&#65291; إضافة مستند</button>
   </div>
   <div class="card card-section"><div class="card-body u-p-0">
@@ -968,6 +1052,7 @@ style="color:var(--muted);font-size:12px;margin-top:4px;"> جارٍ تحميل
   <div class="toolbar page-toolbar">
     <div class="search-wrap"><span class="icon">&#128269;</span><input type="text" id="searchFees" placeholder="بحث في الأتعاب..." oninput="renderFees()"></div>
     <button class="btn btn-primary btn-sm" onclick="openAddFeeModal()">&#65291; تسجيل أتعاب</button>
+    <button class="btn btn-primary btn-sm" onclick="openPaymentModal()">&#128176; إضافة دفعة</button>
   </div>
   <div class="stats-grid" style="margin-bottom:18px;">
     <div class="stat-card" style="cursor:default;"><div class="stat-icon">&#128176;</div><div class="stat-num" id="feesTotalNum">0</div><div class="stat-label">إجمالي الأتعاب (ج.م)</div></div>
@@ -1305,18 +1390,79 @@ style="color:var(--muted);font-size:12px;margin-top:4px;"> جارٍ تحميل
           <div class="form-group"><label>رقم قيد الدعوى بالمحكمة<span class="req">*</span></label><input type="text" id="fCaseNum" placeholder="2025/1234"></div>
           <div class="form-group"><label>نوع الدعوى<span class="req">*</span></label>
             <select id="fCaseType"><option value="">اختر...</option>
-              <optgroup label="أحوال شخصية">
+              <optgroup label="أحوال شخصية وأسرة">
                 <option>أحوال شخصية — زوجة</option><option>أحوال شخصية — زوج</option>
                 <option>طلاق للضرر</option><option>خلع</option><option>نفقة زوجية</option>
                 <option>نفقة صغار</option><option>رؤية أطفال</option><option>حضانة</option>
                 <option>تمكين مسكن</option><option>إسقاط حضانة</option><option>تخفيض نفقة</option>
                 <option>طاعة</option><option>إثبات نسب</option>
+                <option>تطليق للغيبة</option><option>تطليق للضرر بالضرب</option>
+                <option>نفقة متعة</option><option>نفقة أقارب</option><option>زيادة نفقة</option>
+                <option>إسقاط رؤية</option><option>ضم صغير</option><option>الإذن بالزواج</option>
+                <option>إثبات زواج عرفي</option><option>إثبات طلاق</option><option>تصادق على طلاق</option>
+                <option>بطلان عقد زواج</option><option>دعوى ميراث</option><option>دعوى وصية</option>
+                <option>إثبات وفاة ووراثة</option><option>قسمة تركة</option><option>رد وإبراء</option>
               </optgroup>
-              <optgroup label="فروع أخرى">
-                <option>مدني</option><option>جنائي</option><option>تجاري</option>
-                <option>عمالي</option><option>إداري</option><option>عقاري</option>
-                <option>جنح</option><option>استئناف</option><option>نقض</option>
+              <optgroup label="مدني">
+                <option>مدني</option><option>مطالبة بدين</option><option>فسخ عقد</option>
+                <option>صحة ونفاذ عقد</option><option>بطلان عقد</option><option>صورية عقد</option>
+                <option>تعويض (مسئولية عقدية)</option><option>تعويض (مسئولية تقصيرية)</option>
+                <option>إخلاء عين مؤجرة</option><option>طرد للغصب</option><option>صحة توقيع</option>
+                <option>إثبات حالة</option><option>منع تعرض</option><option>دعوى استحقاق</option>
+                <option>فرز وتجنيب</option><option>دعوى ملكية</option><option>إلزام بالتنفيذ العيني</option>
               </optgroup>
+              <optgroup label="تجاري">
+                <option>تجاري</option><option>دعوى تجارية</option><option>إفلاس تجاري</option>
+                <option>أوراق تجارية (كمبيالة/سند لأمر)</option><option>نزاع شركات</option>
+                <option>تصفية شركة</option><option>منافسة غير مشروعة</option>
+                <option>عقد وكالة تجارية</option><option>عقد توزيع</option>
+                <option>ملكية فكرية تجارية</option><option>تحكيم تجاري</option>
+              </optgroup>
+              <optgroup label="عمالي">
+                <option>عمالي</option><option>فصل تعسفي</option><option>مستحقات عمالية</option>
+                <option>إصابة عمل</option><option>تعويض عن فصل</option>
+                <option>مكافأة نهاية خدمة</option><option>نزاع عقد عمل</option>
+                <option>إنهاء خدمة</option>
+              </optgroup>
+              <optgroup label="إداري">
+                <option>إداري</option><option>إلغاء قرار إداري</option>
+                <option>تعويض عن قرار إداري</option><option>تسوية موقف وظيفي</option>
+                <option>دعوى ترقية</option><option>منازعة عقد إداري</option>
+                <option>دعوى تأديبية</option><option>وقف تنفيذ قرار إداري</option>
+              </optgroup>
+              <optgroup label="عقاري">
+                <option>عقاري</option><option>صحة ونفاذ عقد بيع عقار</option>
+                <option>فرز وتجنيب عقاري</option><option>قسمة عقار</option>
+                <option>تسجيل عقاري</option><option>منازعة حيازة</option>
+                <option>إزالة تعدي</option><option>استرداد حيازة</option>
+                <option>نزع ملكية للمنفعة العامة</option>
+              </optgroup>
+              <optgroup label="جنائي (جنايات)">
+                <option>جنائي</option><option>قتل عمد</option><option>قتل خطأ</option>
+                <option>شروع في قتل</option><option>سرقة بإكراه</option><option>هتك عرض</option>
+                <option>اغتصاب</option><option>خطف</option><option>تزوير في محرر رسمي</option>
+                <option>رشوة</option><option>إتجار في مواد مخدرة</option>
+              </optgroup>
+              <optgroup label="جنح">
+                <option>جنح</option><option>ضرب أفضى لعاهة</option><option>نصب</option>
+                <option>خيانة أمانة</option><option>تبديد</option><option>سب وقذف</option>
+                <option>شيك بدون رصيد</option><option>تهديد</option><option>سرقة بسيطة</option>
+                <option>تزوير في محرر عرفي</option>
+              </optgroup>
+              <optgroup label="الدوائر الاقتصادية">
+                <option>اقتصادي</option><option>منازعات استثمار</option>
+                <option>منازعات شركات اقتصادية</option><option>ملكية فكرية</option>
+                <option>منازعات مصرفية وتمويل</option><option>أوراق مالية وبورصة</option>
+                <option>إفلاس اقتصادي</option><option>منازعات إلكترونية وتقنية معلومات</option>
+              </optgroup>
+              <optgroup label="دستوري">
+                <option>دعوى عدم دستورية</option><option>تنازع اختصاص</option>
+                <option>تفسير نص تشريعي</option>
+              </optgroup>
+              <optgroup label="مراحل تقاضٍ (مرجعية)">
+                <option>استئناف</option><option>نقض</option>
+              </optgroup>
+              <option>أخرى</option>
             </select>
           </div>
           <div class="form-group full"><label>عنوان القضية<span class="req">*</span></label><input type="text" id="fCaseTitle" placeholder="وصف مختصر للقضية"></div>
@@ -1477,7 +1623,7 @@ style="color:var(--muted);font-size:12px;margin-top:4px;"> جارٍ تحميل
                #modalDocument (fDocName/fDocType/...). -->
           <div class="form-group full"><label>اسم المستند (اختياري)</label><input type="text" id="fCaseDocName" placeholder="مثال: عقد الزواج"></div>
           <div class="form-group"><label>نوع المستند</label>
-            <select id="fCaseDocType"><option>عقد زواج</option><option>شهادة ميلاد</option><option>مفردات مرتب</option><option>محضر</option><option>إيصال</option><option>حكم</option><option>بيان مدرسي</option><option>تحريات</option><option>مراسلة</option><option>مستند آخر</option></select>
+            <select id="fCaseDocType"><option>عقد زواج</option><option>شهادة ميلاد</option><option>مفردات مرتب</option><option>محضر</option><option>إيصال</option><option>حكم</option><option>بيان مدرسي</option><option>تحريات</option><option>مراسلة</option><option>توكيل رسمي</option><option>توكيل عرفي</option><option>عقد بيع</option><option>عقد إيجار</option><option>عقد عمل</option><option>عقد شركة</option><option>عقد رهن</option><option>عقد قرض</option><option>إنذار رسمي</option><option>صحيفة دعوى</option><option>صحيفة استئناف</option><option>صحيفة طعن</option><option>مذكرة دفاع</option><option>تقرير خبير</option><option>شهادة رسمية</option><option>إخطار قانوني</option><option>سند لأمر</option><option>كمبيالة</option><option>شيك</option><option>إفادة بنكية</option><option>كشف حساب بنكي</option><option>بطاقة رقم قومي</option><option>جواز سفر</option><option>رخصة قيادة</option><option>رخصة تجارية</option><option>تفويض</option><option>وكالة عامة</option><option>وكالة خاصة</option><option>اتفاق تسوية</option><option>محضر جلسة</option><option>تقرير طبي</option><option>شهادة وفاة</option><option>شهادة زواج</option><option>وثيقة طلاق</option><option>إيصال أمانة</option><option>كشف ملكية عقارية</option><option>صورة رسمية طبق الأصل</option><option>مستند آخر</option></select>
           </div>
           <div class="form-group"><label>رابط Google Drive</label><input type="url" id="fCaseDocDriveUrl" placeholder="https://drive.google.com/file/d/..."></div>
           <!-- PROBLEM 12 (Case Save Cycle audit, v80 — extended to
@@ -1870,7 +2016,7 @@ style="color:var(--muted);font-size:12px;margin-top:4px;"> جارٍ تحميل
       </div>
       <div class="form-group"><label>اسم المستند<span class="req">*</span></label><input type="text" id="fDocName" placeholder="مثال: عقد الزواج"></div>
       <div class="form-group"><label>نوع المستند</label>
-        <select id="fDocType"><option>عقد زواج</option><option>شهادة ميلاد</option><option>مفردات مرتب</option><option>محضر</option><option>إيصال</option><option>حكم</option><option>بيان مدرسي</option><option>تحريات</option><option>مراسلة</option><option>مستند آخر</option></select>
+        <select id="fDocType"><option>عقد زواج</option><option>شهادة ميلاد</option><option>مفردات مرتب</option><option>محضر</option><option>إيصال</option><option>حكم</option><option>بيان مدرسي</option><option>تحريات</option><option>مراسلة</option><option>توكيل رسمي</option><option>توكيل عرفي</option><option>عقد بيع</option><option>عقد إيجار</option><option>عقد عمل</option><option>عقد شركة</option><option>عقد رهن</option><option>عقد قرض</option><option>إنذار رسمي</option><option>صحيفة دعوى</option><option>صحيفة استئناف</option><option>صحيفة طعن</option><option>مذكرة دفاع</option><option>تقرير خبير</option><option>شهادة رسمية</option><option>إخطار قانوني</option><option>سند لأمر</option><option>كمبيالة</option><option>شيك</option><option>إفادة بنكية</option><option>كشف حساب بنكي</option><option>بطاقة رقم قومي</option><option>جواز سفر</option><option>رخصة قيادة</option><option>رخصة تجارية</option><option>تفويض</option><option>وكالة عامة</option><option>وكالة خاصة</option><option>اتفاق تسوية</option><option>محضر جلسة</option><option>تقرير طبي</option><option>شهادة وفاة</option><option>شهادة زواج</option><option>وثيقة طلاق</option><option>إيصال أمانة</option><option>كشف ملكية عقارية</option><option>صورة رسمية طبق الأصل</option><option>مستند آخر</option></select>
       </div>
       <div class="form-group"><label>تاريخ الإيداع</label><input type="date" id="fDocDate"></div>
       <div class="form-group full"><label>رابط Google Drive</label><input type="url" id="fDocDriveUrl" placeholder="https://drive.google.com/file/d/..."></div>
@@ -2013,6 +2159,94 @@ style="color:var(--muted);font-size:12px;margin-top:4px;"> جارٍ تحميل
   </div>
 </div>
 
+<!-- CASES_RELATIONSHIP_FINANCIAL PHASE 8 — SECURITY + PAYMENT WORKFLOW.
+     "إضافة دفعة" — context-aware payment entry point, calling
+     createFeePayment() (js/modules/fees.js, PHASE 4/8). Opened either
+     WITH context (from Case view / Client view — case/relationship
+     pre-filled and locked, #paymentPickerGroup hidden) or WITHOUT
+     context (general entry from the Fees page itself — pickers shown).
+     Deliberately a SEPARATE modal from #modalFee above: #modalFee (the
+     original, well-tested general-entry form) is left completely
+     untouched, per PHASE 4's own risk boundary. -->
+<div class="modal-overlay" id="modalFeePayment">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title"><span class="icon">&#128176;</span><span>إضافة دفعة</span></div><button class="modal-close" onclick="closeModal('modalFeePayment')">&#10005;</button></div>
+    <div class="modal-body">
+      <div id="paymentPickerGroup" class="form-grid" style="display:none;">
+        <div class="form-group"><label>القضية<span class="req">*</span></label>
+          <select id="fPaymentCaseNum" onchange="onPaymentCaseSelected(this.value)" style="width:100%;">
+            <option value="">-- اختر القضية --</option>
+          </select>
+        </div>
+        <div class="form-group"><label>العلاقة (الموكل/الصفة)<span class="req">*</span></label>
+          <select id="fPaymentRelationship" onchange="onPaymentRelationshipSelected(this.value)" style="width:100%;">
+            <option value="">-- اختر القضية أولاً --</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-grid" style="margin-top:6px;">
+        <div class="form-group"><label>الموكل</label><div id="paymentClientDisplay" style="padding:8px 4px;font-weight:700;">—</div></div>
+        <div class="form-group"><label>القضية</label><div id="paymentCaseDisplay" style="padding:8px 4px;font-weight:700;">—</div></div>
+        <div class="form-group"><label>الأتعاب المتفق عليها</label><div id="paymentAgreedDisplay" style="padding:8px 4px;font-weight:700;">0 ج.م</div></div>
+        <div class="form-group"><label>المحصَّل سابقًا</label><div id="paymentCollectedDisplay" style="padding:8px 4px;font-weight:700;color:#1ab46c;">0 ج.م</div></div>
+        <div class="form-group"><label>المتبقي قبل الدفعة</label><div id="paymentRemainingDisplay" style="padding:8px 4px;font-weight:900;">0 ج.م</div></div>
+      </div>
+      <div class="form-grid">
+        <div class="form-group"><label>مبلغ الدفعة (ج.م)<span class="req">*</span></label><input type="number" id="fPaymentAmount" placeholder="0" min="0"></div>
+        <div class="form-group"><label>تاريخ التحصيل</label><input type="date" id="fPaymentDate"></div>
+        <div class="form-group"><label>طريقة الدفع</label>
+          <select id="fPaymentMethod"><option>نقداً</option><option>تحويل بنكي</option><option>شيك</option><option>محفظة إلكترونية</option></select>
+        </div>
+        <div class="form-group"><label>نوع الأتعاب</label>
+          <select id="fPaymentType"><option>دفعة أولى</option><option>دفعة ثانية</option><option>أتعاب ابتدائي</option><option>أتعاب استئناف</option><option>أتعاب نقض</option><option>أتعاب تنفيذ</option><option>أتعاب استشارة</option><option>رسوم قضائية</option></select>
+        </div>
+        <div class="form-group full"><label>ملاحظات</label><textarea id="fPaymentNotes" placeholder="ملاحظات..." style="min-height:60px;"></textarea></div>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal('modalFeePayment')">إلغاء</button><button class="btn btn-primary" onclick="submitPayment()">&#128190; تسجيل الدفعة</button></div>
+  </div>
+</div>
+
+<!-- CASES_RELATIONSHIP_FINANCIAL PHASE 9 — LEDGER (كشف الحساب).
+     Pure display over js/modules/ledger.js's renderLedgerTable(), itself
+     a projection over financial-reports.js's getCaseLedger()/
+     getClientLedger()/getOfficeLedger() — no new storage, no copy of
+     any Fees/Expenses record (see js/modules/ledger.js file header). -->
+<div class="modal-overlay" id="modalLedger">
+  <div class="modal" style="max-width:820px;">
+    <div class="modal-header"><div class="modal-title"><span class="icon">&#128179;</span><span id="ledgerModalTitle">كشف الحساب</span></div><button class="modal-close" onclick="closeModal('modalLedger')">&#10005;</button></div>
+    <div class="modal-body"><div id="ledgerModalBody"></div></div>
+    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal('modalLedger')">إغلاق</button></div>
+  </div>
+</div>
+
+<!-- CASES_RELATIONSHIP_FINANCIAL PHASE 12 — FINANCIAL REPORTS UI.
+     Pure display over js/modules/financial-reports-ui.js, itself
+     consuming financial-reports.js's existing functions (PHASE 7 §10/
+     §21 dead-code finding — this is their first real UI consumer). -->
+<div class="modal-overlay" id="modalFinancialReports">
+  <div class="modal" style="max-width:900px;">
+    <div class="modal-header"><div class="modal-title"><span class="icon">&#128202;</span><span>التقارير المالية</span></div><button class="modal-close" onclick="closeModal('modalFinancialReports')">&#10005;</button></div>
+    <div class="modal-body">
+      <div class="section-tabs" id="financialReportsTabs">
+        <button class="tab-btn active" data-report-tab="today" onclick="switchFinancialReportTab('today')">&#128197; اليوم</button>
+        <button class="tab-btn" data-report-tab="month" onclick="switchFinancialReportTab('month')">&#128198; الشهر</button>
+        <button class="tab-btn" data-report-tab="year" onclick="switchFinancialReportTab('year')">&#128197; السنة</button>
+        <button class="tab-btn" data-report-tab="cases" onclick="switchFinancialReportTab('cases')">&#9878; القضايا</button>
+        <button class="tab-btn" data-report-tab="clients" onclick="switchFinancialReportTab('clients')">&#128101; الموكلون</button>
+        <button class="tab-btn" data-report-tab="office" onclick="switchFinancialReportTab('office')">&#127970; المكتب</button>
+      </div>
+      <div class="financial-report-pane" id="reportPane-today"></div>
+      <div class="financial-report-pane" id="reportPane-month" style="display:none;"></div>
+      <div class="financial-report-pane" id="reportPane-year" style="display:none;"></div>
+      <div class="financial-report-pane" id="reportPane-cases" style="display:none;"></div>
+      <div class="financial-report-pane" id="reportPane-clients" style="display:none;"></div>
+      <div class="financial-report-pane" id="reportPane-office" style="display:none;"></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal('modalFinancialReports')">إغلاق</button></div>
+  </div>
+</div>
+
 <!-- CASES_RELATIONSHIP_FINANCIAL قرار §3-G: نظام المصروفات — 3 مستويات (موكل/قضية/مكتب) عبر عمود النطاق الواحد -->
 <div class="modal-overlay" id="modalExpense">
   <div class="modal">
@@ -2030,7 +2264,7 @@ style="color:var(--muted);font-size:12px;margin-top:4px;"> جارٍ تحميل
         <select id="fExpenseClientId" style="width:100%;"><option value="">-- اختر الموكل --</option></select>
       </div>
       <div class="form-group" id="expenseCaseFieldGroup" style="display:none;"><label>القضية<span class="req">*</span></label>
-        <select id="fExpenseCaseNum" style="width:100%;"><option value="">-- اختر القضية --</option></select>
+        <select id="fExpenseCaseNum" style="width:100%;" onchange="if(typeof onExpenseCaseSelected==='function')onExpenseCaseSelected(this.value);"><option value="">-- اختر القضية --</option></select>
       </div>
       <div class="form-group"><label>المبلغ (ج.م)<span class="req">*</span></label><input type="number" id="fExpenseAmount" placeholder="0" min="0"></div>
       <div class="form-group"><label>التصنيف<span class="req">*</span></label><input type="text" id="fExpenseCategory" placeholder="مثال: رسوم إعلان، إيجار، انتقال"></div>
@@ -2222,7 +2456,7 @@ style="color:var(--muted);font-size:12px;margin-top:4px;"> جارٍ تحميل
      top-level parse time. New, standalone file; no other <script> tag
      was moved, removed, or reordered. -->
 <script src="js/core/RepositoryReadyTimeout.js?v=42"></script>
-<script src="js/modules/cases.js?v=43"></script>
+<script src="js/modules/cases.js?v=45"></script>
 <script>
 'use strict';
 var API_URL=localStorage.getItem('apiUrl')||'';
@@ -2737,7 +2971,7 @@ window.addEventListener('DOMContentLoaded',function(){
 <script src="js/modules/firstrun.js?v=42"></script>
 <script src="js/modules/calendar.js?v=42"></script>
 <script src="js/modules/children.js?v=42"></script>
-<script src="js/modules/dashboard.js?v=42"></script>
+<script src="js/modules/dashboard.js?v=43"></script>
 <script src="js/modules/tasks.js?v=53"></script>
 <script src="js/modules/documents.js?v=42"></script>
 <script src="js/modules/sessions.js?v=42"></script>
@@ -2826,17 +3060,19 @@ window.addEventListener('DOMContentLoaded',function(){
 </div>
 
 <script src="js/core/HistoryPanel.js?v=42"></script>
-<script src="js/modules/clients.js?v=42"></script>
+<script src="js/modules/clients.js?v=44"></script>
 <script src="js/modules/client-fields.js?v=42"></script>
 <script src="js/modules/opponents.js?v=42"></script>
-<script src="js/modules/financial-reports.js?v=1"></script>
-<script src="js/modules/expenses.js?v=1"></script>
+<script src="js/modules/financial-reports.js?v=4"></script>
+<script src="js/modules/ledger.js?v=1"></script>
+<script src="js/modules/financial-reports-ui.js?v=1"></script>
+<script src="js/modules/expenses.js?v=2"></script>
 <script src="js/modules/opponent-fields.js?v=42"></script>
 <script src="js/modules/process-server-works.js?v=42"></script>
 <script src="js/modules/process-server-fields.js?v=42"></script>
 <script src="js/modules/administrative-work-fields.js?v=53"></script>
 <script src="js/modules/client-messages.js?v=42"></script>
-<script src="js/modules/fees.js?v=42"></script>
+<script src="js/modules/fees.js?v=44"></script>
 <script src="js/modules/library.js?v=42"></script>
 <script src="js/modules/templates.js?v=42"></script>
 <!-- PHASE — Legal Directories: Data Model (Stage 1) + Generic UI (Stage 2)
@@ -2974,7 +3210,7 @@ window.addEventListener('DOMContentLoaded',function(){
 <script src="js/core/modal/ScrollLockManager.js?v=42"></script>
 <script src="js/core/modal/FocusManager.js?v=42"></script>
 <script src="js/core/modal/ModalHistoryBridge.js?v=42"></script>
-<script src="js/core/modal/ModalManager.js?v=43"></script>
+<script src="js/core/modal/ModalManager.js?v=44"></script>
 <!-- PHASE 17.6 — Safe Mode Boot. Additive-only: after BootManager.js
      completes the boot sequence, marks any entity Repository that never
      became ready (nav-item ✓/✕, a non-blocking banner, and a per-page

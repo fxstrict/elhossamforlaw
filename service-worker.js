@@ -255,7 +255,69 @@
 // is served networkFirstShell() (always fresh), and its only change was
 // to add three new <select> controls inside existing case-form tabs
 // (no cached-file reference changed).
-var SW_VERSION = 'v83'; // PROBLEM 13 (Case Wizard / Next Flow) + PROBLEM 14 (Global Scroll Position Reset).
+var SW_VERSION = 'v93'; // CASES_RELATIONSHIP_FINANCIAL PHASE 8-17
+                         // (Payment security hardening, Ledger,
+                         // Financial Dashboard, Financial Reports UI,
+                         // Expense case-autofill): fees.js, cases.js,
+                         // clients.js, dashboard.js, expenses.js,
+                         // financial-reports.js all changed content;
+                         // two new files (ledger.js, financial-reports-
+                         // ui.js) added. SW_VERSION bump forces full
+                         // SHELL_CACHE recreation per every prior
+                         // SW_VERSION comment in this file.
+                         // CASES_RELATIONSHIP_FINANCIAL PHASE 4 (continued):
+                         // advanced reporting layer added to
+                         // financial-reports.js (getCollectionsInRange,
+                         // getExpensesInRange, getTopRevenueCases/Clients,
+                         // getCasesWithOutstandingBalance, getTotalOutstanding)
+                         // — no other file changed this round. SW_VERSION
+                         // bump forces full SHELL_CACHE recreation per every
+                         // prior SW_VERSION comment in this file.
+                         // CASES_RELATIONSHIP_FINANCIAL PHASE 4 (Architecture
+                         // Decision OPTION D, approved): fees.js, clients.js,
+                         // cases.js, financial-reports.js all changed content
+                         // (agreedTotal/collected/remaining reporting +
+                         // createFeePayment()) — SW_VERSION bump forces full
+                         // SHELL_CACHE recreation per every prior SW_VERSION
+                         // comment in this file.
+                         // PROBLEM 18 (Machine ID Identity Final Audit — Activation
+                         // Wizard could still reappear on an otherwise-untouched
+                         // device whose display language or timezone changed,
+                         // because MachineFingerprint.js's collectEnvironmentSignals()
+                         // still mixed navigator.language and Intl timeZone into the
+                         // Machine ID hash even after Problem 17 removed screen
+                         // geometry. Fixed by dropping ALL environment signals —
+                         // the persisted device salt is now the only input — and by
+                         // removing the Problem 17 confirmMachineId()/pinning layer
+                         // entirely (it existed only to migrate pre-existing
+                         // old-formula licenses, and the project confirmed no such
+                         // licenses exist, so keeping it would itself have been an
+                         // unwanted legacy-Machine-ID compatibility layer). Changed
+                         // files: js/license/MachineFingerprint.js (v42 -> v43) and
+                         // js/license/LicenseCore.js (v42 -> v43), both bumped below
+                         // in PRECACHE_URLS and in index.html's <script> tags. This
+                         // SW_VERSION bump alone still forces full SHELL_CACHE
+                         // recreation regardless, per every prior SW_VERSION comment
+                         // in this file — the per-file ?v= bumps are kept anyway,
+                         // matching the established convention exactly.
+// (v89 note, kept for history) PROBLEM 16 (License Startup Persistence — Activation Wizard
+                         // shown despite a valid stored license, fixed by Refresh).
+                         // js/license/LicenseCrypto.js changed (stale SUBTLE snapshot ->
+                         // live getSubtle() check on every call). Cache-busting query
+                         // string on that one file bumped v42 -> v43 below, and this
+                         // SW_VERSION bump alone still forces full SHELL_CACHE
+                         // recreation regardless, per every prior SW_VERSION comment
+                         // in this file. No other PRECACHE_URLS entry needed editing —
+                         // only these two lines, exactly per the established convention.
+// (v87 note, kept for history) PROBLEM 15 (Floating Information Views Scroll Reset). Only
+                         // js/core/modal/ModalManager.js changed (its own `?v=` bumped
+                         // 43 -> 44 above and in index.html, matching the exact
+                         // established convention of this file) — no other precached
+                         // file's content changed, so no other `?v=` was touched.
+                         // An SW_VERSION bump alone still forces full SHELL_CACHE
+                         // recreation regardless, per every prior SW_VERSION comment
+                         // in this file. Previous line: PROBLEM 13 (Case Wizard / Next
+                         // Flow) + PROBLEM 14 (Global Scroll Position Reset).
                          // Two new precached files (css/dashboard-legal-
                          // directories-nav.css?v=1, js/modules/dashboard-
                          // legal-directories-nav.js?v=1) added to
@@ -473,9 +535,9 @@ var PRECACHE_URLS = [
   'assets/icons/maskable/icon-maskable-512.png',
   'js/debug/RuntimeDebugLayer.js?v=42',
   'js/license/license-public-key.js?v=42',
-  'js/license/LicenseCrypto.js?v=42',
-  'js/license/MachineFingerprint.js?v=42',
-  'js/license/LicenseCore.js?v=42',
+  'js/license/LicenseCrypto.js?v=43',
+  'js/license/MachineFingerprint.js?v=43',
+  'js/license/LicenseCore.js?v=43',
   'js/license/ReadOnlyGuard.js?v=42',
   'js/license/SubscriptionManager.js?v=42',
   'js/license/ActivationWizard.js?v=42',
@@ -533,17 +595,17 @@ var PRECACHE_URLS = [
   'js/auth/TopbarSessionBadge.js?v=42',
   'js/auth/SidebarSessionBadge.js?v=42',
   'js/core/RepositoryReadyTimeout.js?v=42',
-  'js/modules/cases.js?v=43',
+  'js/modules/cases.js?v=45',
   'js/modules/settings.js?v=42',
   'js/modules/firstrun.js?v=42',
   'js/modules/calendar.js?v=42',
   'js/modules/children.js?v=42',
-  'js/modules/dashboard.js?v=42',
+  'js/modules/dashboard.js?v=43',
   'js/modules/tasks.js?v=53',
   'js/modules/documents.js?v=42',
   'js/modules/sessions.js?v=42',
   'js/core/HistoryPanel.js?v=42',
-  'js/modules/clients.js?v=42',
+  'js/modules/clients.js?v=44',
   'js/modules/client-fields.js?v=42',
   'js/modules/opponents.js?v=42',
   'js/modules/opponent-fields.js?v=42',
@@ -551,7 +613,11 @@ var PRECACHE_URLS = [
   'js/modules/process-server-fields.js?v=42',
   'js/modules/administrative-work-fields.js?v=53',
   'js/modules/client-messages.js?v=42',
-  'js/modules/fees.js?v=42',
+  'js/modules/fees.js?v=44',
+  'js/modules/expenses.js?v=2',
+  'js/modules/financial-reports.js?v=4',
+  'js/modules/ledger.js?v=1',
+  'js/modules/financial-reports-ui.js?v=1',
   'js/modules/library.js?v=42',
   'js/modules/templates.js?v=42',
   'js/utils/DirectoryModel.js?v=1',
@@ -593,7 +659,7 @@ var PRECACHE_URLS = [
   'js/core/modal/ScrollLockManager.js?v=42',
   'js/core/modal/FocusManager.js?v=42',
   'js/core/modal/ModalHistoryBridge.js?v=42',
-  'js/core/modal/ModalManager.js?v=43',
+  'js/core/modal/ModalManager.js?v=44',
   'js/core/boot/SafeModeController.js?v=42',
   'js/core/pwa/ServiceWorkerRegistrar.js?v=42',
   'js/core/pwa/InstallPromptManager.js?v=42',
