@@ -533,6 +533,16 @@ async function saveSession() {
   await ensureSessionsRepositoryReady();
 
   var obj = collectForm('sessions');
+  // CASES_RELATIONSHIP_FINANCIAL — قرار §3-J: منع حفظ جلسة "يتيمة" بلا
+  // قضية (الخيار الفارغ "-- اختر القضية --" فى populateCaseDropdown()
+  // كان يمر بلا رفض). يُفحص هنا على obj['رقم_القضية'] بعد collectForm()
+  // — نفس الحقل الذى سيُحفظ فعليًا (SESSIONS_MAP: fSessionCaseNum ->
+  // رقم_القضية) — بدلًا من قراءة DOM خام مستقلة لعنصر fSessionCaseNum،
+  // تجنبًا لازدواج مصدر الحقيقة.
+  if (!obj['رقم_القضية']) {
+    toast('يرجى اختيار القضية المرتبطة بالجلسة', 'error');
+    return;
+  }
   obj['الوقت'] = sanitizeTime(obj['الوقت']);
   // Note: obj['رقم_الجلسة'] is intentionally NOT stamped here — see file
   // header "IDENTIFIER GENERATION NOTE": SessionsRepository.create()
@@ -788,6 +798,120 @@ async function redoLastSessionAction() {
   }
 }
 
+// ================================================================
+// OVERRIDE saveCase — create an embedded جلسة (Session) when the
+// case-modal's "جلسة" tab was filled in (optional — decision §4
+// "أضف جلسة للقضية الآن أو اتركها فارغة"). Runs AFTER the case itself
+// saves successfully, using the case's own رقم_القضية (already known
+// at this point — a required, user-typed field, see cases.js's own
+// saveCase()). Non-fatal on failure: a session-creation error never
+// blocks or rolls back the case save itself (same "additive, doesn't
+// break the primary flow" principle as clients.js/opponents.js's wraps).
+// ================================================================
+if (typeof saveCase === 'function') {
+  var _origSaveCaseForEmbeddedSession = saveCase;
+  saveCase = function () {
+    var result = _origSaveCaseForEmbeddedSession.apply(this, arguments);
+    if (result && typeof result.then === 'function') {
+      return result.then(function (saveOutcome) {
+        // CASE_SAVE_CYCLE_FIX_2026 — only harvest the "جلسة" tab into a real
+        // record when the case itself actually saved (see tasks.js's
+        // identical fix for the full rationale).
+        if (!saveOutcome || !saveOutcome.success) return saveOutcome;
+        return _createEmbeddedSessionIfFilled().then(function () { return saveOutcome; });
+      });
+    }
+    return result;
+  };
+}
+
+/**
+ * _createEmbeddedSessionIfFilled — reads the "جلسة" tab's fields; if
+ * تاريخ_الجلسة is present (the one field that genuinely signals "the
+ * user actually meant to add a session", matching how every other
+ * optional embedded section in this app treats its own primary field),
+ * creates a real Sessions record linked to the just-saved case. Clears
+ * the tab's fields afterward so a second case save in the same modal
+ * session doesn't silently re-create the same session.
+ * @returns {Promise<void>}
+ */
+function _createEmbeddedSessionIfFilled() {
+  var dateEl = document.getElementById('fCaseSessionDate');
+  var date = dateEl ? dateEl.value.trim() : '';
+  if (!date) return Promise.resolve(); // tab left empty — nothing to do, matches decision §4's "اتركها فارغة"
+
+  var caseNumEl = document.getElementById('fCaseNum');
+  var caseNum = caseNumEl ? caseNumEl.value.trim() : '';
+  if (!caseNum) return Promise.resolve(); // defensive — saveCase() itself already requires this before reaching here
+
+  var titleEl = document.getElementById('fCaseSessionTitle');
+  var timeEl = document.getElementById('fCaseSessionTime');
+  var requiredEl = document.getElementById('fCaseSessionRequired');
+  var notesEl = document.getElementById('fCaseSessionNotes');
+
+  // CASE_SAVE_CYCLE_FIX_2026 — B1: رقم الدعوى مصدره الوحيد المُثبت هو
+  // حقل القضية نفسها (#fCaseDocketNum، already required/typed on the
+  // case form — cases.js CASES_MAP.fCaseDocketNum). لا يوجد حقل مقابل
+  // فى تبويب "جلسة" المضمّن ولا فى التبويب المستقل، فلا نخترعه؛ نقرأ
+  // القيمة الحالية لحقل القضية وقت إنشاء الجلسة المضمّنة فقط.
+  var caseDocketNumEl = document.getElementById('fCaseDocketNum');
+  var caseDocketNum = caseDocketNumEl ? caseDocketNumEl.value.trim() : '';
+
+  // CASE_SAVE_CYCLE_AUDIT (Problem 5): رقم الدائرة/رقم القاعة — نفس
+  // منطق caseDocketNum أعلاه بالضبط. لا يوجد حقل مقابل فى تبويب "جلسة"
+  // المضمّن (ولا داعٍ لاختراعه — القيمة أصلًا موجودة على نموذج القضية
+  // نفسه، #fCaseCircuit/#fCaseRoom، المفروض وقت إنشاء الجلسة المضمّنة
+  // بالتحديد). المسار المستقل (autofillSessionFromCase()، cases.js) كان
+  // ينسخهما من سجل القضية المحفوظ إلى نموذج الجلسة المستقل فقط — لا شىء
+  // يوازيه هنا، فكانت الجلسة المضمّنة تُنشأ دومًا برقم دائرة/قاعة فارغين.
+  var caseCircuitEl = document.getElementById('fCaseCircuit');
+  var caseRoomEl = document.getElementById('fCaseRoom');
+  var caseCircuit = caseCircuitEl ? caseCircuitEl.value.trim() : '';
+  var caseRoom = caseRoomEl ? caseRoomEl.value.trim() : '';
+
+  return ensureSessionsRepositoryReady().then(function () {
+    return sessionsRepository.create({
+      'رقم_القضية': caseNum,
+      'رقم_الدعوى': caseDocketNum,
+      'رقم_الدائرة': caseCircuit,
+      'رقم_القاعة': caseRoom,
+      'التاريخ': date,
+      // CASES_RELATIONSHIP_FINANCIAL: الوقت إلزامي عند SessionsRepository
+      // (قرار §3-J) — قيمة افتراضية آمنة إن تُرك حقل الموعد فارغًا، بدلًا
+      // من فشل الحفظ بصمت لمجرد أن المستخدم لم يحدد ساعة دقيقة.
+      'الوقت': (timeEl && timeEl.value.trim()) || '00:00',
+      'عنوان_القضية': titleEl ? titleEl.value.trim() : '',
+      'ما_تم_في_الجلسة': requiredEl ? requiredEl.value.trim() : '',
+      'الملاحظات': notesEl ? notesEl.value.trim() : ''
+    });
+  }).then(function (result) {
+    if (result && result.success) {
+      syncSessionsMirror();
+      // CASE_SAVE_CYCLE_AUDIT (Problem 3): push the new record to Google
+      // Sheets exactly like the standalone saveSession() always does —
+      // this embedded path only ever called syncSessionsMirror() (a
+      // local IndexedDB->mirror refresh), so the session existed in
+      // local storage but never reached Sheets, and therefore never
+      // reached Client Portal (Config/05_Portal.gs reads sessions only
+      // from Sheets). idx is intentionally -1: this branch only runs on
+      // a successful create(), never an update.
+      if (typeof ApiService !== 'undefined' && ApiService.syncRow) {
+        ApiService.syncRow('الجلسات', result.record, -1);
+      }
+      // Clear the tab so re-saving the same case (e.g. an immediate
+      // edit right after create) doesn't duplicate this session.
+      [dateEl, titleEl, timeEl, requiredEl, notesEl].forEach(function (el) { if (el) el.value = ''; });
+      if (typeof updateBadges === 'function') updateBadges();
+    } else if (typeof console !== 'undefined' && console.error) {
+      console.error('Embedded session creation failed:', result && result.error);
+    }
+  }).catch(function (err) {
+    if (typeof console !== 'undefined' && console.error) {
+      console.error('Embedded session creation failed:', err);
+    }
+  });
+}
+
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     sessionsUndoManager: sessionsUndoManager,
@@ -804,6 +928,7 @@ if (typeof module !== 'undefined' && module.exports) {
     saveSession: saveSession,
     editSession: editSession,
     deleteSession: deleteSession,
-    restoreSession: restoreSession
+    restoreSession: restoreSession,
+    _createEmbeddedSessionIfFilled: _createEmbeddedSessionIfFilled
   };
 }

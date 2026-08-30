@@ -463,9 +463,32 @@ function renderFees() {
 
   function feeRowInner(f) {
     var ri = resolveFeeIndex(allFees, f);
+    // PHASE 8.2 — Fees table becomes traceable: "فتح القضية"/"فتح الموكل"
+    // links (existing cells enhanced, no new column — DomRecycler's
+    // fixed column count is left untouched, lower risk than adding a
+    // column). A small 🔗 marks a رقم_علاقة-linked payment (PHASE 4/8)
+    // versus a legacy one (PHASE 8.3 — legacy fees remain fully
+    // functional and unmarked, exactly as before).
+    var caseLink = '';
+    if (f['رقم_القضية'] && typeof resolveCaseIndex === 'function' && typeof viewCase === 'function') {
+      var caseObj = (data.cases || []).filter(function (c) { return c['رقم_القضية'] === f['رقم_القضية']; })[0];
+      if (caseObj) {
+        var cIdx = resolveCaseIndex(data.cases, caseObj);
+        caseLink = ' <button class="btn btn-ghost btn-sm btn-icon" title="فتح القضية" onclick="viewCase(' + cIdx + ')">&#128065;</button>';
+      }
+    }
+    var clientLink = '';
+    if (f['رقم_الموكل'] && typeof resolveClientIndex === 'function' && typeof viewClient === 'function') {
+      var clientObj = (data.clients || []).filter(function (cl) { return cl['رقم_الموكل'] === f['رقم_الموكل']; })[0];
+      if (clientObj) {
+        var clIdx = resolveClientIndex(data.clients, clientObj);
+        clientLink = ' <button class="btn btn-ghost btn-sm btn-icon" title="فتح الموكل" onclick="viewClient(' + clIdx + ')">&#128100;</button>';
+      }
+    }
+    var relBadge = f['رقم_علاقة'] ? ' <span title="مرتبطة بعلاقة موكل/قضية">&#128279;</span>' : '';
     return (
-      '<td style="color:var(--gold)">' + (f['رقم_القضية'] || '—') + '</td>' +
-      '<td>' + (f['اسم_الموكل'] || '—') + '</td>' +
+      '<td style="color:var(--gold)">' + (f['رقم_القضية'] || '—') + caseLink + '</td>' +
+      '<td>' + (f['اسم_الموكل'] || '—') + clientLink + relBadge + '</td>' +
       '<td>' + (f['نوع_الأتعاب'] || '—') + '</td>' +
       '<td><strong style="color:var(--success)">' +
         (f['المبلغ'] ? Number(f['المبلغ']).toLocaleString('ar-EG') + ' ج.م' : '—') +
@@ -695,6 +718,310 @@ async function restoreFee(id) {
   if (window.ApplicationShell) { ApplicationShell.markDirty('fees'); }
 }
 
+/**
+ * createFeePayment(paymentData, repoOverride) — CASES_RELATIONSHIP_
+ * FINANCIAL PHASE 4 (Architecture Decision OPTION D) + PHASE 8
+ * (SECURITY + PAYMENT WORKFLOW, hardening the PHASE 4 version). Additive,
+ * DOM-free helper: creates a Fees record (a collected payment) through
+ * FeesRepository exactly like saveFee() does, WITHOUT touching saveFee()
+ * or the #modalFee form in any way.
+ *
+ * WHY THIS EXISTS SEPARATELY FROM saveFee()
+ *   saveFee() is hard-wired to the #modalFee DOM form (document.
+ *   getElementById(...), collectForm('fees')). The "إضافة دفعة" button
+ *   on the Case/Client view and the payment picker on the Fees page
+ *   (PHASE 8) need to create the exact same kind of record
+ *   programmatically, pre-filled with رقم_علاقة (the CaseClients
+ *   relationship id) — a plain-object entry point makes that possible
+ *   without any DOM coupling, and keeps saveFee() itself completely
+ *   unmodified (zero regression risk to the existing Fees page).
+ *
+ * PHASE 8 — SECURITY / REFERENTIAL INTEGRITY (PHASE 7 §16 BUG FOUND,
+ * now fixed here — NOT in FeesRepository.js, since the check needs no
+ * Repository-class change: it reads the already-existing data.
+ * caseClients mirror, exactly the same source getCaseNet/getClientNet/
+ * getRelationshipRemaining already read):
+ *   Whenever paymentData.رقم_علاقة is provided, this function now
+ *   verifies, BEFORE calling FeesRepository.create():
+ *     1. a CaseClients relationship with that exact id exists in
+ *        data.caseClients (soft-deleted relationships are already
+ *        excluded from that mirror by CaseClientsRepository.getAll()
+ *        itself — no separate exclusion logic needed here);
+ *     2. paymentData.رقم_القضية matches that relationship's own
+ *        رقم_القضية;
+ *     3. paymentData.رقم_الموكل matches that relationship's own
+ *        رقم_الموكل (when paymentData.رقم_الموكل is provided — a
+ *        payment created with only اسم_الموكل, legacy-style, is not
+ *        held to this specific check, since the legacy name field was
+ *        never validated against the relationship either);
+ *     4. the payment amount does not exceed that relationship's own
+ *        remaining balance (getRelationshipRemaining) — per PHASE 8
+ *        §4: overpayment is never silently allowed; the caller (UI)
+ *        must explicitly offer "سجّل المتبقي فقط" and resubmit with an
+ *        adjusted amount — there is no override flag, because no
+ *        explicit, intentional business rule for allowing overpayment
+ *        has been specified.
+ *   A payment with NO رقم_علاقة (the legacy/general-entry path) is
+ *   completely unaffected by any of this — exactly as before PHASE 8.
+ *
+ * @param {Object} paymentData - same field shape saveFee() would send
+ *   to feesRepository.create() (رقم_القضية, اسم_الموكل, المبلغ, ...),
+ *   plus an optional رقم_علاقة.
+ * @param {Object} [repoOverride] - test-only: an alternate FeesRepository
+ *   instance to call instead of the module's own singleton (mirrors how
+ *   other *.js test suites inject a repo — see verify_fees_repository_
+ *   integration.js). Production callers never pass this.
+ * @returns {Promise<{success:boolean, record:?Object, error:?Object}>}
+ */
+async function createFeePayment(paymentData, repoOverride) {
+  var repo = repoOverride || feesRepository;
+  await (repoOverride ? Promise.resolve() : ensureFeesRepositoryReady());
+
+  var obj = Object.assign({}, paymentData);
+  var relationshipId = obj['رقم_علاقة'];
+
+  if (relationshipId) {
+    var relationships = (typeof data !== 'undefined' && data.caseClients) ? data.caseClients : [];
+    var rel = relationships.filter(function (r) { return r.id === relationshipId; })[0];
+
+    if (!rel) {
+      return { success: false, record: null, error: { code: 'RELATIONSHIP_NOT_FOUND', message: 'رقم العلاقة غير موجود' } };
+    }
+    if (obj['رقم_القضية'] && rel['رقم_القضية'] !== obj['رقم_القضية']) {
+      return { success: false, record: null, error: { code: 'CASE_MISMATCH', message: 'رقم القضية لا يطابق قضية هذه العلاقة' } };
+    }
+    if (obj['رقم_الموكل'] && rel['رقم_الموكل'] !== obj['رقم_الموكل']) {
+      return { success: false, record: null, error: { code: 'CLIENT_MISMATCH', message: 'رقم الموكل لا يطابق موكل هذه العلاقة' } };
+    }
+
+    var remainingInfo = (typeof getRelationshipRemaining === 'function')
+      ? getRelationshipRemaining(relationshipId)
+      : null;
+    if (remainingInfo) {
+      var amount = parseFloat(obj['المبلغ']);
+      if (!isNaN(amount) && amount > remainingInfo.remaining) {
+        return {
+          success: false, record: null,
+          error: {
+            code: 'EXCEEDS_REMAINING',
+            message: 'المبلغ يتجاوز المتبقي المتفق عليه لهذه العلاقة',
+            remaining: remainingInfo.remaining,
+            requestedAmount: amount
+          }
+        };
+      }
+    }
+  }
+
+  obj['تاريخ_الإنشاء'] = obj['تاريخ_الإنشاء'] || new Date().toISOString();
+
+  var result = await repo.create(obj);
+
+  if (result && result.success && repo === feesRepository) {
+    syncFeesMirror();
+    saveLocal();
+    if (typeof ApiService !== 'undefined' && ApiService.syncRow) {
+      ApiService.syncRow('الأتعاب', result.record, -1);
+    }
+    if (typeof updateBadges === 'function') updateBadges();
+    if (typeof window !== 'undefined' && window.ApplicationShell) { window.ApplicationShell.markDirty('fees'); }
+  }
+
+  return result;
+}
+
+// ================================================================
+// PHASE 8 — SECURITY + PAYMENT WORKFLOW: "إضافة دفعة" UI
+// ================================================================
+// Context-aware payment entry point over createFeePayment() above.
+// Opened WITH context (from Case view / Client view — case, client and
+// relationship pre-filled and locked, #paymentPickerGroup hidden) or
+// WITHOUT context (general entry from the Fees page — pickers shown,
+// so the user picks القضية → العلاقة, exactly like the Case/Client
+// entry points, just without a pre-known starting point). Every path
+// funnels into the SAME createFeePayment() — one function, several UI
+// entry points, per PHASE 8 prompt §7 ("نفس createFeePayment() تصبح
+// function مركزية تستخدمها عدة نقاط UI").
+// ================================================================
+
+/** _paymentContext — set by openPaymentModal(), read by submitPayment()/_onPaymentSaved(). */
+var _paymentContext = null;
+
+/**
+ * openPaymentModal(context) — opens #modalFeePayment.
+ * @param {Object} [context]
+ * @param {string} [context.caseNum] - pre-select this case (locked if relationshipId is also given)
+ * @param {string} [context.relationshipId] - LOCKS the modal to this exact CaseClients relationship (Case/Client view entry)
+ * @param {number} [context.caseIdx] - index into data.cases — if given, viewCase(caseIdx) re-renders after a successful save
+ * @param {number} [context.clientIdx] - index into data.clients — if given, viewClient(clientIdx) re-renders after a successful save
+ */
+function openPaymentModal(context) {
+  context = context || {};
+  _paymentContext = context;
+
+  var pickerGroup = document.getElementById('paymentPickerGroup');
+  var locked = !!context.relationshipId;
+  if (pickerGroup) pickerGroup.style.display = locked ? 'none' : '';
+
+  if (locked) {
+    _renderPaymentSummary(context.relationshipId);
+  } else {
+    if (typeof populateCaseDropdown === 'function') populateCaseDropdown('fPaymentCaseNum', context.caseNum || '');
+    _resetPaymentDisplays();
+    if (context.caseNum) onPaymentCaseSelected(context.caseNum);
+  }
+
+  var amountEl = document.getElementById('fPaymentAmount'); if (amountEl) amountEl.value = '';
+  var dateEl = document.getElementById('fPaymentDate'); if (dateEl) dateEl.value = new Date().toISOString().slice(0, 10);
+  var notesEl = document.getElementById('fPaymentNotes'); if (notesEl) notesEl.value = '';
+
+  var modal = document.getElementById('modalFeePayment');
+  if (modal && modal.classList) modal.classList.add('open');
+}
+
+/** onPaymentCaseSelected(caseNum) — populates #fPaymentRelationship from data.caseClients, filtered to this case. Auto-selects when only one relationship exists. */
+function onPaymentCaseSelected(caseNum) {
+  var relSel = document.getElementById('fPaymentRelationship');
+  if (!relSel) return;
+
+  if (!caseNum) {
+    relSel.innerHTML = '<option value="">-- اختر القضية أولاً --</option>';
+    _resetPaymentDisplays();
+    return;
+  }
+
+  var rows = (typeof data !== 'undefined' && data.caseClients ? data.caseClients : [])
+    .filter(function (r) { return r['رقم_القضية'] === caseNum; });
+
+  var options = '<option value="">-- اختر العلاقة --</option>';
+  rows.forEach(function (r) {
+    var clientObj = (typeof data !== 'undefined' && data.clients ? data.clients : [])
+      .filter(function (c) { return c['رقم_الموكل'] === r['رقم_الموكل']; })[0];
+    var name = clientObj ? clientObj['الاسم'] : r['رقم_الموكل'];
+    options += '<option value="' + escapeHtml(r.id) + '">' + escapeHtml(name || '—') + ' (' + escapeHtml(r['الصفة'] || '') + ')</option>';
+  });
+  relSel.innerHTML = options;
+
+  if (rows.length === 1) {
+    relSel.value = rows[0].id;
+    onPaymentRelationshipSelected(rows[0].id);
+  } else {
+    _resetPaymentDisplays();
+  }
+}
+
+/** onPaymentRelationshipSelected(relationshipId) — updates the agreed/collected/remaining display for the chosen relationship. */
+function onPaymentRelationshipSelected(relationshipId) {
+  if (!relationshipId) { _resetPaymentDisplays(); return; }
+  _renderPaymentSummary(relationshipId);
+}
+
+/** _renderPaymentSummary(relationshipId) — fills the read-only client/case/agreed/collected/remaining display block. */
+function _renderPaymentSummary(relationshipId) {
+  var rel = (typeof data !== 'undefined' && data.caseClients ? data.caseClients : [])
+    .filter(function (r) { return r.id === relationshipId; })[0];
+  var clientObj = rel ? (typeof data !== 'undefined' && data.clients ? data.clients : [])
+    .filter(function (c) { return c['رقم_الموكل'] === rel['رقم_الموكل']; })[0] : null;
+  var info = (typeof getRelationshipRemaining === 'function')
+    ? getRelationshipRemaining(relationshipId)
+    : { agreedTotal: 0, collected: 0, remaining: 0 };
+
+  var clientDisplay = document.getElementById('paymentClientDisplay');
+  if (clientDisplay) clientDisplay.textContent = clientObj ? (clientObj['الاسم'] || '—') : (rel ? rel['رقم_الموكل'] : '—');
+  var caseDisplay = document.getElementById('paymentCaseDisplay');
+  if (caseDisplay) caseDisplay.textContent = rel ? rel['رقم_القضية'] : '—';
+  var agreedDisplay = document.getElementById('paymentAgreedDisplay');
+  if (agreedDisplay) agreedDisplay.textContent = info.agreedTotal.toLocaleString('ar-EG') + ' ج.م';
+  var collectedDisplay = document.getElementById('paymentCollectedDisplay');
+  if (collectedDisplay) collectedDisplay.textContent = info.collected.toLocaleString('ar-EG') + ' ج.م';
+  var remainingDisplay = document.getElementById('paymentRemainingDisplay');
+  if (remainingDisplay) remainingDisplay.textContent = info.remaining.toLocaleString('ar-EG') + ' ج.م';
+}
+
+/** _resetPaymentDisplays() — blanks the summary block back to placeholders (e.g. no case/relationship chosen yet). */
+function _resetPaymentDisplays() {
+  ['paymentClientDisplay', 'paymentCaseDisplay'].forEach(function (id) {
+    var el = document.getElementById(id); if (el) el.textContent = '—';
+  });
+  ['paymentAgreedDisplay', 'paymentCollectedDisplay', 'paymentRemainingDisplay'].forEach(function (id) {
+    var el = document.getElementById(id); if (el) el.textContent = '0 ج.م';
+  });
+}
+
+/**
+ * submitPayment() — reads #modalFeePayment's fields, builds the
+ * payment object (رقم_القضية/رقم_الموكل/اسم_الموكل/رقم_علاقة all
+ * derived from the chosen/locked relationship — never re-typed by the
+ * user), and calls createFeePayment(). On EXCEEDS_REMAINING (PHASE 8
+ * §4), offers "تسجيل المتبقي فقط" via the project's existing
+ * confirmDialog() primitive rather than silently allowing overpayment
+ * or building new custom UI.
+ */
+async function submitPayment() {
+  var relSel = document.getElementById('fPaymentRelationship');
+  var relationshipId = (_paymentContext && _paymentContext.relationshipId) ? _paymentContext.relationshipId : (relSel ? relSel.value : '');
+
+  if (!relationshipId) { toast('يرجى اختيار القضية والعلاقة أولاً', 'error'); return; }
+
+  var rel = (typeof data !== 'undefined' && data.caseClients ? data.caseClients : [])
+    .filter(function (r) { return r.id === relationshipId; })[0];
+  if (!rel) { toast('العلاقة غير موجودة', 'error'); return; }
+
+  var amount = parseFloat((document.getElementById('fPaymentAmount') || {}).value);
+  if (!amount || amount <= 0) { toast('يرجى إدخال مبلغ صحيح', 'error'); return; }
+
+  var clientObj = (typeof data !== 'undefined' && data.clients ? data.clients : [])
+    .filter(function (c) { return c['رقم_الموكل'] === rel['رقم_الموكل']; })[0];
+
+  var paymentData = {
+    'رقم_القضية': rel['رقم_القضية'],
+    'رقم_الموكل': rel['رقم_الموكل'],
+    'اسم_الموكل': clientObj ? clientObj['الاسم'] : '',
+    'رقم_علاقة': relationshipId,
+    'المبلغ': amount,
+    'تاريخ_الاستلام': (document.getElementById('fPaymentDate') || {}).value || new Date().toISOString().slice(0, 10),
+    'طريقة_الدفع': (document.getElementById('fPaymentMethod') || {}).value || '',
+    'نوع_الأتعاب': (document.getElementById('fPaymentType') || {}).value || '',
+    'الملاحظات': (document.getElementById('fPaymentNotes') || {}).value || ''
+  };
+
+  var result = await createFeePayment(paymentData);
+
+  if (!result || !result.success) {
+    if (result && result.error && result.error.code === 'EXCEEDS_REMAINING') {
+      var remaining = result.error.remaining;
+      var confirmed = await confirmDialog(
+        'المتبقي الحالي ' + remaining.toLocaleString('ar-EG') + ' ج.م، والمبلغ المدخل ' + amount.toLocaleString('ar-EG') +
+        ' ج.م يتجاوز المتبقي. هل تريد تسجيل ' + remaining.toLocaleString('ar-EG') + ' ج.م فقط؟',
+        'تجاوز المتبقي'
+      );
+      if (confirmed) {
+        paymentData['المبلغ'] = remaining;
+        var retryResult = await createFeePayment(paymentData);
+        if (retryResult && retryResult.success) { _onPaymentSaved(); return; }
+        toast('حدث خطأ أثناء تسجيل الدفعة', 'error');
+        return;
+      }
+      return; // user cancelled — leave the modal open so they can edit the amount themselves
+    }
+    toast((result && result.error && result.error.message) || 'حدث خطأ أثناء تسجيل الدفعة', 'error');
+    return;
+  }
+
+  _onPaymentSaved();
+}
+
+/** _onPaymentSaved() — closes the modal and refreshes every affected view (Fees page always; Case/Client view only if the caller passed caseIdx/clientIdx context). */
+function _onPaymentSaved() {
+  toast('تم تسجيل الدفعة', 'success');
+  closeModal('modalFeePayment');
+  if (typeof renderFees === 'function') renderFees();
+  var ctx = _paymentContext || {};
+  if (typeof ctx.caseIdx === 'number' && typeof viewCase === 'function') viewCase(ctx.caseIdx);
+  if (typeof ctx.clientIdx === 'number' && typeof viewClient === 'function') viewClient(ctx.clientIdx);
+  _paymentContext = null;
+}
+
 // ================================================================
 // Node/test export (browser: `module` is undefined, this is a no-op —
 // renderFees/saveFee/editFee/deleteFee remain plain global functions
@@ -825,6 +1152,19 @@ if (typeof module !== 'undefined' && module.exports) {
     saveFee: saveFee,
     editFee: editFee,
     deleteFee: deleteFee,
-    restoreFee: restoreFee
+    restoreFee: restoreFee,
+    createFeePayment: createFeePayment,
+    openPaymentModal: openPaymentModal,
+    onPaymentCaseSelected: onPaymentCaseSelected,
+    onPaymentRelationshipSelected: onPaymentRelationshipSelected,
+    submitPayment: submitPayment
   };
+}
+
+if (typeof window !== 'undefined') {
+  window.createFeePayment = createFeePayment;
+  window.openPaymentModal = openPaymentModal;
+  window.onPaymentCaseSelected = onPaymentCaseSelected;
+  window.onPaymentRelationshipSelected = onPaymentRelationshipSelected;
+  window.submitPayment = submitPayment;
 }

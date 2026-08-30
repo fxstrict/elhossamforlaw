@@ -490,8 +490,13 @@ function renderDocuments() {
 async function saveDocument() {
   var c = document.getElementById('fDocCaseNum').value.trim();
   var n = document.getElementById('fDocName').value.trim();
-  if (!c || !n) {
-    toast('يرجى ملء رقم القضية واسم المستند', 'error');
+  // CASES_RELATIONSHIP_FINANCIAL قرار §3-L: "لا تجبر المستخدم على إنشاء
+  // قضية" لمستند خاص بموكل. رقم القضية لم يعد إلزاميًا وحده — يكفي
+  // أحد الحقلين (قضية أو موكل)، مطابقًا تمامًا لتحقق DocumentsRepository.
+  var clientIdEl = document.getElementById('fDocClientId');
+  var clientId = clientIdEl ? clientIdEl.value.trim() : '';
+  if ((!c && !clientId) || !n) {
+    toast(!n ? 'يرجى إدخال اسم المستند' : 'يرجى اختيار قضية أو موكل للمستند', 'error');
     return;
   }
 
@@ -548,8 +553,94 @@ function editDocument(i) {
   editIdx.documents = i;
   populateCaseDropdown('fDocCaseNum', data.documents[i]['رقم_القضية']);
   fillForm('documents', data.documents[i]);
+  // CASES_RELATIONSHIP_FINANCIAL قرار §3-L: استعادة اختيار الموكل عند التعديل.
+  syncDocClientSelectorFromRecord(data.documents[i]);
   document.getElementById('modalDocTitle').textContent = 'تعديل المستند';
   document.getElementById('modalDocument').classList.add('open');
+}
+
+// ================================================================
+// CASES_RELATIONSHIP_FINANCIAL قرار §3-L — CLIENT SELECTOR: بنفس نمط
+// tasks.js's taskClientSelector* حرفيًا (نفس CSS classes:
+// client-selector-box/panel/search/list/chips — صفر CSS جديد). موكل
+// واحد لكل مستند (Single-select)، بلا cascade لقائمة القضايا (مستقلة
+// عن بعضها هنا، خلافًا لـ tasks.js).
+// ================================================================
+var _docSelectedClientId = '';
+
+function toggleDocClientSelector(evt) {
+  if (evt) evt.stopPropagation();
+  var panel = document.getElementById('docClientSelectorPanel');
+  if (!panel) return;
+  var willOpen = !panel.classList.contains('open');
+  document.querySelectorAll('.client-selector-panel').forEach(function (p) { p.classList.remove('open'); });
+  if (willOpen) {
+    panel.classList.add('open');
+    renderDocClientSelectorList();
+    var search = document.getElementById('docClientSelectorSearch');
+    if (search) { search.value = ''; search.focus(); }
+  }
+}
+
+function renderDocClientSelectorList() {
+  var list = document.getElementById('docClientSelectorList');
+  if (!list) return;
+  var q = (document.getElementById('docClientSelectorSearch') ? document.getElementById('docClientSelectorSearch').value : '').trim().toLowerCase();
+  var all = (data.clients || []).slice().sort(function (a, b) {
+    return String(a['الاسم'] || '').localeCompare(String(b['الاسم'] || ''), 'ar');
+  });
+  var filtered = q ? all.filter(function (c) {
+    return String(c['الاسم'] || '').toLowerCase().indexOf(q) !== -1 ||
+      String(c['الرقم_القومي'] || '').toLowerCase().indexOf(q) !== -1;
+  }) : all;
+
+  if (!filtered.length) {
+    list.innerHTML = '<div class="client-selector-empty">لا يوجد موكلين مطابقين — يمكنك إضافة موكل جديد من صفحة الموكلين.</div>';
+  } else {
+    list.innerHTML = filtered.map(function (c) {
+      var id = c['رقم_الموكل'];
+      var checked = _docSelectedClientId === id;
+      return '<div class="client-selector-item' + (checked ? ' selected' : '') + '" onclick="selectDocClient(\'' + id + '\')">' +
+        '<span>' + escapeHtml(c['الاسم'] || '—') + (c['الهاتف'] ? ' <small>(' + escapeHtml(c['الهاتف']) + ')</small>' : '') + '</span>' +
+      '</div>';
+    }).join('');
+  }
+}
+
+function selectDocClient(id) {
+  _docSelectedClientId = id;
+  var idEl = document.getElementById('fDocClientId');
+  if (idEl) idEl.value = id;
+  renderDocClientSelectorChips();
+  var panel = document.getElementById('docClientSelectorPanel');
+  if (panel) panel.classList.remove('open');
+}
+
+function removeDocClient() {
+  _docSelectedClientId = '';
+  var idEl = document.getElementById('fDocClientId');
+  if (idEl) idEl.value = '';
+  renderDocClientSelectorChips();
+}
+
+function renderDocClientSelectorChips() {
+  var chips = document.getElementById('docClientSelectorChips');
+  if (!chips) return;
+  if (!_docSelectedClientId) {
+    chips.innerHTML = '<span class="client-selector-placeholder">اضغط لاختيار الموكل...</span>';
+    return;
+  }
+  var client = (data.clients || []).filter(function (c) { return c['رقم_الموكل'] === _docSelectedClientId; })[0];
+  var label = client ? client['الاسم'] : _docSelectedClientId;
+  chips.innerHTML = '<span class="client-chip">' + escapeHtml(label) +
+    '<button type="button" class="client-chip-remove" onclick="event.stopPropagation();removeDocClient()" title="إزالة">&times;</button></span>';
+}
+
+function syncDocClientSelectorFromRecord(record) {
+  _docSelectedClientId = record ? (record['رقم_الموكل'] || '') : '';
+  var idEl = document.getElementById('fDocClientId');
+  if (idEl) idEl.value = _docSelectedClientId;
+  renderDocClientSelectorChips();
 }
 
 /**
@@ -770,6 +861,117 @@ if (typeof module !== 'undefined' && module.exports) {
     saveDocument: saveDocument,
     editDocument: editDocument,
     deleteDocument: deleteDocument,
-    restoreDocument: restoreDocument
+    restoreDocument: restoreDocument,
+    selectDocClient: selectDocClient,
+    removeDocClient: removeDocClient,
+    renderDocClientSelectorChips: renderDocClientSelectorChips,
+    syncDocClientSelectorFromRecord: syncDocClientSelectorFromRecord,
+    _createEmbeddedDocumentIfFilled: _createEmbeddedDocumentIfFilled
   };
+}
+
+// ================================================================
+// OVERRIDE saveCase — create an embedded مستند (Document) when the
+// case-modal's "المستندات" tab was filled in (optional — decision
+// §4). Same wrap pattern as sessions.js/tasks.js/process-server-
+// works.js this session — non-fatal on failure, doesn't block the
+// case save. Unlike محضرين's tab, رقم_القضية is always known here
+// (saveCase() already required it), so no silent-skip tradeoff is
+// needed — DocumentsRepository's "رقم_القضية OR رقم_الموكل" validation
+// (decision §3-L) is always satisfiable in this context.
+// ================================================================
+if (typeof saveCase === 'function') {
+  var _origSaveCaseForEmbeddedDocument = saveCase;
+  saveCase = function () {
+    var result = _origSaveCaseForEmbeddedDocument.apply(this, arguments);
+    if (result && typeof result.then === 'function') {
+      return result.then(function (saveOutcome) {
+        // CASE_SAVE_CYCLE_FIX_2026 — only harvest the "المستندات" tab into a
+        // real record when the case itself actually saved (see tasks.js's
+        // identical fix for the full rationale).
+        if (!saveOutcome || !saveOutcome.success) return saveOutcome;
+        return _createEmbeddedDocumentIfFilled().then(function () { return saveOutcome; });
+      });
+    }
+    return result;
+  };
+}
+
+/**
+ * _createEmbeddedDocumentIfFilled — reads the "المستندات" tab's
+ * fields; if اسم_المستند is present (DocumentsRepository's own
+ * required field, alongside the case/client link), creates a real
+ * Documents record linked to the just-saved case AND its first
+ * selected client (same §4 convention as عمل اداري/محضرين — read from
+ * the live-synced #fCaseClients hidden field, not clients.js's
+ * private state).
+ * @returns {Promise<void>}
+ */
+function _createEmbeddedDocumentIfFilled() {
+  var nameEl = document.getElementById('fCaseDocName');
+  var name = nameEl ? nameEl.value.trim() : '';
+  if (!name) return Promise.resolve(); // tab left empty — nothing to do
+
+  var caseNumEl = document.getElementById('fCaseNum');
+  var caseNum = caseNumEl ? caseNumEl.value.trim() : '';
+  if (!caseNum) return Promise.resolve(); // defensive — saveCase() already requires this
+
+  var clientId = '';
+  var clientsHidden = document.getElementById('fCaseClients');
+  if (clientsHidden && clientsHidden.value) {
+    try {
+      var ids = JSON.parse(clientsHidden.value);
+      if (Array.isArray(ids) && ids.length) clientId = ids[0]; // "أول موكل فى القضية"
+    } catch (e) { /* malformed/absent — proceed without a client link, non-fatal */ }
+  }
+
+  var typeEl = document.getElementById('fCaseDocType');
+  var driveUrlEl = document.getElementById('fCaseDocDriveUrl');
+  var notesEl = document.getElementById('fCaseDocNotes');
+  // PROBLEM 12 (Case Save Cycle audit, v80 — extended to المستندات per
+  // user report): same field/values already used by the standalone
+  // #modalDocument screen (#fDocPortalVisible -> 'ظاهر_للموكل') — read
+  // here so the choice made while registering the case is what actually
+  // gets saved, instead of forcing a second open-edit-save round trip
+  // on the standalone screen afterwards. No new field/Data-Model was
+  // introduced; default ('لا' — hidden) is unchanged when left
+  // untouched (#fCaseDocPortalVisible's own first <option> has no
+  // `selected` override, same convention as the standalone select).
+  var portalVisibleEl = document.getElementById('fCaseDocPortalVisible');
+
+  return ensureDocumentsRepositoryReady().then(function () {
+    return documentsRepository.create({
+      'اسم_المستند': name,
+      'رقم_القضية': caseNum,
+      'رقم_الموكل': clientId,
+      'نوع_المستند': typeEl ? typeEl.value : '',
+      'رابط_Drive': driveUrlEl ? driveUrlEl.value.trim() : '',
+      'الملاحظات': notesEl ? notesEl.value.trim() : '',
+      'ظاهر_للموكل': portalVisibleEl ? portalVisibleEl.value : 'لا'
+    });
+  }).then(function (result) {
+    if (result && result.success) {
+      syncDocumentsMirror();
+      // CASE_SAVE_CYCLE_AUDIT (Problem 8 wrapper-chain audit — same defect
+      // family as Problem 3/4/tasks.js above): push the new record to
+      // Google Sheets exactly like the standalone saveDocument() always
+      // does — this embedded path only ever called syncDocumentsMirror()
+      // (a local IndexedDB mirror refresh), so the مستند existed locally
+      // but never reached Sheets/Client Portal. idx is intentionally -1:
+      // this branch only runs on a successful create(), never an update.
+      if (typeof ApiService !== 'undefined' && ApiService.syncRow) {
+        ApiService.syncRow('المستندات', result.record, -1);
+      }
+      [nameEl, driveUrlEl, notesEl].forEach(function (el) { if (el) el.value = ''; });
+      if (typeEl) typeEl.selectedIndex = 0;
+      if (portalVisibleEl) portalVisibleEl.selectedIndex = 0;
+      if (typeof updateBadges === 'function') updateBadges();
+    } else if (typeof console !== 'undefined' && console.error) {
+      console.error('Embedded document creation failed:', result && result.error);
+    }
+  }).catch(function (err) {
+    if (typeof console !== 'undefined' && console.error) {
+      console.error('Embedded document creation failed:', err);
+    }
+  });
 }

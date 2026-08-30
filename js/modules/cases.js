@@ -666,7 +666,19 @@ async function saveCase() {
 
   if (!num || !title || !client) {
     toast('يرجى ملء الحقول الإلزامية', 'error');
-    return;
+    return { success: false, record: null, error: { type: 'ValidationError', message: 'يرجى ملء الحقول الإلزامية' } };
+  }
+
+  // CASES_RELATIONSHIP_FINANCIAL قرار §3-E: القضية لا يمكن أن تكون
+  // "درجة سابقة" لنفسها. populateCaseDropdown('fCaseParentCase', ...)
+  // لا يستبعد القضية الحالية من قائمتها الخاصة بها (نفس الدالة
+  // المشتركة مع sessions.js) — الحماية هنا بدلاً من تعديل تلك الدالة
+  // المشتركة.
+  var parentCaseEl = document.getElementById('fCaseParentCase');
+  var parentCaseNum = parentCaseEl ? parentCaseEl.value.trim() : '';
+  if (parentCaseNum && parentCaseNum === num) {
+    toast('لا يمكن ربط القضية بنفسها كدرجة سابقة', 'error');
+    return { success: false, record: null, error: { type: 'ValidationError', message: 'لا يمكن ربط القضية بنفسها كدرجة سابقة' } };
   }
 
   await ensureCasesRepositoryReady();
@@ -674,6 +686,26 @@ async function saveCase() {
   var obj = collectForm('cases');
   obj['تاريخ_الإنشاء'] = obj['تاريخ_الإنشاء'] || new Date().toISOString();
   obj['آخر_تحديث']     = new Date().toISOString();
+
+  // CASES_RELATIONSHIP_FINANCIAL قرار §3-E: اشتقاق مجموعة_تقاضي —
+  // معرّف مشترك بين كل درجات نفس السلسلة (راجع تعليق SHEET_DEFS فى
+  // Config/00_Config.gs). عند الربط بدرجة سابقة: نرث مجموعتها (أو
+  // نُنشئ واحدة من رقم_القضية الخاص بها إن لم تكن قد انضمت لسلسلة من
+  // قبل، ونُحدّثها هى نفسها بنفس القيمة كى تشترك الدرجتان فى نفس
+  // المجموعة من الآن). بدون ربط: تُحفظ أى قيمة مجموعة سابقة كما هى
+  // (تعديل قضية موجودة ضمن سلسلة بالفعل)، ولا تُخترع مجموعة جديدة
+  // لقضية غير مرتبطة بأي سلسلة.
+  if (parentCaseNum) {
+    var parentIdx = data.cases.findIndex(function (c) { return c['رقم_القضية'] === parentCaseNum; });
+    var parentCase = parentIdx >= 0 ? data.cases[parentIdx] : null;
+    if (parentCase) {
+      var group = parentCase['مجموعة_تقاضي'] || parentCase['رقم_القضية'];
+      obj['مجموعة_تقاضي'] = group;
+      if (!parentCase['مجموعة_تقاضي']) {
+        await casesRepository.update(parentCase[CASES_ID_FIELD], { 'مجموعة_تقاضي': group });
+      }
+    }
+  }
 
   var idx = editIdx.cases;
   var result;
@@ -691,7 +723,7 @@ async function saveCase() {
     } else {
       toast('حدث خطأ أثناء حفظ بيانات القضية', 'error');
     }
-    return;
+    return result || { success: false, record: null, error: { type: 'StorageError', message: 'حدث خطأ أثناء حفظ بيانات القضية' } };
   }
 
   syncCasesMirror();
@@ -712,17 +744,158 @@ async function saveCase() {
   updateBadges();
   // PHASE 16.5.1 — DIRTY PROPAGATION (additive only, see phase brief)
   if (window.ApplicationShell) { ApplicationShell.markDirty('cases'); ApplicationShell.markDirty('dashboard'); }
+
+  // CASE_SAVE_CYCLE_FIX_2026 — saveCase() now resolves to the Repository's
+  // own {success, record, error} WriteResult on every exit path (validation
+  // failure / repository failure / success), instead of falling through to
+  // an implicit `return undefined`. This lets every wrapper layer up the
+  // chain (tasks.js/documents.js/sessions.js/process-server-works.js's
+  // embedded-child creators, clients.js's قضية_موكلين reconciliation) gate
+  // their own "runs AFTER the case saves" side effects on the case having
+  // ACTUALLY saved — see docs/CHANGELOG_SAVECASE for the full contract.
+  // onclick="saveCase()" (fire-and-forget) and any caller that never reads
+  // this return value are unaffected — byte-identical behavior for them.
+  return result;
+}
+
+/**
+ * switchCaseFormTab — CASES_RELATIONSHIP_FINANCIAL: نفس نمط
+ * switchClientFormTab() (js/modules/client-fields.js) بالضبط — لا
+ * معمارية جديدة. تبديل التبويب النشط داخل نموذج إضافة/تعديل القضية.
+ * @param {string} tabId — 'info' | 'stage' | 'parties' | 'other'
+ */
+function switchCaseFormTab(tabId) {
+  var panes = document.querySelectorAll('.case-form-pane');
+  for (var i = 0; i < panes.length; i++) panes[i].style.display = 'none';
+  var pane = document.getElementById('casePane-' + tabId);
+  if (pane) pane.style.display = '';
+
+  var btns = document.querySelectorAll('#caseFormTabs .tab-btn');
+  for (var j = 0; j < btns.length; j++) {
+    btns[j].classList.toggle('active', btns[j].getAttribute('data-case-tab') === tabId);
+  }
+
+  // PROBLEM 13 (Case Wizard / Next Flow, v82): every caller of
+  // switchCaseFormTab() — openAddModal()/editCase() (index.html/this
+  // file), caseWizardNext()/caseWizardPrev() below, and a direct click
+  // on a tab button (data-case-tab onclick, index.html) — funnels
+  // through here, so this single call keeps the "التالي"/"السابق"/
+  // "حفظ القضية" footer buttons and the step-guidance banner in sync
+  // with whichever pane just became visible, regardless of HOW the user
+  // got there.
+  _updateCaseWizardUI(tabId);
+}
+
+/**
+ * getCaseTabOrder — PROBLEM 13: يستخرج ترتيب تبويبات نموذج القضية
+ * الحقيقى من الـDOM مباشرة (نفس querySelectorAll المستخدم فعلاً فى
+ * switchCaseFormTab أعلاه) بدل افتراض/تكرار ترتيب مكتوب يدويًا فى JS
+ * قد ينحرف عن index.html مستقبلاً.
+ * @returns {string[]} قيم data-case-tab بترتيب ظهورها الفعلى فى الـDOM
+ */
+function getCaseTabOrder() {
+  var btns = document.querySelectorAll('#caseFormTabs .tab-btn');
+  var order = [];
+  for (var i = 0; i < btns.length; i++) {
+    var t = btns[i] && typeof btns[i].getAttribute === 'function' ? btns[i].getAttribute('data-case-tab') : null;
+    if (t) order.push(t);
+  }
+  return order;
+}
+
+/**
+ * _caseFormCurrentTab — PROBLEM 13: يحدد التبويب النشط حاليًا من نفس
+ * أزرار caseFormTabs (الزر الحامل class 'active') بدل الاعتماد على
+ * متغير state منفصل قد يفقد التزامن مع نقر مباشر على تبويب.
+ * @returns {string|null}
+ */
+function _caseFormCurrentTab() {
+  var btns = document.querySelectorAll('#caseFormTabs .tab-btn');
+  for (var i = 0; i < btns.length; i++) {
+    if (btns[i] && btns[i].classList && btns[i].classList.contains('active')) {
+      return btns[i].getAttribute('data-case-tab');
+    }
+  }
+  return null;
+}
+
+/**
+ * caseWizardNext — PROBLEM 13: ينتقل خطوة واحدة للأمام فى الترتيب
+ * الحقيقى للتبويبات. لا يستدعى saveCase() ولا ينشئ/يحدّث أى Case فى
+ * الـRepository إطلاقًا — البيانات تبقى فى الـDOM (نفس الحقول، نفس
+ * الـmodal، لا reset ولا إعادة إنشاء) والحفظ الحقيقى الوحيد يحدث لاحقًا
+ * عند الضغط على "حفظ القضية" فى آخر تبويب. عند تبويب "أخرى" (آخر تبويب
+ * فى الترتيب الفعلى) لا تفعل شيئًا — لا "تالي" بعد آخر خطوة.
+ */
+function caseWizardNext() {
+  var order = getCaseTabOrder();
+  var current = _caseFormCurrentTab();
+  var idx = order.indexOf(current);
+  if (idx === -1 || idx >= order.length - 1) return;
+  switchCaseFormTab(order[idx + 1]);
+}
+
+/**
+ * caseWizardPrev — PROBLEM 13: عكس caseWizardNext تمامًا — خطوة واحدة
+ * للخلف، بلا حفظ وبلا مسح أى بيانات (فقط إظهار/إخفاء panes، تمامًا مثل
+ * أى نقر تبويب مباشر).
+ */
+function caseWizardPrev() {
+  var order = getCaseTabOrder();
+  var current = _caseFormCurrentTab();
+  var idx = order.indexOf(current);
+  if (idx <= 0) return;
+  switchCaseFormTab(order[idx - 1]);
+}
+
+/**
+ * _updateCaseWizardUI — PROBLEM 13: يحدّث أزرار "السابق"/"التالي"/"حفظ
+ * القضية" (#btnCasePrev/#btnCaseNext/#btnCaseSave) وشريط الإرشاد
+ * (#caseWizardHint) بناءً على موضع التبويب الحالى ضمن الترتيب الحقيقى
+ * المُستخرج من getCaseTabOrder(). آخر تبويب فى الترتيب الفعلى (سواء كان
+ * "أخرى" أو غيره لو تغيّر ترتيب index.html مستقبلاً) هو الوحيد الذى
+ * يُظهر "حفظ القضية" بدل "التالي" — بلا افتراض اسم تبويب بعينه.
+ * @param {string} tabId
+ */
+function _updateCaseWizardUI(tabId) {
+  var order = getCaseTabOrder();
+  var idx = order.indexOf(tabId);
+  var isFirst = idx <= 0;
+  var isLast = idx === -1 || idx === order.length - 1;
+
+  var btnPrev = document.getElementById('btnCasePrev');
+  var btnNext = document.getElementById('btnCaseNext');
+  var btnSave = document.getElementById('btnCaseSave');
+  var hint = document.getElementById('caseWizardHint');
+
+  if (btnPrev) btnPrev.style.display = isFirst ? 'none' : '';
+  if (btnNext) btnNext.style.display = isLast ? 'none' : '';
+  if (btnSave) btnSave.style.display = isLast ? '' : 'none';
+
+  if (hint) {
+    var totalSteps = order.length || 1;
+    var stepNum = idx === -1 ? totalSteps : idx + 1;
+    hint.textContent = isLast
+      ? ('الخطوة ' + stepNum + ' من ' + totalSteps + ' (الأخيرة) — يرجى مراجعة واستكمال بيانات جميع التبويبات قبل إنهاء تسجيل القضية.')
+      : ('الخطوة ' + stepNum + ' من ' + totalSteps + ' — أكمل بيانات هذا التبويب ثم اضغط "التالي".');
+  }
 }
 
 /**
  * editCase — فتح نموذج تعديل قضية موجودة.
- * Unchanged, 100% synchronous (audit §16.1 binding constraint —
+ * Stays 100% synchronous (audit §16.1 binding constraint —
  * js/modules/clients.js wraps this function again and depends on its
- * DOM effects being visible the instant it returns).
+ * DOM effects being visible the instant it returns). CASES_RELATIONSHIP_FINANCIAL
+ * added one line (populateCaseDropdown() call below) — still a plain
+ * synchronous DOM/data.cases read, the constraint is preserved.
  */
 function editCase(i) {
   editIdx.cases = i;
   fillForm('cases', data.cases[i]);
+  // CASES_RELATIONSHIP_FINANCIAL قرار §3-E: تعبئة قائمة "ربط بدرجة سابقة"
+  // واختيار القيمة الحالية — نفس نمط fillForm أعلاه تمامًا، متزامن بالكامل.
+  populateCaseDropdown('fCaseParentCase', data.cases[i]['قضية_أصل'] || '');
+  switchCaseFormTab('info'); // دائمًا يبدأ التعديل من أول تبويب، نفس سلوك switchClientFormTab الافتراضي
   document.getElementById('modalCaseTitle').textContent = 'تعديل القضية';
   document.getElementById('modalCase').classList.add('open');
 }
@@ -1081,6 +1254,18 @@ function viewCase(i) {
     return d['رقم_القضية'] === caseNum;
   });
 
+  // CASE_SAVE_CYCLE_FIX_2026 — B2: كانا يُحفظان ويُربطان بالقضية بشكل
+  // سليم (tasks.js/process-server-works.js) لكن لم يُعرضا هنا إطلاقًا.
+  // نفس منطق الفلترة المستخدم أعلاه لـ sessions/docs بالضبط — بلا أي
+  // تغيير فى منطق الحفظ أو الـ Repository.
+  var tasks = (data.tasks || []).filter(function(t) {
+    return t['رقم_القضية'] === caseNum;
+  });
+
+  var psw = (data.processServerWorks || []).filter(function(w) {
+    return w['رقم_القضية'] === caseNum;
+  });
+
   var children = [];
   try { children = JSON.parse(c['أطفال_القضية'] || '[]'); } catch(e) {}
 
@@ -1115,7 +1300,7 @@ function viewCase(i) {
     }
   }
 
-  var html = buildCaseReport(c, sessions, docs, children);
+  var html = buildCaseReport(c, sessions, docs, children, tasks, psw);
 
   document.getElementById('viewModalTitle').innerHTML =
     '&#128065; عرض القضية: ' + escapeHtml(caseNum) + ' — ' + escapeHtml(c['عنوان_القضية'] || '');
@@ -1132,10 +1317,55 @@ function viewCase(i) {
 }
 
 /**
+ * getLitigationChain — returns the ordered (root -> leaf) list of case
+ * records belonging to the same litigation-stage chain as `caseNum`
+ * (CASES_RELATIONSHIP_FINANCIAL قرار §3-E: "يجب أن تظهر سلسلة القضايا
+ * مترابطة: ابتدائي ← استئناف ← نقض"). Assumes a single linear chain
+ * per group (matches every example in the decision text — no branching
+ * support needed). Returns just [caseRecord] when the case has no
+ * مجموعة_تقاضي (not part of any chain) or isn't found at all.
+ * @param {string} caseNum
+ * @returns {Array<object>}
+ */
+function getLitigationChain(caseNum) {
+  var c = (data.cases || []).find(function (x) { return x['رقم_القضية'] === caseNum; });
+  if (!c) return [];
+  var group = c['مجموعة_تقاضي'];
+  if (!group) return [c];
+
+  var members = data.cases.filter(function (x) { return x['مجموعة_تقاضي'] === group; });
+  var byNum = {};
+  members.forEach(function (m) { byNum[m['رقم_القضية']] = m; });
+
+  var root = members.find(function (m) { return !m['قضية_أصل'] || !byNum[m['قضية_أصل']]; }) || members[0];
+
+  var chain = [root];
+  var seen = {};
+  seen[root['رقم_القضية']] = true;
+  var current = root;
+  // Linear walk, not recursive — bounded by members.length so a data
+  // anomaly (e.g. a cycle) can never infinite-loop this.
+  while (chain.length < members.length) {
+    var next = members.find(function (m) { return m['قضية_أصل'] === current['رقم_القضية'] && !seen[m['رقم_القضية']]; });
+    if (!next) break;
+    chain.push(next);
+    seen[next['رقم_القضية']] = true;
+    current = next;
+  }
+  return chain;
+}
+
+/**
  * buildCaseReport — builds the full HTML report string for a case.
  * Used by viewCase() and quickPrintCase().
+ * CASE_SAVE_CYCLE_FIX_2026 — B2: `tasks`/`psw` are new, optional
+ * (default []) trailing params — both existing call sites (viewCase(),
+ * quickPrintCase()) now pass them; backward-compatible for any other
+ * future caller that doesn't.
  */
-function buildCaseReport(c, sessions, docs, children) {
+function buildCaseReport(c, sessions, docs, children, tasks, psw) {
+  tasks = tasks || [];
+  psw = psw || [];
   var today = new Date().toLocaleDateString('ar-EG', {
     year: 'numeric', month: 'long', day: 'numeric', weekday: 'long'
   });
@@ -1180,6 +1410,79 @@ function buildCaseReport(c, sessions, docs, children) {
           vf('الجلسة القادمة', formatDate(c['تاريخ_الجلسة_القادمة'])) +
           vf('أتعاب المحاماة', c['أتعاب_المحاماة'] ? c['أتعاب_المحاماة'] + ' ج.م' : '');
   html += '</div></div>';
+
+  // CASES_RELATIONSHIP_FINANCIAL قرار §3-E: سلسلة درجات التقاضي — يعيد
+  // استخدام .client-chip الموجودة (css/components.css) بدلاً من إضافة
+  // CSS جديد، مع تمييز بسيط inline للدرجة الحالية فقط.
+  var chain = getLitigationChain(c['رقم_القضية']);
+  if (chain.length > 1) {
+    html += '<div class="view-section"><div class="view-section-title">&#9878; سلسلة درجات التقاضي</div><div>';
+    html += chain.map(function (stageCase, idx) {
+      var isCurrent = stageCase['رقم_القضية'] === c['رقم_القضية'];
+      var label = (stageCase['درجة_التقاضي'] || ('درجة ' + (idx + 1))) + ' — ' + (stageCase['رقم_القضية'] || '');
+      var style = isCurrent ? ' style="font-weight:700;border-color:var(--gold, #C9A84C);"' : '';
+      return '<span class="client-chip"' + style + '>' + escapeHtml(label) + '</span>';
+    }).join(' <span style="color:#999;">&#8592;</span> ');
+    html += '</div></div>';
+  }
+
+  // CASES_RELATIONSHIP_FINANCIAL قرار §18/§3-G: صافي عائد القضية —
+  // إجمالي أتعاب القضية - مصروفات القضية. يُستدعي getCaseNet() من
+  // js/modules/financial-reports.js (كان مبنيًا ومُختبرًا لكن غير
+  // مُستخدم فى أي واجهة إطلاقًا حتى هذا الإصلاح).
+  if (typeof getCaseNet === 'function') {
+    var caseNet = getCaseNet(c['رقم_القضية']);
+    if (caseNet.totalFees || caseNet.totalExpenses) {
+      html += '<div class="view-section"><div class="view-section-title">&#128202; صافي عائد القضية</div>';
+      html += '<div class="hsm-table-scroll"><table style="width:100%;min-width:320px;font-size:12px;border-collapse:collapse;">' +
+        '<tr><td style="padding:7px 10px;border:1px solid #e8e0d0;">إجمالي الأتعاب</td>' +
+          '<td style="padding:7px 10px;border:1px solid #e8e0d0;font-weight:700;color:#1ab46c;">' + caseNet.totalFees.toLocaleString('ar-EG') + ' ج.م</td></tr>' +
+        '<tr><td style="padding:7px 10px;border:1px solid #e8e0d0;">إجمالي المصروفات</td>' +
+          '<td style="padding:7px 10px;border:1px solid #e8e0d0;font-weight:700;color:#c0392b;">' + caseNet.totalExpenses.toLocaleString('ar-EG') + ' ج.م</td></tr>' +
+        '<tr style="background:#f0f8f4;"><td style="padding:8px 10px;border:1px solid #e8e0d0;font-weight:900;">صافي العائد</td>' +
+          '<td style="padding:8px 10px;border:1px solid #e8e0d0;font-weight:900;color:' + (caseNet.net >= 0 ? '#1ab46c' : '#c0392b') + ';">' + caseNet.net.toLocaleString('ar-EG') + ' ج.م</td></tr>' +
+        '</table></div></div>';
+    }
+    // CASES_RELATIONSHIP_FINANCIAL PHASE 8 — SECURITY + PAYMENT WORKFLOW:
+    // per-RELATIONSHIP rows (a case can have more than one client — e.g.
+    // plaintiff AND defendant both represented — each with their own
+    // أتعاب_العلاقة), each with a real "إضافة دفعة" button wired to
+    // openPaymentModal({relationshipId, caseIdx}) — PHASE 7 §12 GAP FOUND
+    // ("createFeePayment() لا يوجد لها consumer حقيقي في UI") — this is
+    // that consumer. caseIdx is resolved here (buildCaseReport itself has
+    // no index parameter) so _onPaymentSaved() can re-render this exact
+    // view after a successful payment.
+    var caseRelationships = (typeof data !== 'undefined' && data.caseClients ? data.caseClients : [])
+      .filter(function (r) { return r['رقم_القضية'] === c['رقم_القضية']; });
+    if (caseRelationships.length && typeof getRelationshipRemaining === 'function') {
+      var thisCaseIdx = (typeof resolveCaseIndex === 'function') ? resolveCaseIndex(data.cases, c) : -1;
+      html += '<div class="view-section"><div class="view-section-title">&#128176; الأتعاب المتفق عليها ' +
+        '<button class="btn btn-ghost btn-sm" style="float:left;" onclick="openLedger(\'case\',\'' + escapeHtml(c['رقم_القضية']) + '\')">&#128179; كشف الحساب</button></div>';
+      html += '<div class="hsm-table-scroll"><table style="width:100%;min-width:480px;font-size:12px;border-collapse:collapse;">' +
+        '<tr style="background:#f5f0e6;"><th style="padding:7px 10px;border:1px solid #e8e0d0;">الموكل</th>' +
+          '<th style="padding:7px 10px;border:1px solid #e8e0d0;">الصفة</th>' +
+          '<th style="padding:7px 10px;border:1px solid #e8e0d0;">المتفق عليه</th>' +
+          '<th style="padding:7px 10px;border:1px solid #e8e0d0;">المحصَّل</th>' +
+          '<th style="padding:7px 10px;border:1px solid #e8e0d0;">المتبقي</th>' +
+          '<th style="padding:7px 10px;border:1px solid #e8e0d0;"></th></tr>';
+      caseRelationships.forEach(function (rel) {
+        var relClient = (data.clients || []).filter(function (cl) { return cl['رقم_الموكل'] === rel['رقم_الموكل']; })[0];
+        var relClientName = relClient ? (relClient['الاسم'] || '—') : (rel['رقم_الموكل'] || '—');
+        var relInfo = getRelationshipRemaining(rel.id);
+        if (!relInfo.agreedTotal) return; // no agreed fee entered on this relationship — nothing to show for it here
+        html += '<tr>' +
+          '<td style="padding:7px 10px;border:1px solid #e8e0d0;">' + escapeHtml(relClientName) + '</td>' +
+          '<td style="padding:7px 10px;border:1px solid #e8e0d0;">' + escapeHtml(rel['الصفة'] || '—') + '</td>' +
+          '<td style="padding:7px 10px;border:1px solid #e8e0d0;font-weight:700;">' + relInfo.agreedTotal.toLocaleString('ar-EG') + '</td>' +
+          '<td style="padding:7px 10px;border:1px solid #e8e0d0;font-weight:700;color:#1ab46c;">' + relInfo.collected.toLocaleString('ar-EG') + '</td>' +
+          '<td style="padding:7px 10px;border:1px solid #e8e0d0;font-weight:900;color:' + (relInfo.remaining > 0 ? '#c0392b' : '#1ab46c') + ';">' + relInfo.remaining.toLocaleString('ar-EG') + '</td>' +
+          '<td style="padding:7px 10px;border:1px solid #e8e0d0;">' +
+            '<button class="btn btn-primary btn-sm" onclick="openPaymentModal({relationshipId:\'' + escapeHtml(rel.id) + '\', caseIdx:' + thisCaseIdx + '})">&#128176; إضافة دفعة</button>' +
+          '</td></tr>';
+      });
+      html += '</table></div></div>';
+    }
+  }
 
   // الموكل
   html += '<div class="view-section"><div class="view-section-title">&#128100; بيانات الموكل (' + f(c['نوع_الموكل']) + ')</div><div class="view-grid">';
@@ -1277,6 +1580,46 @@ function buildCaseReport(c, sessions, docs, children) {
   }
   html += '</div>';
 
+  // CASE_SAVE_CYCLE_FIX_2026 — B2: الأعمال الإدارية المرتبطة بالقضية.
+  // كانت تُحفظ وتُربط بالقضية بشكل سليم بالفعل (tasks.js) لكن لم تُعرض
+  // هنا إطلاقًا — قسم عرض بحت، لا يمس منطق الحفظ. نفس نمط .view-section
+  // المستخدم لبقية الأقسام (لا CSS جديد، لا حاوية متداخلة، لا
+  // overflow/max-height ثابت يمكن أن يقصّ المحتوى).
+  if (tasks.length > 0) {
+    html += '<div class="view-section"><div class="view-section-title">&#128203; الأعمال الإدارية المرتبطة (' + tasks.length + ')</div>';
+    tasks.forEach(function(t) {
+      html += '<div class="view-field-full">' +
+        '<div class="view-label">' + f(t['العنوان']) + '</div>' +
+        '<div class="view-value" style="font-weight:400;font-size:12px;">' +
+          (t['الأولوية'] ? 'الأولوية: ' + escapeHtml(t['الأولوية']) + ' &nbsp;|&nbsp; ' : '') +
+          (t['الموعد_النهائي'] ? 'الموعد النهائي: ' + escapeHtml(formatDate(t['الموعد_النهائي'])) + ' &nbsp;|&nbsp; ' : '') +
+          'الحالة: ' + escapeHtml(t['الحالة'] || '—') +
+          (t['المطلوب'] ? '<br>' + escapeHtml(t['المطلوب']) : '') +
+        '</div>' +
+      '</div>';
+    });
+    html += '</div>';
+  }
+
+  // CASE_SAVE_CYCLE_FIX_2026 — B2: أعمال المحضرين المرتبطة بالقضية —
+  // نفس ملاحظة القسم أعلاه (عرض بحت فقط).
+  if (psw.length > 0) {
+    html += '<div class="view-section"><div class="view-section-title">&#128231; أعمال المحضرين المرتبطة (' + psw.length + ')</div>';
+    psw.forEach(function(w) {
+      html += '<div class="view-field-full">' +
+        '<div class="view-label">' + f(w['طبيعة_الاعلان']) + '</div>' +
+        '<div class="view-value" style="font-weight:400;font-size:12px;">' +
+          (w['رقم_المحضرين'] ? 'رقم المحضرين: ' + escapeHtml(w['رقم_المحضرين']) + ' &nbsp;|&nbsp; ' : '') +
+          (w['قلم_المحضرين'] ? 'قلم المحضرين: ' + escapeHtml(w['قلم_المحضرين']) + ' &nbsp;|&nbsp; ' : '') +
+          'الحالة: ' + escapeHtml(w['الحالة'] || '—') +
+          (w['تاريخ_التسليم'] ? '<br>تاريخ التسليم: ' + escapeHtml(formatDate(w['تاريخ_التسليم'])) : '') +
+          (w['تاريخ_الاستلام'] ? ' &nbsp;|&nbsp; تاريخ الاستلام: ' + escapeHtml(formatDate(w['تاريخ_الاستلام'])) : '') +
+        '</div>' +
+      '</div>';
+    });
+    html += '</div>';
+  }
+
   // الأحكام والتنفيذ
   if (c['قرارات_المحكمة'] || c['تاريخ_الحكم'] || c['رقم_التنفيذ']) {
     html += '<div class="view-section"><div class="view-section-title">&#128296; الأحكام والتنفيذ</div><div class="view-grid">';
@@ -1355,10 +1698,14 @@ function quickPrintCase(i) {
     return (parseLocalDate(a['التاريخ']) || 0) - (parseLocalDate(b['التاريخ']) || 0);
   });
   var docs = data.documents.filter(function(d) { return d['رقم_القضية'] === caseNum; });
+  // CASE_SAVE_CYCLE_FIX_2026 — B2: نفس الفلترة المُضافة فى viewCase()
+  // بالضبط، حتى تعرض الطباعة السريعة نفس الأقسام الجديدة.
+  var tasks = (data.tasks || []).filter(function(t) { return t['رقم_القضية'] === caseNum; });
+  var psw = (data.processServerWorks || []).filter(function(w) { return w['رقم_القضية'] === caseNum; });
   var children = [];
   try { children = JSON.parse(c['أطفال_القضية'] || '[]'); } catch(e) {}
 
-  var body = buildCaseReport(c, sessions, docs, children);
+  var body = buildCaseReport(c, sessions, docs, children, tasks, psw);
 
   var printContent =
     '<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8">' +
@@ -1706,6 +2053,13 @@ if (typeof module !== 'undefined' && module.exports) {
     getCaseStats: getCaseStats,
     viewCase: viewCase,
     buildCaseReport: buildCaseReport,
+    getLitigationChain: getLitigationChain,
+    switchCaseFormTab: switchCaseFormTab,
+    getCaseTabOrder: getCaseTabOrder,
+    caseWizardNext: caseWizardNext,
+    caseWizardPrev: caseWizardPrev,
+    _caseFormCurrentTab: _caseFormCurrentTab,
+    _updateCaseWizardUI: _updateCaseWizardUI,
     quickPrintCase: quickPrintCase,
     quickCaseQR: quickCaseQR,
     toggleChildrenSection: toggleChildrenSection,

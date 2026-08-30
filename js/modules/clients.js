@@ -1065,45 +1065,59 @@ function buildClientReport(c) {
   }
 
   // ---- التوكيلات ----
+  // Tiles أفقية صغيرة (نفس نظام مستندات القضية في cases.js، ونفس
+  // fileIconEmoji() المعرّفة هناك — cases.js?v=42 يُحمَّل قبل
+  // clients.js?v=42 في index.html فهي متاحة كـ global جاهزة، فلا داعي
+  // لتكرارها هنا). كل بيانات الجدول القديم (النوع/رقم-حرف-سنة/مكتب
+  // التوثيق/الصفة/الظهور للموكل) محفوظة بالكامل داخل الـTile نفسها —
+  // فقط أعيد ترتيبها بصريًا، لا حذف لأي حقل كان ظاهرًا من قبل.
   var _powers = _cfParseArr(c['التوكيلات']);
   if (_powers.length) {
     html += '<div class="view-section"><div class="view-section-title">&#128196; التوكيلات (' + _powers.length + ')</div>';
-    html += '<div class="hsm-table-scroll"><table style="width:100%;min-width:520px;font-size:12px;border-collapse:collapse;">' +
-      '<tr style="background:#f5f0e8;">' +
-        '<th style="padding:7px 10px;text-align:right;border:1px solid #e8e0d0;">النوع</th>' +
-        '<th style="padding:7px 10px;text-align:right;border:1px solid #e8e0d0;">رقم/حرف/سنة</th>' +
-        '<th style="padding:7px 10px;text-align:right;border:1px solid #e8e0d0;">مكتب التوثيق</th>' +
-        '<th style="padding:7px 10px;text-align:right;border:1px solid #e8e0d0;">الصفة</th>' +
-        '<th style="padding:7px 10px;text-align:right;border:1px solid #e8e0d0;">الملف</th>' +
-        '<th style="padding:7px 10px;text-align:right;border:1px solid #e8e0d0;">ظاهر للموكل</th>' +
-      '</tr>';
+    html += '<div style="display:flex;flex-wrap:wrap;gap:10px;padding:12px 14px;">';
     _powers.forEach(function(p) {
       var _pVisible = p.visible === 'نعم';
-      html += '<tr>' +
-        '<td style="padding:7px 10px;border:1px solid #e8e0d0;">' + f(p.type) + '</td>' +
-        '<td style="padding:7px 10px;border:1px solid #e8e0d0;">' + f([p.number, p.letter, p.year].filter(Boolean).join('/')) + '</td>' +
-        '<td style="padding:7px 10px;border:1px solid #e8e0d0;">' + f(p.notaryOffice) + '</td>' +
-        '<td style="padding:7px 10px;border:1px solid #e8e0d0;">' + f(p.capacity) + '</td>' +
-        '<td style="padding:7px 10px;border:1px solid #e8e0d0;">' + (p.fileUrl ? '<a href="' + escapeHtml(p.fileUrl) + '" target="_blank">فتح</a>' : '<span class="empty">لم يُرفع بعد</span>') + '</td>' +
-        '<td style="padding:7px 10px;border:1px solid #e8e0d0;">' + (_pVisible ? '<span style="color:#1e8449;font-weight:700;">&#10003; نعم</span>' : '<span style="color:#888;">لا</span>') + '</td>' +
-      '</tr>';
+      var _pIcon = (typeof fileIconEmoji === 'function')
+        ? fileIconEmoji({ 'اسم_المستند': p.type, 'رابط_Drive': p.fileUrl })
+        : '&#128196;';
+      var _pNumLine = [p.number, p.letter, p.year].filter(Boolean).join('/');
+      var _pInner =
+        '<div style="font-size:26px;line-height:1;">' + _pIcon + '</div>' +
+        '<div style="font-size:11px;font-weight:700;color:#0D1B2A;margin-top:4px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + f(p.type) + '</div>' +
+        (_pNumLine ? '<div style="font-size:10px;color:#888;margin-top:2px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escapeHtml(_pNumLine) + '</div>' : '') +
+        (p.notaryOffice ? '<div style="font-size:10px;color:#888;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + f(p.notaryOffice) + '</div>' : '') +
+        (p.capacity ? '<div style="font-size:10px;color:#888;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + f(p.capacity) + '</div>' : '') +
+        '<div style="font-size:9px;margin-top:3px;' + (_pVisible ? 'color:#1e8449;font-weight:700;' : 'color:#aaa;') + '">' + (_pVisible ? '&#10003; ظاهر للموكل' : 'مخفي عن الموكل') + '</div>';
+      var _pTileStyle = 'display:flex;flex-direction:column;align-items:center;justify-content:flex-start;width:130px;padding:10px 8px;border:1px solid #e8e0d0;border-radius:10px;background:#faf8f3;text-align:center;text-decoration:none;';
+      html += p.fileUrl
+        ? '<a href="' + escapeHtml(p.fileUrl) + '" target="_blank" rel="noopener" style="' + _pTileStyle + '">' + _pInner + '</a>'
+        : '<div style="' + _pTileStyle + '">' + _pInner + '<div style="font-size:9px;color:#c0392b;margin-top:2px;">لم يُرفع بعد</div></div>';
     });
-    html += '</table></div></div>';
+    html += '</div></div>';
   }
 
   // ---- مستندات الموكل ----
+  // نفس نظام الـTiles (وliدون تكرار fileIconEmoji — انظر ملاحظة التوكيلات
+  // أعلاه). حالة الظهور للموكل محفوظة كما كانت، معروضة أسفل كل Tile.
   var _docs = _cfParseArr(c['المستندات']);
   if (_docs.length) {
-    html += '<div class="view-section"><div class="view-section-title">&#128193; مستندات الموكل (' + _docs.length + ')</div>' +
-      '<div class="view-field-full"><div class="view-value">' +
-      _docs.map(function(d) {
-        var _dVisible = d.visible === 'نعم';
-        var _label = d.fileUrl
-          ? '<a href="' + escapeHtml(d.fileUrl) + '" target="_blank">' + f(d.name) + '</a>'
-          : f(d.name);
-        return _label + ' <span style="font-size:11px;' + (_dVisible ? 'color:#1e8449;' : 'color:#888;') + '">(' + (_dVisible ? '&#10003; ظاهر للموكل' : 'مخفي عن الموكل') + ')</span>';
-      }).join('<br>') +
-      '</div></div></div>';
+    html += '<div class="view-section"><div class="view-section-title">&#128193; مستندات الموكل (' + _docs.length + ')</div>';
+    html += '<div style="display:flex;flex-wrap:wrap;gap:10px;padding:12px 14px;">';
+    _docs.forEach(function(d) {
+      var _dVisible = d.visible === 'نعم';
+      var _dIcon = (typeof fileIconEmoji === 'function')
+        ? fileIconEmoji({ 'اسم_المستند': d.name, 'رابط_Drive': d.fileUrl })
+        : '&#128193;';
+      var _dInner =
+        '<div style="font-size:26px;line-height:1;">' + _dIcon + '</div>' +
+        '<div style="font-size:11px;font-weight:700;color:#0D1B2A;margin-top:4px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + f(d.name) + '</div>' +
+        '<div style="font-size:9px;margin-top:3px;' + (_dVisible ? 'color:#1e8449;font-weight:700;' : 'color:#aaa;') + '">' + (_dVisible ? '&#10003; ظاهر للموكل' : 'مخفي عن الموكل') + '</div>';
+      var _dTileStyle = 'display:flex;flex-direction:column;align-items:center;justify-content:flex-start;width:110px;padding:10px 8px;border:1px solid #e8e0d0;border-radius:10px;background:#faf8f3;text-align:center;text-decoration:none;';
+      html += d.fileUrl
+        ? '<a href="' + escapeHtml(d.fileUrl) + '" target="_blank" rel="noopener" style="' + _dTileStyle + '">' + _dInner + '</a>'
+        : '<div style="' + _dTileStyle + '">' + _dInner + '</div>';
+    });
+    html += '</div></div>';
   }
 
   // ---- Notes ----
@@ -1179,6 +1193,64 @@ function buildClientReport(c) {
     html += '</table></div>';
   }
   html += '</div>';
+
+  // CASES_RELATIONSHIP_FINANCIAL قرار §18/§3-G: صافي عائد الموكل —
+  // إجمالي أتعاب الموكل - مصروفات الموكل. يُستدعي getClientNet() من
+  // js/modules/financial-reports.js (كان مبنيًا ومُختبرًا لكن غير
+  // مُستخدم فى أي واجهة إطلاقًا حتى هذا الإصلاح). نفس نمط الحماية
+  // typeof المستخدم أدناه لـ renderClientMessagesSection بالضبط.
+  if (typeof getClientNet === 'function') {
+    var net = getClientNet(c[CLIENTS_ID_FIELD]);
+    if (net.totalFees || net.totalExpenses) {
+      html += '<div class="view-section"><div class="view-section-title">&#128202; صافي عائد الموكل</div>';
+      html += '<div class="hsm-table-scroll"><table style="width:100%;min-width:320px;font-size:12px;border-collapse:collapse;">' +
+        '<tr><td style="padding:7px 10px;border:1px solid #e8e0d0;">إجمالي الأتعاب</td>' +
+          '<td style="padding:7px 10px;border:1px solid #e8e0d0;font-weight:700;color:#1ab46c;">' + net.totalFees.toLocaleString('ar-EG') + ' ج.م</td></tr>' +
+        '<tr><td style="padding:7px 10px;border:1px solid #e8e0d0;">إجمالي المصروفات</td>' +
+          '<td style="padding:7px 10px;border:1px solid #e8e0d0;font-weight:700;color:#c0392b;">' + net.totalExpenses.toLocaleString('ar-EG') + ' ج.م</td></tr>' +
+        '<tr style="background:#f0f8f4;"><td style="padding:8px 10px;border:1px solid #e8e0d0;font-weight:900;">صافي العائد</td>' +
+          '<td style="padding:8px 10px;border:1px solid #e8e0d0;font-weight:900;color:' + (net.net >= 0 ? '#1ab46c' : '#c0392b') + ';">' + net.net.toLocaleString('ar-EG') + ' ج.م</td></tr>' +
+        '</table></div></div>';
+    }
+    // CASES_RELATIONSHIP_FINANCIAL PHASE 8 — SECURITY + PAYMENT WORKFLOW:
+    // per-CASE rows (§6 of the audit prompt: list every case the client
+    // is party to, each with its own متفق عليه/محصَّل/متبقي and a real
+    // "إضافة دفعة" button — not just one client-wide aggregate). Also a
+    // "فتح القضية" link per row, satisfying §19's cross-navigation ask,
+    // reusing viewCase()/resolveCaseIndex() already defined in cases.js.
+    var clientRelationships = (typeof data !== 'undefined' && data.caseClients ? data.caseClients : [])
+      .filter(function (r) { return r['رقم_الموكل'] === c[CLIENTS_ID_FIELD]; });
+    if (clientRelationships.length && typeof getRelationshipRemaining === 'function') {
+      var thisClientIdx = (typeof resolveClientIndex === 'function') ? resolveClientIndex(data.clients, c) : -1;
+      html += '<div class="view-section"><div class="view-section-title">&#128176; القضايا والأتعاب المتفق عليها ' +
+        '<button class="btn btn-ghost btn-sm" style="float:left;" onclick="openLedger(\'client\',\'' + escapeHtml(c[CLIENTS_ID_FIELD]) + '\')">&#128179; كشف الحساب</button></div>';
+      html += '<div class="hsm-table-scroll"><table style="width:100%;min-width:560px;font-size:12px;border-collapse:collapse;">' +
+        '<tr style="background:#f5f0e6;"><th style="padding:7px 10px;border:1px solid #e8e0d0;">القضية</th>' +
+          '<th style="padding:7px 10px;border:1px solid #e8e0d0;">الصفة</th>' +
+          '<th style="padding:7px 10px;border:1px solid #e8e0d0;">المتفق عليه</th>' +
+          '<th style="padding:7px 10px;border:1px solid #e8e0d0;">المحصَّل</th>' +
+          '<th style="padding:7px 10px;border:1px solid #e8e0d0;">المتبقي</th>' +
+          '<th style="padding:7px 10px;border:1px solid #e8e0d0;"></th></tr>';
+      clientRelationships.forEach(function (rel) {
+        var relInfo = getRelationshipRemaining(rel.id);
+        if (!relInfo.agreedTotal) return;
+        var relCaseIdx = (typeof resolveCaseIndex === 'function')
+          ? resolveCaseIndex(data.cases, (data.cases || []).filter(function (cs) { return cs['رقم_القضية'] === rel['رقم_القضية']; })[0])
+          : -1;
+        html += '<tr>' +
+          '<td style="padding:7px 10px;border:1px solid #e8e0d0;">' + escapeHtml(rel['رقم_القضية'] || '—') +
+            (relCaseIdx > -1 ? ' <button class="btn btn-ghost btn-sm" onclick="viewCase(' + relCaseIdx + ')">&#128065; فتح القضية</button>' : '') + '</td>' +
+          '<td style="padding:7px 10px;border:1px solid #e8e0d0;">' + escapeHtml(rel['الصفة'] || '—') + '</td>' +
+          '<td style="padding:7px 10px;border:1px solid #e8e0d0;font-weight:700;">' + relInfo.agreedTotal.toLocaleString('ar-EG') + '</td>' +
+          '<td style="padding:7px 10px;border:1px solid #e8e0d0;font-weight:700;color:#1ab46c;">' + relInfo.collected.toLocaleString('ar-EG') + '</td>' +
+          '<td style="padding:7px 10px;border:1px solid #e8e0d0;font-weight:900;color:' + (relInfo.remaining > 0 ? '#c0392b' : '#1ab46c') + ';">' + relInfo.remaining.toLocaleString('ar-EG') + '</td>' +
+          '<td style="padding:7px 10px;border:1px solid #e8e0d0;">' +
+            '<button class="btn btn-primary btn-sm" onclick="openPaymentModal({relationshipId:\'' + escapeHtml(rel.id) + '\', clientIdx:' + thisClientIdx + '})">&#128176; إضافة دفعة</button>' +
+          '</td></tr>';
+      });
+      html += '</table></div></div>';
+    }
+  }
 
   // ---- Client Messages/Notes (client portal) ----
   // INTEGRATION PHASE — Client Portal Messages Wiring: renderClientMessagesSection()
@@ -1422,12 +1494,63 @@ async function revokeAndRegenQR() {
 // re-assignment (same pattern used by cases.js for children). The
 // wraps are additive and do not break prior overrides.
 // ================================================================
+// CASES_RELATIONSHIP_FINANCIAL — قرار §3-C: هذا الـ picker كان يخزّن
+// أسماء نصية فقط (اسم_الموكل) — تحويله الآن لعلاقة ID-based حقيقية عبر
+// js/repositories/CaseClientsRepository.js الجديد (جدول قضية_موكلين)،
+// بنفس أسلوب opponents.js تمامًا (data.caseClients mirror، ensureReady،
+// sync). اسم_الموكل (الحقل القديم #fCaseClient) يبقى يُكتب كما كان
+// تمامًا — توافق خلفي كامل — والجديد فقط إضافي: حقل مخفي جديد
+// #fCaseClients (JSON array من رقم_الموكل) + صفوف حقيقية فى
+// قضية_موكلين. editCase() نفسه يبقى 100% متزامنًا (audit §16.1 —
+// راجع تعليق cases.js) — القراءة عند التعديل تتم من data.caseClients
+// (mirror محمّل مسبقًا)، وليس عبر انتظار الـ Repository وقت الفتح.
+
+var CaseClientsRepositoryNS = (typeof module !== 'undefined' && module.exports)
+  ? require('../repositories/CaseClientsRepository.js')
+  : (typeof window !== 'undefined' ? window : this);
+
+var CaseClientsRepository = CaseClientsRepositoryNS && CaseClientsRepositoryNS.CaseClientsRepository;
+
+if (typeof CaseClientsRepository !== 'function') {
+  throw new Error(
+    'clients.js requires js/repositories/CaseClientsRepository.js to be ' +
+    'loaded first (CaseClientsRepository class not found).'
+  );
+}
+
+/** The single CaseClientsRepository instance this module talks to. */
+var caseClientsRepository = new CaseClientsRepository();
+
+var caseClientsRepositoryReadyPromise = (function () {
+  var _p = caseClientsRepository.open().then(function () {
+    syncCaseClientsMirror();
+  }).catch(function (err) {
+    if (typeof console !== 'undefined' && console.error) {
+      console.error('CaseClientsRepository failed to open:', err);
+    }
+  });
+  return (typeof RepositoryReadyTimeout !== 'undefined') ? RepositoryReadyTimeout.wrap('caseClients', _p) : _p;
+})();
+
+function ensureCaseClientsRepositoryReady() {
+  if (caseClientsRepository.isReady()) return Promise.resolve();
+  return caseClientsRepositoryReadyPromise;
+}
+
+/**
+ * syncCaseClientsMirror — refreshes data.caseClients from the
+ * Repository's current state (soft-deleted rows excluded), exactly
+ * like syncOpponentsMirror()/syncCasesMirror() do for their entities.
+ */
+function syncCaseClientsMirror() {
+  if (typeof data !== 'undefined') data.caseClients = caseClientsRepository.getAll();
+}
 
 /** Separator used when joining multiple selected client names */
 var CLIENT_NAME_SEPARATOR = '، ';
 
-/** Array of currently selected client names in the case modal picker */
-var _caseSelectedClients = [];
+/** Array of currently selected client IDs (رقم_الموكل) in the case modal picker. */
+var _caseSelectedClientIds = [];
 
 /**
  * _splitClientNames — splits a separator-delimited client string
@@ -1530,12 +1653,13 @@ function renderClientSelectorList() {
   }
 
   list.innerHTML = clients.map(function(c) {
+    var id      = c[CLIENTS_ID_FIELD];
     var name    = (c['الاسم'] || '').trim();
-    var checked = _caseSelectedClients.indexOf(name) >= 0;
+    var checked = _caseSelectedClientIds.indexOf(id) >= 0;
     var sub     = [c['النوع'], c['الهاتف']].filter(Boolean).join(' · ');
     return '<label class="client-selector-item">' +
       '<input type="checkbox" ' + (checked ? 'checked' : '') +
-        ' onchange="toggleCaseClient(' + _attrSafeJSString(name) + ', this.checked)">' +
+        ' onchange="toggleCaseClient(' + _attrSafeJSString(id) + ', this.checked)">' +
       '<span class="client-selector-item-text">' +
         '<span class="client-selector-item-name">' + escapeHtml(name) + '</span>' +
         (sub ? '<span class="client-selector-item-sub">' + escapeHtml(sub) + '</span>' : '') +
@@ -1544,25 +1668,26 @@ function renderClientSelectorList() {
 }
 
 /**
- * toggleCaseClient — adds or removes a client name from the selection.
- * @param {string}  name
+ * toggleCaseClient — adds or removes a client id from the selection.
+ * CASES_RELATIONSHIP_FINANCIAL قرار §3-C: id-based الآن (كان name سابقًا).
+ * @param {string}  id
  * @param {boolean} checked
  */
-function toggleCaseClient(name, checked) {
-  var idx = _caseSelectedClients.indexOf(name);
-  if (checked && idx < 0)  _caseSelectedClients.push(name);
-  else if (!checked && idx >= 0) _caseSelectedClients.splice(idx, 1);
+function toggleCaseClient(id, checked) {
+  var idx = _caseSelectedClientIds.indexOf(id);
+  if (checked && idx < 0)  _caseSelectedClientIds.push(id);
+  else if (!checked && idx >= 0) _caseSelectedClientIds.splice(idx, 1);
   _syncCaseClientField();
   renderClientSelectorChips();
 }
 
 /**
  * removeCaseClient — removes a client from the selection via chip ×.
- * @param {string} name
+ * @param {string} id
  */
-function removeCaseClient(name) {
-  var idx = _caseSelectedClients.indexOf(name);
-  if (idx >= 0) _caseSelectedClients.splice(idx, 1);
+function removeCaseClient(id) {
+  var idx = _caseSelectedClientIds.indexOf(id);
+  if (idx >= 0) _caseSelectedClientIds.splice(idx, 1);
   _syncCaseClientField();
   renderClientSelectorChips();
   renderClientSelectorList();
@@ -1570,11 +1695,22 @@ function removeCaseClient(name) {
 
 /**
  * _syncCaseClientField — writes the joined client names to the
- * hidden #fCaseClient input and triggers detail auto-fill.
+ * legacy hidden #fCaseClient input (اسم_الموكل — UNCHANGED, full
+ * backward compat) AND the new hidden #fCaseClients input (JSON
+ * array of رقم_الموكل ids — CASES_RELATIONSHIP_FINANCIAL قرار §3-C).
  */
 function _syncCaseClientField() {
+  var names = _caseSelectedClientIds.map(function (id) {
+    var match = (data.clients || []).filter(function (c) { return c[CLIENTS_ID_FIELD] === id; })[0];
+    return match ? (match['الاسم'] || '').trim() : '';
+  }).filter(Boolean);
+
   var el = document.getElementById('fCaseClient');
-  if (el) el.value = _caseSelectedClients.join(CLIENT_NAME_SEPARATOR);
+  if (el) el.value = names.join(CLIENT_NAME_SEPARATOR);
+
+  var idsEl = document.getElementById('fCaseClients');
+  if (idsEl) idsEl.value = JSON.stringify(_caseSelectedClientIds);
+
   _autofillCaseClientDetails();
 }
 
@@ -1583,14 +1719,14 @@ function _syncCaseClientField() {
  * fills the detail fields (NID, phone, address, job, employer) from
  * the matching data.clients record.
  *
- * BUGFIX: toggleCaseClient previously only pushed the name, leaving
- * detail inputs blank unless typed manually.
+ * CASES_RELATIONSHIP_FINANCIAL قرار §3-C: matched by id now (was by
+ * trimmed name string — ambiguous whenever two clients shared a name).
  */
 function _autofillCaseClientDetails() {
-  if (_caseSelectedClients.length !== 1) return;
-  var name  = _caseSelectedClients[0];
+  if (_caseSelectedClientIds.length !== 1) return;
+  var id    = _caseSelectedClientIds[0];
   var match = (data.clients || []).filter(function(c) {
-    return (c['الاسم'] || '').trim() === name.trim();
+    return c[CLIENTS_ID_FIELD] === id;
   })[0];
   if (!match) return;
 
@@ -1623,31 +1759,119 @@ function _autofillCaseClientDetails() {
 }
 
 /**
- * renderClientSelectorChips — redraws the selected-client chip bar.
+ * renderClientSelectorChips — redraws the selected-client card list.
+ * CASES_RELATIONSHIP_FINANCIAL قرار §3-C/§4 (الأطراف): كل موكل مُضاف
+ * يعرض الصفة (إلزامي) وأتعاب القضية (اختياري) — نفس الحقول الظاهرة فى
+ * الصور المرجعية تمامًا تحت كل بطاقة موكل. القيم تُقرأ حيًّا من الـ
+ * DOM وقت الحفظ عبر getCaseClientRole() أدناه — لا حالة JS منفصلة
+ * تحتاج مزامنة، ولا فقدان قيمة عند إعادة render (كل input يحمل
+ * data-client-id، والقيمة السابقة تُستعاد من _caseClientRoleValues
+ * المؤقتة قبل إعادة الرسم).
  */
 function renderClientSelectorChips() {
   var box = document.getElementById('clientSelectorChips');
   if (!box) return;
-  if (!_caseSelectedClients.length) {
+  if (!_caseSelectedClientIds.length) {
     box.innerHTML = '<span class="client-selector-placeholder">اختر موكلاً واحداً أو أكثر من القائمة...</span>';
     return;
   }
-  box.innerHTML = _caseSelectedClients.map(function(name) {
-    return '<span class="client-chip">' + escapeHtml(name) +
-      '<button type="button" class="client-chip-remove" ' +
-        'onclick="event.stopPropagation();removeCaseClient(' + _attrSafeJSString(name) + ')" ' +
-        'title="إزالة">&times;</button></span>';
+
+  // Preserve any already-typed الصفة/أتعاب values across a re-render
+  // (e.g. selecting a second client shouldn't blank out the first
+  // one's already-typed الصفة).
+  var preserved = {};
+  box.querySelectorAll('[data-client-role-id]').forEach(function (el) {
+    var id = el.getAttribute('data-client-role-id');
+    preserved[id] = preserved[id] || {};
+    preserved[id][el.getAttribute('data-client-role-field')] = el.value;
+  });
+
+  box.innerHTML = _caseSelectedClientIds.map(function(id) {
+    var match = (data.clients || []).filter(function (c) { return c[CLIENTS_ID_FIELD] === id; })[0];
+    var name  = match ? (match['الاسم'] || '').trim() : id;
+    var sub   = match ? [match['النوع'], match['الهاتف']].filter(Boolean).join(' · ') : '';
+
+    // CASES_RELATIONSHIP_FINANCIAL: fall back to the actual stored
+    // قضية_موكلين row (editing an existing case) when nothing has been
+    // typed yet in this render session — otherwise the fields would
+    // show blank instead of the client's real, already-saved الصفة/أتعاب.
+    var caseNumEl = document.getElementById('fCaseNum');
+    var caseNum   = caseNumEl ? caseNumEl.value.trim() : '';
+    var storedRow = (caseNum && data.caseClients)
+      ? data.caseClients.filter(function (r) { return r['رقم_القضية'] === caseNum && r['رقم_الموكل'] === id; })[0]
+      : null;
+
+    var savedRole = (preserved[id] && preserved[id]['الصفة']) || (storedRow && storedRow['الصفة']) || '';
+    var savedFee  = (preserved[id] && preserved[id]['أتعاب_العلاقة']) || (storedRow && storedRow['أتعاب_العلاقة']) || '';
+    return '<div class="client-role-card">' +
+      '<div class="client-role-card-head">' +
+        '<button type="button" class="client-chip-remove" ' +
+          'onclick="event.stopPropagation();removeCaseClient(' + _attrSafeJSString(id) + ')" ' +
+          'title="إزالة">&times;</button>' +
+        '<span class="client-selector-item-text">' +
+          '<span class="client-selector-item-name">' + escapeHtml(name) + '</span>' +
+          (sub ? '<span class="client-selector-item-sub">' + escapeHtml(sub) + '</span>' : '') +
+        '</span></div>' +
+      '<div class="client-role-card-fields">' +
+        '<input type="text" placeholder="الصفة *" data-client-role-id="' + escapeHtml(id) + '" ' +
+          'data-client-role-field="الصفة" value="' + escapeHtml(savedRole) + '">' +
+        '<input type="text" placeholder="الأتعاب المتفق عليها" data-client-role-id="' + escapeHtml(id) + '" ' +
+          'data-client-role-field="أتعاب_العلاقة" value="' + escapeHtml(savedFee) + '">' +
+      '</div></div>';
   }).join('');
 }
 
 /**
+ * getCaseClientRole — reads the live الصفة/أتعاب_العلاقة values typed
+ * for one selected client from the DOM (see renderClientSelectorChips
+ * above). Called only at save/reconciliation time.
+ * @param {string} id
+ * @returns {{role:string, fee:string}}
+ */
+function getCaseClientRole(id) {
+  var roleEl = null, feeEl = null;
+  document.querySelectorAll('[data-client-role-id]').forEach(function (el) {
+    if (el.getAttribute('data-client-role-id') !== id) return;
+    var field = el.getAttribute('data-client-role-field');
+    if (field === 'الصفة') roleEl = el;
+    else if (field === 'أتعاب_العلاقة') feeEl = el;
+  });
+  return {
+    role: roleEl ? roleEl.value.trim() : '',
+    fee: feeEl ? feeEl.value.trim() : ''
+  };
+}
+
+/**
  * syncCaseClientSelectorFromField — re-syncs the picker's visual
- * state from the hidden #fCaseClient field value.
- * Called when an existing case is loaded into the form for editing.
+ * state when an existing case is loaded into the form for editing.
+ *
+ * CASES_RELATIONSHIP_FINANCIAL قرار §3-C: المصدر الأساسي الآن هو
+ * data.caseClients (mirror من قضية_موكلين، محمّل مسبقًا — لا انتظار
+ * async هنا، يحافظ على قيد editCase() المتزامن 100%، راجع تعليق
+ * cases.js "audit §16.1"). للقضايا القديمة التي لا تملك صفوف
+ * قضية_موكلين بعد (سابقة لهذه المرحلة) — يقع الرجوع لتحليل
+ * #fCaseClient النصي القديم، فلا تفقد أي بيانات قديمة.
  */
 function syncCaseClientSelectorFromField() {
-  var el = document.getElementById('fCaseClient');
-  _caseSelectedClients = _splitClientNames(el ? el.value : '');
+  var caseNumEl = document.getElementById('fCaseNum');
+  var caseNum   = caseNumEl ? caseNumEl.value.trim() : '';
+
+  var rows = caseNum
+    ? (data.caseClients || []).filter(function (r) { return r['رقم_القضية'] === caseNum; })
+    : [];
+
+  if (rows.length) {
+    _caseSelectedClientIds = rows.map(function (r) { return r['رقم_الموكل']; });
+  } else {
+    // Legacy fallback: pre-phase case, resolve names -> ids best-effort.
+    var el    = document.getElementById('fCaseClient');
+    var names = _splitClientNames(el ? el.value : '');
+    _caseSelectedClientIds = names.map(function (name) {
+      var match = (data.clients || []).filter(function (c) { return (c['الاسم'] || '').trim() === name.trim(); })[0];
+      return match ? match[CLIENTS_ID_FIELD] : null;
+    }).filter(Boolean);
+  }
   renderClientSelectorChips();
 }
 
@@ -1660,7 +1884,7 @@ var _origResetFormForClientSelector = resetForm;
 resetForm = function(type) {
   _origResetFormForClientSelector(type);
   if (type === 'cases') {
-    _caseSelectedClients = [];
+    _caseSelectedClientIds = [];
     renderClientSelectorChips();
     closeClientSelector();
   }
@@ -1679,15 +1903,97 @@ if (typeof editCase === 'function') {
 }
 
 // ================================================================
-// OVERRIDE saveCase — guarantee hidden field is synced before save
+// OVERRIDE saveCase — guarantee hidden field is synced before save,
+// then reconcile قضية_موكلين rows against the final selection
+// (CASES_RELATIONSHIP_FINANCIAL قرار §3-C).
 // ================================================================
 if (typeof saveCase === 'function') {
   var _origSaveCaseForClientSelector = saveCase;
   saveCase = function() {
     if (typeof _syncCaseClientField === 'function') _syncCaseClientField();
-    return _origSaveCaseForClientSelector();
+    var result = _origSaveCaseForClientSelector();
+    if (result && typeof result.then === 'function') {
+      return result.then(function (saveOutcome) {
+        // CASE_SAVE_CYCLE_FIX_2026 — only reconcile قضية_موكلين when the
+        // case itself actually saved (see tasks.js's identical fix for the
+        // full rationale — an ApplicationShell-tracked rejected/failed save
+        // must not still create/soft-delete relationship rows against it).
+        if (!saveOutcome || !saveOutcome.success) return saveOutcome;
+        return _reconcileCaseClientsAfterSave().then(function () { return saveOutcome; });
+      });
+    }
+    return result;
   };
 }
+
+/**
+ * _reconcileCaseClientsAfterSave — after a case is saved, makes
+ * قضية_موكلين (CaseClientsRepository) match the picker's final
+ * selection exactly: creates a relationship row for every newly
+ * selected client, and soft-deletes any existing row for a client
+ * that is no longer selected. Runs AFTER the case itself is saved
+ * (so رقم_القضية — a user-typed, already-known field per
+ * Config/00_Config.gs's idField — is final) and does not block or
+ * alter the case-save outcome if it fails (logged only, matching the
+ * non-fatal error-handling style already used by the Repository
+ * ready-promises above).
+ * @returns {Promise<void>}
+ */
+function _reconcileCaseClientsAfterSave() {
+  var caseNumEl = document.getElementById('fCaseNum');
+  var caseNum   = caseNumEl ? caseNumEl.value.trim() : '';
+  if (!caseNum) return Promise.resolve();
+
+  return ensureCaseClientsRepositoryReady().then(function () {
+    var existing   = caseClientsRepository.getByCase(caseNum);
+    var selected   = _caseSelectedClientIds.slice();
+    var toRemove   = existing.filter(function (r) { return selected.indexOf(r['رقم_الموكل']) < 0; });
+    var toAddIds   = selected.filter(function (id) {
+      return !existing.some(function (r) { return r['رقم_الموكل'] === id; });
+    });
+    // CASES_RELATIONSHIP_FINANCIAL: clients that are BOTH already-linked
+    // AND still selected — sync any edited الصفة/أتعاب_العلاقة into the
+    // existing row (previously silently dropped: only create/delete were
+    // handled here, not update-in-place).
+    var toUpdate   = existing.filter(function (r) { return selected.indexOf(r['رقم_الموكل']) >= 0; });
+
+    var ops = [];
+    toRemove.forEach(function (r) { ops.push(caseClientsRepository.delete(r[CASE_CLIENTS_ID_FIELD_LOCAL])); });
+    toUpdate.forEach(function (r) {
+      var roleInput = getCaseClientRole(r['رقم_الموكل']);
+      if (!roleInput.role && !roleInput.fee) return; // nothing typed for this one — leave the stored row untouched
+      var patch = {};
+      if (roleInput.role) patch['الصفة'] = roleInput.role;
+      patch['أتعاب_العلاقة'] = roleInput.fee || '';
+      ops.push(caseClientsRepository.update(r[CASE_CLIENTS_ID_FIELD_LOCAL], patch));
+    });
+    toAddIds.forEach(function (id) {
+      var roleInput = getCaseClientRole(id);
+      ops.push(caseClientsRepository.create({
+        'رقم_القضية': caseNum,
+        'رقم_الموكل': id,
+        // CASES_RELATIONSHIP_FINANCIAL: يقرأ الصفة/أتعاب القضية الحقيقية
+        // المُدخلة فى بطاقة الموكل (renderClientSelectorChips) إن وُجدت؛
+        // القيمة الافتراضية هى فقط شبكة أمان لو تُرك الحقل فارغاً (بما
+        // أن الصفة إلزامية عند CaseClientsRepository، وترْك الحفظ يفشل
+        // بصمت أسوأ من قيمة افتراضية معقولة).
+        'الصفة': roleInput.role || 'موكل بالقضية',
+        'أتعاب_العلاقة': roleInput.fee || ''
+      }));
+    });
+
+    return Promise.all(ops).then(function () {
+      syncCaseClientsMirror();
+    }).catch(function (err) {
+      if (typeof console !== 'undefined' && console.error) {
+        console.error('CaseClients reconciliation failed:', err);
+      }
+    });
+  });
+}
+
+/** Local alias — CaseClientsRepository's own id field (see that file's header). */
+var CASE_CLIENTS_ID_FIELD_LOCAL = 'id';
 
 // ================================================================
 // CLIENT REPORT — تقرير الموكلين
@@ -2070,6 +2376,12 @@ if (typeof module !== 'undefined' && module.exports) {
     removeCaseClient: removeCaseClient,
     syncCaseClientSelectorFromField: syncCaseClientSelectorFromField,
     _splitClientNames: _splitClientNames,
-    _autofillCaseClientDetails: _autofillCaseClientDetails
+    _autofillCaseClientDetails: _autofillCaseClientDetails,
+    renderClientSelectorChips: renderClientSelectorChips,
+    getCaseClientRole: getCaseClientRole,
+    caseClientsRepository: caseClientsRepository,
+    ensureCaseClientsRepositoryReady: ensureCaseClientsRepositoryReady,
+    syncCaseClientsMirror: syncCaseClientsMirror,
+    saveCase: (typeof saveCase === 'function') ? saveCase : undefined
   };
 }

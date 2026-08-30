@@ -1287,6 +1287,15 @@ function onTaskCaseChange() {
 }
 
 function syncTaskCaseSelectorFromRecord(record) {
+  // CASE_SAVE_CYCLE_AUDIT v80 (Problem 11, same defect family as
+  // process-server-works.js's Problem 4/Root-Cause-B): #fTaskCaseNum's
+  // <option> list is only ever built by populateTaskCaseDropdown(name),
+  // normally triggered by selectTaskClient() when a client is picked
+  // interactively. Opening an EXISTING record (editTask()) never called
+  // it, so setting sel.value below to a case number with no matching
+  // <option> silently left the field showing unselected — even though
+  // record['رقم_القضية'] was always correct.
+  populateTaskCaseDropdown(record ? (record['اسم_الموكل'] || '') : '');
   var sel = document.getElementById('fTaskCaseNum');
   if (sel) sel.value = record ? (record['رقم_القضية'] || '') : '';
   onTaskCaseChange();
@@ -1315,6 +1324,125 @@ if (typeof module !== 'undefined' && module.exports) {
     selectTaskClient: selectTaskClient,
     removeTaskClient: removeTaskClient,
     populateTaskCaseDropdown: populateTaskCaseDropdown,
-    onTaskCaseChange: onTaskCaseChange
+    onTaskCaseChange: onTaskCaseChange,
+    _createEmbeddedAdminWorkIfFilled: _createEmbeddedAdminWorkIfFilled
   };
+}
+
+// ================================================================
+// OVERRIDE saveCase — create an embedded عمل إداري (Admin Work) when
+// the case-modal's "عمل اداري" tab was filled in (optional — decision
+// §4). Runs AFTER the case itself saves successfully. Same wrap
+// pattern as sessions.js's _createEmbeddedSessionIfFilled() this
+// session — non-fatal on failure, doesn't block the case save.
+// ================================================================
+if (typeof saveCase === 'function') {
+  var _origSaveCaseForEmbeddedAdminWork = saveCase;
+  saveCase = function () {
+    var result = _origSaveCaseForEmbeddedAdminWork.apply(this, arguments);
+    if (result && typeof result.then === 'function') {
+      return result.then(function (saveOutcome) {
+        // CASE_SAVE_CYCLE_FIX_2026 — only harvest the "عمل اداري" tab into a
+        // real record when the case itself actually saved. Before this fix
+        // saveOutcome was always undefined (the base saveCase() never
+        // returned its result), so this ran unconditionally even after a
+        // rejected/failed case save, orphaning the admin-work record.
+        if (!saveOutcome || !saveOutcome.success) return saveOutcome;
+        return _createEmbeddedAdminWorkIfFilled().then(function () { return saveOutcome; });
+      });
+    }
+    return result;
+  };
+}
+
+/**
+ * _createEmbeddedAdminWorkIfFilled — reads the "عمل اداري" tab's
+ * fields; if العنوان is present (TASKS_REQUIRED_FIELDS's actual
+ * required field — the one signal that genuinely means "the user
+ * meant to add a work item", matching sessions.js's identical
+ * التاريخ-presence gate for its own required field), creates a real
+ * Tasks record linked to the just-saved case AND its first selected
+ * client (decision §4: "يكون مرتبطًا بأول موكل في القضية" — read from
+ * the live-synced #fCaseClients hidden field, JSON id array, rather
+ * than clients.js's private _caseSelectedClientIds — decoupled,
+ * no cross-module private-state access).
+ * @returns {Promise<void>}
+ */
+function _createEmbeddedAdminWorkIfFilled() {
+  var titleEl = document.getElementById('fCaseTaskTitle');
+  var title = titleEl ? titleEl.value.trim() : '';
+  if (!title) return Promise.resolve(); // tab left empty — nothing to do
+
+  var caseNumEl = document.getElementById('fCaseNum');
+  var caseNum = caseNumEl ? caseNumEl.value.trim() : '';
+  if (!caseNum) return Promise.resolve(); // defensive — saveCase() already requires this
+
+  var clientId = '';
+  var clientsHidden = document.getElementById('fCaseClients');
+  if (clientsHidden && clientsHidden.value) {
+    try {
+      var ids = JSON.parse(clientsHidden.value);
+      if (Array.isArray(ids) && ids.length) clientId = ids[0]; // "أول موكل فى القضية"
+    } catch (e) { /* malformed/absent — proceed without a client link, non-fatal */ }
+  }
+  var clientName = '';
+  if (clientId && typeof data !== 'undefined' && data.clients) {
+    var idField = (typeof CLIENTS_ID_FIELD !== 'undefined') ? CLIENTS_ID_FIELD : 'رقم_الموكل';
+    var match = data.clients.filter(function (c) { return c[idField] === clientId; })[0];
+    if (match) clientName = match['الاسم'] || '';
+  }
+
+  var deadlineEl = document.getElementById('fCaseTaskDeadline');
+  var locationEl = document.getElementById('fCaseTaskLocation');
+  var requiredEl = document.getElementById('fCaseTaskRequired');
+  var notesEl = document.getElementById('fCaseTaskNotes');
+  // PROBLEM 12 (Case Save Cycle audit, v80): same field/values already
+  // used by the standalone #modalTask screen (#fTaskPortalVisible ->
+  // 'ظاهر_للموكل') — read here so the choice made while registering the
+  // case is what actually gets saved, instead of forcing a second
+  // open-edit-save round trip on the standalone screen afterwards. No
+  // new field/Data-Model was introduced; default ('لا' — hidden) is
+  // unchanged when left untouched (#fCaseTaskPortalVisible's own first
+  // <option> has no `selected` override, same convention as the
+  // standalone select).
+  var portalVisibleEl = document.getElementById('fCaseTaskPortalVisible');
+
+  return ensureTasksRepositoryReady().then(function () {
+    return tasksRepository.create({
+      'العنوان': title,
+      'رقم_القضية': caseNum,
+      'رقم_الموكل': clientId,
+      'اسم_الموكل': clientName,
+      'الموعد_النهائي': deadlineEl ? deadlineEl.value.trim() : '',
+      'مكان_التنفيذ': locationEl ? locationEl.value.trim() : '',
+      'المطلوب': requiredEl ? requiredEl.value.trim() : '',
+      'الملاحظات': notesEl ? notesEl.value.trim() : '',
+      'ظاهر_للموكل': portalVisibleEl ? portalVisibleEl.value : 'لا'
+    });
+  }).then(function (result) {
+    if (result && result.success) {
+      syncTasksMirror();
+      // CASE_SAVE_CYCLE_AUDIT (Problem 8 wrapper-chain audit — same defect
+      // family as Problem 3/4, found here by extending that same check to
+      // every embedded creator): push the new record to Google Sheets
+      // exactly like the standalone saveTask() always does — this
+      // embedded path only ever called syncTasksMirror() (a local
+      // IndexedDB mirror refresh), so the عمل اداري existed locally but
+      // never reached Sheets, and therefore never reached Client Portal.
+      // idx is intentionally -1: this branch only runs on a successful
+      // create(), never an update.
+      if (typeof ApiService !== 'undefined' && ApiService.syncRow) {
+        ApiService.syncRow('الأعمال الإدارية', result.record, -1);
+      }
+      [titleEl, deadlineEl, locationEl, requiredEl, notesEl].forEach(function (el) { if (el) el.value = ''; });
+      if (portalVisibleEl) portalVisibleEl.selectedIndex = 0;
+      if (typeof updateBadges === 'function') updateBadges();
+    } else if (typeof console !== 'undefined' && console.error) {
+      console.error('Embedded admin-work creation failed:', result && result.error);
+    }
+  }).catch(function (err) {
+    if (typeof console !== 'undefined' && console.error) {
+      console.error('Embedded admin-work creation failed:', err);
+    }
+  });
 }

@@ -179,7 +179,7 @@
       dom.breadcrumb.appendChild(btn);
     }
 
-    addCrumb('الأدلة القانونية', function () { goToRoot(); }, _stack.length === 0);
+    addCrumb('الأجندة والمواقع الرسمية', function () { goToRoot(); }, _stack.length === 0);
 
     _stack.forEach(function (entry, index) {
       var isLast = index === _stack.length - 1;
@@ -391,7 +391,7 @@
       dom.grid.innerHTML = '';
       dom.empty.style.display = 'none';
       dom.error.style.display = '';
-      dom.error.textContent = 'تعذر تحميل الأدلة القانونية. تحقق من الاتصال ثم أعد المحاولة.';
+      dom.error.textContent = 'تعذر تحميل الأجندة والمواقع الرسمية. تحقق من الاتصال ثم أعد المحاولة.';
       renderBreadcrumb(dom);
       return;
     }
@@ -574,6 +574,20 @@
 
   var api = {
     renderLegalDirectories: renderLegalDirectories,
+    // ----------------------------------------------------------------
+    // PHASE — Legal Directories: Dashboard Shortcut Navigator.
+    // Read-only accessors so a second, independent UI surface (the
+    // Dashboard shortcut widget in js/modules/dashboard-legal-
+    // directories-nav.js) can reuse this SAME dataset singleton
+    // (_dataset / loadDataset()'s single in-flight _loadPromise)
+    // instead of fetching js/data/directories/legal-directories.json
+    // a second time. No existing behavior above this point is
+    // changed — these three functions only read state that already
+    // exists in this closure.
+    // ----------------------------------------------------------------
+    ensureDatasetLoaded: function () { return loadDataset(); },
+    getDataset: function () { return _dataset; },
+    getLoadError: function () { return _loadError; },
     _resetForTests: function () {
       _dataset = null; _loadPromise = null; _loadError = null; _stack = []; _adminMode = false;
       if (global.LegalDirectoriesAdmin) global.LegalDirectoriesAdmin.discardDraft();
