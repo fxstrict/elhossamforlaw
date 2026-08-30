@@ -28,6 +28,15 @@
   --z-splash:900;
   --z-history-panel-overlay:920;   /* was colliding with --z-splash (900) */
   --z-history-panel:921;           /* was colliding with --z-splash (900) */
-  --z-toast:1000;
+  /* CASE_SAVE_CYCLE_AUDIT (Problem 1): was --z-toast:1000. PHASE 33's
+     ModalZIndexEngine (js/core/modal/ZIndexEngine.js) later started
+     assigning open modals a DYNAMIC inline z-index of BASE=1000 (+10 per
+     stack depth), an exact tie with this token that this comment's own
+     "low -> high" ordering never intended. With #toastContainer declared
+     earlier in index.html than any .modal-overlay, equal z-index means
+     the modal (later in DOM) paints over the toast — hiding save-error
+     toasts behind an open modal. Raised well clear of the modal engine's
+     realistic stack range, still below --z-license-overlay. */
+  --z-toast:98000;
   --z-license-overlay:99999;       /* must always stay above everything else */
 }
