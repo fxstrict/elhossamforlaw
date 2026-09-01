@@ -152,7 +152,11 @@ async function testConnection(){
       }catch(pe){
         res.innerHTML='<span style="color:var(--success)">✅ الاتصال ناجح! جارٍ تحميل البيانات...</span>';
       }
-      setTimeout(loadFromSheets,800);
+      // PHASE A7.5 — SyncCoordinator: was setTimeout(loadFromSheets,800).
+      // No artificial timeout needed — 'manual' bypasses TTL/cooldown on
+      // its own, and single-flight already prevents overlap with any
+      // sync already in progress.
+      if(typeof SyncCoordinator!=='undefined'){SyncCoordinator.requestSync('manual');}else{setTimeout(loadFromSheets,800);}
     } else {
       res.innerHTML='<span style="color:var(--danger)">✗ خطأ: '+(d.error||'غير معروف')+'</span>';
     }
@@ -200,6 +204,17 @@ async function pingConnection(){
       dot.classList.add('connected');dot.classList.remove('error');
       tx.textContent='متصل ✓ v'+(d.version||'');
       if(d.spreadsheet_url) displaySheetUrl(d.spreadsheet_url);
+      // PHASE A8 — §17 Project Isolation: يُحفَظ project_id هذه النسخة
+      // محليًا (لا شيء جديد يُرسَل للخادم) ليقارَن به أي إشعار FCM وارد
+      // قبل تشغيل SyncCoordinator.requestSync('notification') — راجع
+      // js/core/pwa/NotificationManager.js. إضافة بحتة، لا تغيير على
+      // أي سلوك pingConnection() الحالي.
+      if(d.project_id) try{localStorage.setItem('ahp_project_id', d.project_id);}catch(e){}
+      // PHASE A8 — يُخزَّن Public Firebase Web config محليًا فقط ليقرأه
+      // js/core/pwa/FcmClient.js عند الحاجة الفعلية (بعد منح إذن
+      // الإشعارات) — لا تحميل SDK هنا، فقط تخزين نص. إذا كانت d.firebase
+      // فارغة (null)، تُحذف أي قيمة قديمة بأمان (يعطّل FCM تلقائيًا).
+      try{ if(d.firebase) localStorage.setItem('ahp_firebase_config', JSON.stringify(d.firebase)); else localStorage.removeItem('ahp_firebase_config'); }catch(e){}
     } else {
       dot.classList.remove('connected');dot.classList.add('error');tx.textContent='خطأ في الاتصال';
     }
@@ -634,7 +649,10 @@ async function loadFromSheets(){
   }
 }
 
-async function refreshAll(){if(API_URL)await loadFromSheets();else toast('أضف رابط Apps Script في الإعدادات للمزامنة السحابية','info');renderDashboard();}
+// PHASE A7.5 — SyncCoordinator: was `await loadFromSheets()` directly.
+// 'manual' bypasses TTL/cooldown (single-flight still respected), which
+// is the correct behavior for an explicit user-pressed refresh button.
+async function refreshAll(){if(API_URL){if(typeof SyncCoordinator!=='undefined'){await SyncCoordinator.requestSync('manual');}else{await loadFromSheets();}}else toast('أضف رابط Apps Script في الإعدادات للمزامنة السحابية','info');renderDashboard();}
 
 // FIX (DATABASE_FORENSIC_REPORT.md §P2 boot-order cause, §6 item 4):
 // "ضمان اكتمال OfflineQueue.replay() قبل أول loadFromSheets() عند
@@ -654,11 +672,33 @@ async function refreshAll(){if(API_URL)await loadFromSheets();else toast('أضف
 // calls the exact same loadFromSheets() as before. Remains
 // fire-and-forget from the caller's perspective (index.html), matching
 // the original call's own "never block the interface" contract.
+// PHASE A7 — STEP 4 (Full Frontend Sync Wiring). loadFromSheets() itself
+// is NOT modified (§"لا تكسر القراءة الكاملة الحالية" — do not break the
+// existing full read). This function's own two branches now each
+// `return` loadFromSheets()'s promise (previously discarded — the
+// `.then(function(){loadFromSheets();})` callback did not return it, so
+// the chain never actually waited for it) and, once it resolves, chain
+// exactly one additional call: SyncEngine.bootIncrementalSync(). This
+// guarantees the new incremental (cursor-based) pull never runs
+// concurrently with the existing full pull against the same
+// Repositories (see js/core/SyncEngine.js file header for why that
+// matters) — it always runs strictly after. SyncEngine.js guards itself
+// (API_URL / ApiService / SyncCheckpoint presence, re-entrancy) and
+// never throws, so this addition cannot introduce a new failure mode:
+// if SyncEngine.js failed to load for any reason, `typeof SyncEngine`
+// stays 'undefined' and this is a silent no-op, exactly like every
+// other optional-subsystem guard already in this file (e.g.
+// `if(window.ApplicationShell)`).
 function bootLoadFromSheets(){
+  function _thenIncrementalSync(){
+    if(typeof SyncEngine!=='undefined'&&typeof SyncEngine.bootIncrementalSync==='function'){
+      return SyncEngine.bootIncrementalSync();
+    }
+  }
   if(typeof OfflineQueue!=='undefined'&&typeof OfflineQueue.replay==='function'){
-    OfflineQueue.replay().catch(function(e){console.warn('[bootLoadFromSheets] OfflineQueue.replay failed, proceeding anyway:',e);}).then(function(){loadFromSheets();});
+    return OfflineQueue.replay().catch(function(e){console.warn('[bootLoadFromSheets] OfflineQueue.replay failed, proceeding anyway:',e);}).then(function(){return loadFromSheets();}).then(_thenIncrementalSync).catch(function(e){console.warn('[bootLoadFromSheets] incremental sync stage failed, proceeding anyway:',e);});
   } else {
-    loadFromSheets();
+    return loadFromSheets().then(_thenIncrementalSync).catch(function(e){console.warn('[bootLoadFromSheets] incremental sync stage failed, proceeding anyway:',e);});
   }
 }
 

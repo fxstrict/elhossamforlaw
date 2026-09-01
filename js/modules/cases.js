@@ -1443,21 +1443,44 @@ function buildCaseReport(c, sessions, docs, children, tasks, psw) {
           '<td style="padding:8px 10px;border:1px solid #e8e0d0;font-weight:900;color:' + (caseNet.net >= 0 ? '#1ab46c' : '#c0392b') + ';">' + caseNet.net.toLocaleString('ar-EG') + ' ج.م</td></tr>' +
         '</table></div></div>';
     }
-    // CASES_RELATIONSHIP_FINANCIAL PHASE 4 (OPTION D, approved): agreed/
-    // collected/remaining, additive section — only rendered when at least
-    // one CaseClients relationship for this case actually carries
-    // أتعاب_العلاقة (agreedTotal > 0), so cases with no agreed-fee data
-    // show nothing new (identical to today's behavior).
-    if (caseNet.agreedTotal) {
-      html += '<div class="view-section"><div class="view-section-title">&#128176; الأتعاب المتفق عليها</div>';
-      html += '<div class="hsm-table-scroll"><table style="width:100%;min-width:320px;font-size:12px;border-collapse:collapse;">' +
-        '<tr><td style="padding:7px 10px;border:1px solid #e8e0d0;">الأتعاب المتفق عليها</td>' +
-          '<td style="padding:7px 10px;border:1px solid #e8e0d0;font-weight:700;">' + caseNet.agreedTotal.toLocaleString('ar-EG') + ' ج.م</td></tr>' +
-        '<tr><td style="padding:7px 10px;border:1px solid #e8e0d0;">المحصَّل</td>' +
-          '<td style="padding:7px 10px;border:1px solid #e8e0d0;font-weight:700;color:#1ab46c;">' + caseNet.collected.toLocaleString('ar-EG') + ' ج.م</td></tr>' +
-        '<tr style="background:#fff8ea;"><td style="padding:8px 10px;border:1px solid #e8e0d0;font-weight:900;">المتبقي</td>' +
-          '<td style="padding:8px 10px;border:1px solid #e8e0d0;font-weight:900;color:' + (caseNet.remaining > 0 ? '#c0392b' : '#1ab46c') + ';">' + caseNet.remaining.toLocaleString('ar-EG') + ' ج.م</td></tr>' +
-        '</table></div></div>';
+    // CASES_RELATIONSHIP_FINANCIAL PHASE 8 — SECURITY + PAYMENT WORKFLOW:
+    // per-RELATIONSHIP rows (a case can have more than one client — e.g.
+    // plaintiff AND defendant both represented — each with their own
+    // أتعاب_العلاقة), each with a real "إضافة دفعة" button wired to
+    // openPaymentModal({relationshipId, caseIdx}) — PHASE 7 §12 GAP FOUND
+    // ("createFeePayment() لا يوجد لها consumer حقيقي في UI") — this is
+    // that consumer. caseIdx is resolved here (buildCaseReport itself has
+    // no index parameter) so _onPaymentSaved() can re-render this exact
+    // view after a successful payment.
+    var caseRelationships = (typeof data !== 'undefined' && data.caseClients ? data.caseClients : [])
+      .filter(function (r) { return r['رقم_القضية'] === c['رقم_القضية']; });
+    if (caseRelationships.length && typeof getRelationshipRemaining === 'function') {
+      var thisCaseIdx = (typeof resolveCaseIndex === 'function') ? resolveCaseIndex(data.cases, c) : -1;
+      html += '<div class="view-section"><div class="view-section-title">&#128176; الأتعاب المتفق عليها ' +
+        '<button class="btn btn-ghost btn-sm" style="float:left;" onclick="openLedger(\'case\',\'' + escapeHtml(c['رقم_القضية']) + '\')">&#128179; كشف الحساب</button></div>';
+      html += '<div class="hsm-table-scroll"><table style="width:100%;min-width:480px;font-size:12px;border-collapse:collapse;">' +
+        '<tr style="background:#f5f0e6;"><th style="padding:7px 10px;border:1px solid #e8e0d0;">الموكل</th>' +
+          '<th style="padding:7px 10px;border:1px solid #e8e0d0;">الصفة</th>' +
+          '<th style="padding:7px 10px;border:1px solid #e8e0d0;">المتفق عليه</th>' +
+          '<th style="padding:7px 10px;border:1px solid #e8e0d0;">المحصَّل</th>' +
+          '<th style="padding:7px 10px;border:1px solid #e8e0d0;">المتبقي</th>' +
+          '<th style="padding:7px 10px;border:1px solid #e8e0d0;"></th></tr>';
+      caseRelationships.forEach(function (rel) {
+        var relClient = (data.clients || []).filter(function (cl) { return cl['رقم_الموكل'] === rel['رقم_الموكل']; })[0];
+        var relClientName = relClient ? (relClient['الاسم'] || '—') : (rel['رقم_الموكل'] || '—');
+        var relInfo = getRelationshipRemaining(rel.id);
+        if (!relInfo.agreedTotal) return; // no agreed fee entered on this relationship — nothing to show for it here
+        html += '<tr>' +
+          '<td style="padding:7px 10px;border:1px solid #e8e0d0;">' + escapeHtml(relClientName) + '</td>' +
+          '<td style="padding:7px 10px;border:1px solid #e8e0d0;">' + escapeHtml(rel['الصفة'] || '—') + '</td>' +
+          '<td style="padding:7px 10px;border:1px solid #e8e0d0;font-weight:700;">' + relInfo.agreedTotal.toLocaleString('ar-EG') + '</td>' +
+          '<td style="padding:7px 10px;border:1px solid #e8e0d0;font-weight:700;color:#1ab46c;">' + relInfo.collected.toLocaleString('ar-EG') + '</td>' +
+          '<td style="padding:7px 10px;border:1px solid #e8e0d0;font-weight:900;color:' + (relInfo.remaining > 0 ? '#c0392b' : '#1ab46c') + ';">' + relInfo.remaining.toLocaleString('ar-EG') + '</td>' +
+          '<td style="padding:7px 10px;border:1px solid #e8e0d0;">' +
+            '<button class="btn btn-primary btn-sm" onclick="openPaymentModal({relationshipId:\'' + escapeHtml(rel.id) + '\', caseIdx:' + thisCaseIdx + '})">&#128176; إضافة دفعة</button>' +
+          '</td></tr>';
+      });
+      html += '</table></div></div>';
     }
   }
 

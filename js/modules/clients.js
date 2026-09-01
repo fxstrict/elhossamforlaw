@@ -1212,20 +1212,43 @@ function buildClientReport(c) {
           '<td style="padding:8px 10px;border:1px solid #e8e0d0;font-weight:900;color:' + (net.net >= 0 ? '#1ab46c' : '#c0392b') + ';">' + net.net.toLocaleString('ar-EG') + ' ج.م</td></tr>' +
         '</table></div></div>';
     }
-    // CASES_RELATIONSHIP_FINANCIAL PHASE 4 (OPTION D, approved): same
-    // additive agreed/collected/remaining section as buildCaseReport()
-    // in js/modules/cases.js — only rendered when this client has at
-    // least one CaseClients relationship carrying أتعاب_العلاقة.
-    if (net.agreedTotal) {
-      html += '<div class="view-section"><div class="view-section-title">&#128176; الأتعاب المتفق عليها</div>';
-      html += '<div class="hsm-table-scroll"><table style="width:100%;min-width:320px;font-size:12px;border-collapse:collapse;">' +
-        '<tr><td style="padding:7px 10px;border:1px solid #e8e0d0;">الأتعاب المتفق عليها</td>' +
-          '<td style="padding:7px 10px;border:1px solid #e8e0d0;font-weight:700;">' + net.agreedTotal.toLocaleString('ar-EG') + ' ج.م</td></tr>' +
-        '<tr><td style="padding:7px 10px;border:1px solid #e8e0d0;">المحصَّل</td>' +
-          '<td style="padding:7px 10px;border:1px solid #e8e0d0;font-weight:700;color:#1ab46c;">' + net.collected.toLocaleString('ar-EG') + ' ج.م</td></tr>' +
-        '<tr style="background:#fff8ea;"><td style="padding:8px 10px;border:1px solid #e8e0d0;font-weight:900;">المتبقي</td>' +
-          '<td style="padding:8px 10px;border:1px solid #e8e0d0;font-weight:900;color:' + (net.remaining > 0 ? '#c0392b' : '#1ab46c') + ';">' + net.remaining.toLocaleString('ar-EG') + ' ج.م</td></tr>' +
-        '</table></div></div>';
+    // CASES_RELATIONSHIP_FINANCIAL PHASE 8 — SECURITY + PAYMENT WORKFLOW:
+    // per-CASE rows (§6 of the audit prompt: list every case the client
+    // is party to, each with its own متفق عليه/محصَّل/متبقي and a real
+    // "إضافة دفعة" button — not just one client-wide aggregate). Also a
+    // "فتح القضية" link per row, satisfying §19's cross-navigation ask,
+    // reusing viewCase()/resolveCaseIndex() already defined in cases.js.
+    var clientRelationships = (typeof data !== 'undefined' && data.caseClients ? data.caseClients : [])
+      .filter(function (r) { return r['رقم_الموكل'] === c[CLIENTS_ID_FIELD]; });
+    if (clientRelationships.length && typeof getRelationshipRemaining === 'function') {
+      var thisClientIdx = (typeof resolveClientIndex === 'function') ? resolveClientIndex(data.clients, c) : -1;
+      html += '<div class="view-section"><div class="view-section-title">&#128176; القضايا والأتعاب المتفق عليها ' +
+        '<button class="btn btn-ghost btn-sm" style="float:left;" onclick="openLedger(\'client\',\'' + escapeHtml(c[CLIENTS_ID_FIELD]) + '\')">&#128179; كشف الحساب</button></div>';
+      html += '<div class="hsm-table-scroll"><table style="width:100%;min-width:560px;font-size:12px;border-collapse:collapse;">' +
+        '<tr style="background:#f5f0e6;"><th style="padding:7px 10px;border:1px solid #e8e0d0;">القضية</th>' +
+          '<th style="padding:7px 10px;border:1px solid #e8e0d0;">الصفة</th>' +
+          '<th style="padding:7px 10px;border:1px solid #e8e0d0;">المتفق عليه</th>' +
+          '<th style="padding:7px 10px;border:1px solid #e8e0d0;">المحصَّل</th>' +
+          '<th style="padding:7px 10px;border:1px solid #e8e0d0;">المتبقي</th>' +
+          '<th style="padding:7px 10px;border:1px solid #e8e0d0;"></th></tr>';
+      clientRelationships.forEach(function (rel) {
+        var relInfo = getRelationshipRemaining(rel.id);
+        if (!relInfo.agreedTotal) return;
+        var relCaseIdx = (typeof resolveCaseIndex === 'function')
+          ? resolveCaseIndex(data.cases, (data.cases || []).filter(function (cs) { return cs['رقم_القضية'] === rel['رقم_القضية']; })[0])
+          : -1;
+        html += '<tr>' +
+          '<td style="padding:7px 10px;border:1px solid #e8e0d0;">' + escapeHtml(rel['رقم_القضية'] || '—') +
+            (relCaseIdx > -1 ? ' <button class="btn btn-ghost btn-sm" onclick="viewCase(' + relCaseIdx + ')">&#128065; فتح القضية</button>' : '') + '</td>' +
+          '<td style="padding:7px 10px;border:1px solid #e8e0d0;">' + escapeHtml(rel['الصفة'] || '—') + '</td>' +
+          '<td style="padding:7px 10px;border:1px solid #e8e0d0;font-weight:700;">' + relInfo.agreedTotal.toLocaleString('ar-EG') + '</td>' +
+          '<td style="padding:7px 10px;border:1px solid #e8e0d0;font-weight:700;color:#1ab46c;">' + relInfo.collected.toLocaleString('ar-EG') + '</td>' +
+          '<td style="padding:7px 10px;border:1px solid #e8e0d0;font-weight:900;color:' + (relInfo.remaining > 0 ? '#c0392b' : '#1ab46c') + ';">' + relInfo.remaining.toLocaleString('ar-EG') + '</td>' +
+          '<td style="padding:7px 10px;border:1px solid #e8e0d0;">' +
+            '<button class="btn btn-primary btn-sm" onclick="openPaymentModal({relationshipId:\'' + escapeHtml(rel.id) + '\', clientIdx:' + thisClientIdx + '})">&#128176; إضافة دفعة</button>' +
+          '</td></tr>';
+      });
+      html += '</table></div></div>';
     }
   }
 

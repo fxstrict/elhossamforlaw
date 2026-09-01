@@ -283,6 +283,44 @@ async function restoreExpense(id) {
 }
 
 /**
+ * onExpenseCaseSelected(caseNum) — PHASE 13 (EXPENSE AUTO-FILL). Fixes
+ * the confirmed gap: #fExpenseCaseNum had no onchange handler, so the
+ * client dropdown always listed every client regardless of which case
+ * was chosen. Reads ONLY the existing data.caseClients mirror (the
+ * same source getRelationshipRemaining()/openPaymentModal() already
+ * use) — no new Repository call, no write of any kind.
+ * @param {string} caseNum
+ */
+function onExpenseCaseSelected(caseNum) {
+  var linkedClientIds = (data.caseClients || [])
+    .filter(function (r) { return r['رقم_القضية'] === caseNum; })
+    .map(function (r) { return r['رقم_الموكل']; })
+    .filter(function (id, i, arr) { return id && arr.indexOf(id) === i; }); // unique, drop empties
+
+  var pool = linkedClientIds.length
+    ? (data.clients || []).filter(function (c) { return linkedClientIds.indexOf(c[(typeof CLIENTS_ID_FIELD !== 'undefined') ? CLIENTS_ID_FIELD : 'رقم_الموكل']) !== -1; })
+    : (data.clients || []); // no known relationship for this case (or no case selected) — fall back to the full list rather than an empty, unusable dropdown
+
+  var sel = document.getElementById('fExpenseClientId');
+  if (!sel) return;
+  var idField = (typeof CLIENTS_ID_FIELD !== 'undefined') ? CLIENTS_ID_FIELD : 'رقم_الموكل';
+
+  // Exactly one linked client -> auto-fill (PHASE 13 §3). More than one
+  // -> leave the choice explicit, unselected (PHASE 13 §4 — never guess
+  // which of several clients the expense belongs to).
+  var autoSelectId = (linkedClientIds.length === 1) ? linkedClientIds[0] : '';
+
+  var options = '<option value="">-- اختر الموكل --</option>';
+  pool.forEach(function (c) {
+    var id = c[idField];
+    var selected = (autoSelectId && id === autoSelectId) ? ' selected' : '';
+    options += '<option value="' + escapeHtml(id) + '"' + selected + '>' + escapeHtml(c['الاسم'] || '—') + '</option>';
+  });
+  sel.innerHTML = options;
+  sel.value = autoSelectId;
+}
+
+/**
  * populateExpenseClientDropdown — fills #fExpenseClientId from
  * data.clients, mirroring populateCaseDropdown()'s exact shape/signature.
  * @param {string} [selectedVal]
@@ -311,6 +349,7 @@ if (typeof module !== 'undefined' && module.exports) {
     editExpense: editExpense,
     deleteExpense: deleteExpense,
     restoreExpense: restoreExpense,
-    populateExpenseClientDropdown: populateExpenseClientDropdown
+    populateExpenseClientDropdown: populateExpenseClientDropdown,
+    onExpenseCaseSelected: onExpenseCaseSelected
   };
 }

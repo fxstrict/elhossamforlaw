@@ -327,6 +327,7 @@ function renderDashboard(){
   renderTodayCenterWidget();
   renderAlertsCenterWidget();
   renderKpiWidget();
+  renderFinancialDashboard();
   renderChartsWidget();
   // PHASE — Legal Directories: Dashboard Shortcut Navigator (additive).
   // Defined in js/modules/dashboard-legal-directories-nav.js, which
@@ -398,6 +399,66 @@ function renderKpiWidget(){
   ];
   grid.innerHTML=kpis.map(function(k){
     return '<div class="kpi-card"><div class="kpi-value">'+k.value+'</div><div class="kpi-label">'+k.label+'</div></div>';
+  }).join('');
+}
+
+/**
+ * renderFinancialDashboard() — PHASE 11 (Office Financial Dashboard).
+ * Additive-only block, same pattern as renderKpiWidget() above — writes
+ * ONLY into #dashFinancialGrid, guarded so a missing container (or a
+ * financial-reports.js not yet loaded) never breaks the rest of the
+ * Dashboard. Replaces the old data.fees.length counter badge (PHASE 7
+ * §11 FAIL finding: "عدّاد سجلات فقط، صفر محتوى مالي") — that badge
+ * itself (#badgeFees in the sidebar) is left untouched; this is a
+ * genuinely new, separate KPI section with real amounts.
+ */
+function renderFinancialDashboard(){
+  var grid=document.getElementById('dashFinancialGrid');
+  if(!grid)return;
+  if(typeof getTodayCollections!=='function'||typeof getOfficeNet!=='function')return;
+
+  var todayCollections=getTodayCollections();
+  var todayExpenses=getTodayExpenses();
+  var monthCollections=getMonthCollections();
+  var monthExpenses=getMonthExpenses();
+  var officeNet=getOfficeNet();
+  var totalOutstanding=(typeof getTotalOutstanding==='function')?getTotalOutstanding():0;
+  var expenseBreakdown=(typeof getOfficeExpenseBreakdown==='function')?getOfficeExpenseBreakdown():{officeExpenses:0,caseExpenses:0,clientExpenses:0,total:officeNet.totalExpenses};
+
+  function fmt(n){ return (n||0).toLocaleString('ar-EG')+' ج.م'; }
+
+  var cards=[
+    {title:'اليوم',rows:[
+      ['تحصيلات اليوم',fmt(todayCollections),'#1ab46c'],
+      ['مصروفات اليوم',fmt(todayExpenses),'#c0392b'],
+      ['صافي اليوم',fmt(todayCollections-todayExpenses),(todayCollections-todayExpenses)>=0?'#1ab46c':'#c0392b']
+    ]},
+    {title:'الشهر الحالي',rows:[
+      ['تحصيلات الشهر',fmt(monthCollections),'#1ab46c'],
+      ['مصروفات الشهر',fmt(monthExpenses),'#c0392b'],
+      ['صافي الشهر',fmt(monthCollections-monthExpenses),(monthCollections-monthExpenses)>=0?'#1ab46c':'#c0392b']
+    ]},
+    {title:'الأتعاب',rows:[
+      ['إجمالي المتفق عليه',fmt(officeNet.agreedTotal),'#333'],
+      ['إجمالي المحصَّل',fmt(officeNet.collected),'#1ab46c'],
+      ['إجمالي المتبقي',fmt(totalOutstanding),totalOutstanding>0?'#c0392b':'#1ab46c']
+    ]},
+    {title:'المكتب',rows:[
+      ['مصروفات المكتب',fmt(expenseBreakdown.officeExpenses),'#c0392b'],
+      ['مصروفات القضايا',fmt(expenseBreakdown.caseExpenses),'#c0392b'],
+      ['مصروفات الموكلين',fmt(expenseBreakdown.clientExpenses),'#c0392b'],
+      ['إجمالي المصروفات',fmt(expenseBreakdown.total),'#c0392b'],
+      ['صافي النقد',fmt(officeNet.net),officeNet.net>=0?'#1ab46c':'#c0392b']
+    ]}
+  ];
+
+  grid.innerHTML=cards.map(function(card){
+    return '<div class="card"><div class="card-header"><span>'+card.title+'</span></div><div class="card-body">'+
+      card.rows.map(function(r){
+        return '<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;">'+
+          '<span>'+r[0]+'</span><span style="font-weight:700;color:'+r[2]+';">'+r[1]+'</span></div>';
+      }).join('')+
+    '</div></div>';
   }).join('');
 }
 

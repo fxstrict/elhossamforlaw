@@ -343,6 +343,228 @@
     return getCasesWithOutstandingBalance().reduce(function (acc, r) { return acc + r.remaining; }, 0);
   }
 
+  /**
+   * getOfficeExpenseBreakdown() — PHASE 11 (Office Financial Dashboard).
+   * Separates ExpensesRepository's single 'النطاق' column into the
+   * three distinct totals PHASE 7 §11/§13 found getOfficeNet() lumping
+   * together. Additive — getOfficeNet().totalExpenses is untouched.
+   * @returns {{officeExpenses:number, caseExpenses:number, clientExpenses:number, total:number}}
+   */
+  function getOfficeExpenseBreakdown() {
+    var d = _dataRef() || {};
+    var officeExpenses = 0, caseExpenses = 0, clientExpenses = 0;
+    (d.expenses || []).forEach(function (e) {
+      var amount = _num(e['المبلغ']);
+      if (e['النطاق'] === 'مكتب') officeExpenses += amount;
+      else if (e['النطاق'] === 'قضية') caseExpenses += amount;
+      else if (e['النطاق'] === 'موكل') clientExpenses += amount;
+    });
+    return {
+      officeExpenses: officeExpenses,
+      caseExpenses: caseExpenses,
+      clientExpenses: clientExpenses,
+      total: officeExpenses + caseExpenses + clientExpenses
+    };
+  }
+
+  /**
+   * ================================================================
+   * PHASE 12.1/12.2 — SINGLE-PASS RANKING AGGREGATION
+   * ================================================================
+   * getCaseFinancialRanking()/getClientFinancialRanking() group Fees +
+   * Expenses + CaseClients by case/client in ONE forEach pass each
+   * (three total passes regardless of how many cases/clients exist),
+   * rather than calling getCaseNet(caseNum)/getClientNet(clientId)
+   * once per case/client — which would be O(n×m) exactly as the PHASE
+   * 12 prompt warns against ("لا تستخدم getCaseNet() داخل loop لكل
+   * قضية"). getCaseNet()/getClientNet() themselves are UNCHANGED and
+   * remain the right tool for a SINGLE case/client view (PHASE 3's own
+   * design) — these two functions exist only for ranking many rows
+   * at once.
+   * ================================================================
+   */
+
+  /** getCaseFinancialRanking() — one row per case: {caseNum, agreed, collected, remaining, expenses, netCash}. netCash = collected - expenses (NEVER agreed - expenses). */
+  function getCaseFinancialRanking() {
+    var d = _dataRef() || {};
+    var byCase = {};
+    function bucket(caseNum) {
+      if (!byCase[caseNum]) byCase[caseNum] = { caseNum: caseNum, agreed: 0, collected: 0, expenses: 0 };
+      return byCase[caseNum];
+    }
+    (d.caseClients || []).forEach(function (r) {
+      if (!r['رقم_القضية']) return;
+      bucket(r['رقم_القضية']).agreed += _num(r['أتعاب_العلاقة']);
+    });
+    (d.fees || []).forEach(function (f) {
+      if (!f['رقم_القضية']) return;
+      bucket(f['رقم_القضية']).collected += _num(f['المبلغ']);
+    });
+    (d.expenses || []).forEach(function (e) {
+      if (e['النطاق'] !== 'قضية' || !e['رقم_القضية']) return;
+      bucket(e['رقم_القضية']).expenses += _num(e['المبلغ']);
+    });
+    return Object.keys(byCase).map(function (caseNum) {
+      var row = byCase[caseNum];
+      row.remaining = row.agreed - row.collected;
+      row.netCash = row.collected - row.expenses;
+      return row;
+    });
+  }
+
+  /** getClientFinancialRanking() — one row per client: {clientId, agreed, collected, remaining, expenses, netCash}. collected is id-matched only (رقم_الموكل) — same scoping rule getTopRevenueClients() already uses; a client with only legacy name-matched fees will show collected=0 here (same limitation getTopRevenueClients() already documents). */
+  function getClientFinancialRanking() {
+    var d = _dataRef() || {};
+    var byClient = {};
+    function bucket(clientId) {
+      if (!byClient[clientId]) byClient[clientId] = { clientId: clientId, agreed: 0, collected: 0, expenses: 0 };
+      return byClient[clientId];
+    }
+    (d.caseClients || []).forEach(function (r) {
+      if (!r['رقم_الموكل']) return;
+      bucket(r['رقم_الموكل']).agreed += _num(r['أتعاب_العلاقة']);
+    });
+    (d.fees || []).forEach(function (f) {
+      if (!f['رقم_الموكل']) return;
+      bucket(f['رقم_الموكل']).collected += _num(f['المبلغ']);
+    });
+    (d.expenses || []).forEach(function (e) {
+      if (e['النطاق'] !== 'موكل' || !e['رقم_الموكل']) return;
+      bucket(e['رقم_الموكل']).expenses += _num(e['المبلغ']);
+    });
+    return Object.keys(byClient).map(function (clientId) {
+      var row = byClient[clientId];
+      row.remaining = row.agreed - row.collected;
+      row.netCash = row.collected - row.expenses;
+      return row;
+    });
+  }
+
+  /**
+   * getRelationshipRemaining(relationshipId) — PHASE 8 (Security +
+   * Payment Workflow). Precise PER-RELATIONSHIP figure (not per-case or
+   * per-client aggregate — see file header rationale in this section):
+   * collected is the sum of ONLY رقم_علاقة-tagged Fees for this exact
+   * relationship id — never the legacy رقم_القضية/اسم_الموكل fallback,
+   * because a case can have more than one relationship (e.g. plaintiff
+   * AND defendant both represented), and an untagged historical payment
+   * cannot be safely attributed to one specific relationship among
+   * several by name/case matching alone.
+   * @param {string} relationshipId
+   * @returns {{agreedTotal:number, collected:number, remaining:number}}
+   */
+  function getRelationshipRemaining(relationshipId) {
+    if (!relationshipId) return { agreedTotal: 0, collected: 0, remaining: 0 };
+    var d = _dataRef() || {};
+    var rel = _caseClientsRows().filter(function (r) { return r.id === relationshipId; })[0];
+    if (!rel) return { agreedTotal: 0, collected: 0, remaining: 0 };
+    var agreedTotal = _num(rel['أتعاب_العلاقة']);
+    var collected = (d.fees || [])
+      .filter(function (f) { return f['رقم_علاقة'] === relationshipId; })
+      .reduce(function (acc, f) { return acc + _num(f['المبلغ']); }, 0);
+    return { agreedTotal: agreedTotal, collected: collected, remaining: agreedTotal - collected };
+  }
+
+  /**
+   * ================================================================
+   * PHASE 9 — LEDGER (كشف الحساب): Projection/View over Fees +
+   * Expenses. Per audit prompt §18/§9: "Ledger = View/Projection...
+   * ولا يتم إنشاء نسخة ثانية من نفس الحركة لمجرد العرض" — every entry
+   * below is computed fresh on each call directly from data.fees /
+   * data.expenses; nothing is ever written back to any store. Each
+   * entry carries sourceType + sourceId pointing at its real origin
+   * record, so the UI can navigate back to it — never a copy.
+   * ================================================================
+   */
+
+  /** _ledgerEntriesFrom(fees, expenses) — merges + sorts chronologically, computing a running balance. Shared by all three getXLedger() functions below. */
+  function _buildLedger(feeRows, expenseRows) {
+    var entries = [];
+    feeRows.forEach(function (f) {
+      entries.push({
+        date: f['تاريخ_الاستلام'] || '',
+        type: 'دفعة أتعاب',
+        description: f['نوع_الأتعاب'] || 'دفعة أتعاب',
+        caseNum: f['رقم_القضية'] || '',
+        clientId: f['رقم_الموكل'] || '',
+        clientName: f['اسم_الموكل'] || '',
+        income: _num(f['المبلغ']),
+        expense: 0,
+        sourceType: 'fee',
+        sourceId: f['رقم_العملية']
+      });
+    });
+    expenseRows.forEach(function (e) {
+      entries.push({
+        date: e['التاريخ'] || '',
+        type: 'مصروف (' + (e['النطاق'] || '') + ')',
+        description: e['التصنيف'] || 'مصروف',
+        caseNum: e['رقم_القضية'] || '',
+        clientId: e['رقم_الموكل'] || '',
+        clientName: '',
+        income: 0,
+        expense: _num(e['المبلغ']),
+        sourceType: 'expense',
+        sourceId: e.id
+      });
+    });
+
+    // Chronological order; entries sharing the same date keep their
+    // relative insertion order (Array.prototype.sort is stable in every
+    // engine this project targets) rather than being scrambled.
+    entries.sort(function (a, b) { return String(a.date).localeCompare(String(b.date)); });
+
+    var running = 0;
+    entries.forEach(function (entry) {
+      running += entry.income - entry.expense;
+      entry.balance = running;
+    });
+    return entries;
+  }
+
+  /**
+   * getCaseLedger(caseNum) — كشف حساب القضية.
+   * @param {string} caseNum
+   * @returns {Array<{date, type, description, caseNum, clientId, clientName, income, expense, balance, sourceType, sourceId}>}
+   */
+  function getCaseLedger(caseNum) {
+    if (!caseNum) return [];
+    var d = _dataRef() || {};
+    var feeRows = (d.fees || []).filter(function (f) { return f['رقم_القضية'] === caseNum; });
+    var expenseRows = (d.expenses || []).filter(function (e) { return e['رقم_القضية'] === caseNum; });
+    return _buildLedger(feeRows, expenseRows);
+  }
+
+  /**
+   * getClientLedger(clientId) — كشف حساب الموكل (كل قضاياه مجتمعة، كل
+   * حركة تحمل رقم القضية التي تخصها).
+   * @param {string} clientId
+   * @returns {Array}
+   */
+  function getClientLedger(clientId) {
+    if (!clientId) return [];
+    var d = _dataRef() || {};
+    var client = (d.clients || []).filter(function (c) {
+      return c[(typeof CLIENTS_ID_FIELD !== 'undefined') ? CLIENTS_ID_FIELD : 'رقم_الموكل'] === clientId;
+    })[0];
+    var clientName = client ? (client['الاسم'] || '').trim() : '';
+
+    var feeRows = (d.fees || []).filter(function (f) {
+      return f['رقم_الموكل'] === clientId || (clientName && (f['اسم_الموكل'] || '').trim() === clientName);
+    });
+    var expenseRows = (d.expenses || []).filter(function (e) { return e['رقم_الموكل'] === clientId; });
+    return _buildLedger(feeRows, expenseRows);
+  }
+
+  /**
+   * getOfficeLedger() — كشف حساب المكتب (كل الحركات، بلا تصفية).
+   * @returns {Array}
+   */
+  function getOfficeLedger() {
+    var d = _dataRef() || {};
+    return _buildLedger(d.fees || [], d.expenses || []);
+  }
+
   // ================================================================
   // Exports
   // ================================================================
@@ -354,6 +576,10 @@
     getClientNet: getClientNet,
     getCaseNet: getCaseNet,
     getOfficeNet: getOfficeNet,
+    getRelationshipRemaining: getRelationshipRemaining,
+    getCaseLedger: getCaseLedger,
+    getClientLedger: getClientLedger,
+    getOfficeLedger: getOfficeLedger,
     getCollectionsInRange: getCollectionsInRange,
     getExpensesInRange: getExpensesInRange,
     getTodayCollections: getTodayCollections,
@@ -365,7 +591,10 @@
     getTopRevenueCases: getTopRevenueCases,
     getTopRevenueClients: getTopRevenueClients,
     getCasesWithOutstandingBalance: getCasesWithOutstandingBalance,
-    getTotalOutstanding: getTotalOutstanding
+    getTotalOutstanding: getTotalOutstanding,
+    getOfficeExpenseBreakdown: getOfficeExpenseBreakdown,
+    getCaseFinancialRanking: getCaseFinancialRanking,
+    getClientFinancialRanking: getClientFinancialRanking
   };
 
   if (typeof module !== 'undefined' && module.exports) {
@@ -378,6 +607,10 @@
     root.getClientNet = getClientNet;
     root.getCaseNet = getCaseNet;
     root.getOfficeNet = getOfficeNet;
+    root.getRelationshipRemaining = getRelationshipRemaining;
+    root.getCaseLedger = getCaseLedger;
+    root.getClientLedger = getClientLedger;
+    root.getOfficeLedger = getOfficeLedger;
     root.getCollectionsInRange = getCollectionsInRange;
     root.getExpensesInRange = getExpensesInRange;
     root.getTodayCollections = getTodayCollections;
@@ -390,6 +623,9 @@
     root.getTopRevenueClients = getTopRevenueClients;
     root.getCasesWithOutstandingBalance = getCasesWithOutstandingBalance;
     root.getTotalOutstanding = getTotalOutstanding;
+    root.getOfficeExpenseBreakdown = getOfficeExpenseBreakdown;
+    root.getCaseFinancialRanking = getCaseFinancialRanking;
+    root.getClientFinancialRanking = getClientFinancialRanking;
   }
 
 })(typeof window !== 'undefined' ? window : (typeof globalThis !== 'undefined' ? globalThis : this));
