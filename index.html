@@ -218,15 +218,22 @@
 والمستندات، تنبيهات مواعيد تلقائية، تقارير ومزامنة سحابية آمنة. لطلب  الدعم عبر واتساب 01016000360.">
 <!-- TODO: استبدل الرابط التالي برابط نشر البرنامج الفعلي -->
 <meta property="og:url" content="https://fxstrict.github.io/elhossamforlaw/">
-<!-- PHASE A9.2 — FORENSIC FIX: og:image / twitter:image were relative
-     paths ("assets/og/og-image.png"). WhatsApp/Facebook/Twitter crawlers
-     resolve og:image against nothing but the tag's own value — they do
-     NOT reliably fall back to resolving it against og:url or the page
-     location the way a browser <img> tag would — so a relative path is
-     the confirmed root cause of the missing preview image. Fixed to an
-     absolute https:// URL built from the same canonical domain already
-     used two lines above by og:url/<link rel="canonical">. Nothing else
-     on this line changed (same file, same name, same case). -->
+<!-- PHASE A9.2 FIX: og:image/twitter:image were relative paths
+     ("assets/og/og-image.png"). Facebook's and WhatsApp's crawlers do
+     not reliably resolve relative image URLs against the page's own
+     <base>/location the way a browser does — this is the confirmed
+     root cause of previews not showing the image. Fixed to the same
+     absolute domain already used (correctly) by canonical/og:url
+     above, which is this project's real published GitHub Pages URL —
+     no domain was invented here.
+     og:image:width/height are now 1200x630, matching the actual
+     re-encoded asset (the previous file was 1733x907 while these tags
+     claimed 1200x630 — a genuine mismatch, not just a formatting
+     nit; crawlers may use the declared size to lay out the preview
+     before fully downloading the image). File size was also reduced
+     ~1.7MB -> ~854KB by the resize, for faster/more reliable crawler
+     fetch (WhatsApp in particular is known to be unreliable with
+     multi-megabyte share images). -->
 <meta property="og:image" content="https://fxstrict.github.io/elhossamforlaw/assets/og/og-image.png">
 <meta property="og:image:secure_url" content="https://fxstrict.github.io/elhossamforlaw/assets/og/og-image.png">
 <meta property="og:image:type" content="image/png">

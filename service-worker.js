@@ -255,7 +255,7 @@
 // is served networkFirstShell() (always fresh), and its only change was
 // to add three new <select> controls inside existing case-form tabs
 // (no cached-file reference changed).
-var SW_VERSION = 'v94'; // PHASE A8 — Firebase Cloud Messaging (push event added)
+var SW_VERSION = 'v95'; // PHASE A8 — Firebase Cloud Messaging (push event added)
                          // (Payment security hardening, Ledger,
                          // Financial Dashboard, Financial Reports UI,
                          // Expense case-autofill): fees.js, cases.js,
