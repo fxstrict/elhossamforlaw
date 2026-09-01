@@ -255,7 +255,17 @@
 // is served networkFirstShell() (always fresh), and its only change was
 // to add three new <select> controls inside existing case-form tabs
 // (no cached-file reference changed).
-var SW_VERSION = 'v92'; // CASES_RELATIONSHIP_FINANCIAL PHASE 4 (continued):
+var SW_VERSION = 'v94'; // PHASE A8 — Firebase Cloud Messaging (push event added)
+                         // (Payment security hardening, Ledger,
+                         // Financial Dashboard, Financial Reports UI,
+                         // Expense case-autofill): fees.js, cases.js,
+                         // clients.js, dashboard.js, expenses.js,
+                         // financial-reports.js all changed content;
+                         // two new files (ledger.js, financial-reports-
+                         // ui.js) added. SW_VERSION bump forces full
+                         // SHELL_CACHE recreation per every prior
+                         // SW_VERSION comment in this file.
+                         // CASES_RELATIONSHIP_FINANCIAL PHASE 4 (continued):
                          // advanced reporting layer added to
                          // financial-reports.js (getCollectionsInRange,
                          // getExpensesInRange, getTopRevenueCases/Clients,
@@ -535,6 +545,9 @@ var PRECACHE_URLS = [
   'js/license/LicenseManagerPanel.js?v=42',
   'js/api/api.js?v=42',
   'js/core/OfflineQueue.js?v=42',
+  'js/core/SyncCheckpoint.js?v=42', // PHASE A7
+  'js/core/SyncEngine.js?v=42', // PHASE A7 — Frontend Sync Wiring
+  'js/core/SyncCoordinator.js?v=1', // PHASE A7.5 — Sync Trigger Unification
   'js/ui-utils.js?v=42',
   'js/print-utils.js?v=42',
   'js/core/StorageAdapter.js?v=42',
@@ -585,17 +598,17 @@ var PRECACHE_URLS = [
   'js/auth/TopbarSessionBadge.js?v=42',
   'js/auth/SidebarSessionBadge.js?v=42',
   'js/core/RepositoryReadyTimeout.js?v=42',
-  'js/modules/cases.js?v=43',
+  'js/modules/cases.js?v=45',
   'js/modules/settings.js?v=42',
   'js/modules/firstrun.js?v=42',
   'js/modules/calendar.js?v=42',
   'js/modules/children.js?v=42',
-  'js/modules/dashboard.js?v=42',
+  'js/modules/dashboard.js?v=43',
   'js/modules/tasks.js?v=53',
   'js/modules/documents.js?v=42',
   'js/modules/sessions.js?v=42',
   'js/core/HistoryPanel.js?v=42',
-  'js/modules/clients.js?v=42',
+  'js/modules/clients.js?v=44',
   'js/modules/client-fields.js?v=42',
   'js/modules/opponents.js?v=42',
   'js/modules/opponent-fields.js?v=42',
@@ -603,7 +616,11 @@ var PRECACHE_URLS = [
   'js/modules/process-server-fields.js?v=42',
   'js/modules/administrative-work-fields.js?v=53',
   'js/modules/client-messages.js?v=42',
-  'js/modules/fees.js?v=42',
+  'js/modules/fees.js?v=44',
+  'js/modules/expenses.js?v=2',
+  'js/modules/financial-reports.js?v=4',
+  'js/modules/ledger.js?v=1',
+  'js/modules/financial-reports-ui.js?v=1',
   'js/modules/library.js?v=42',
   'js/modules/templates.js?v=42',
   'js/utils/DirectoryModel.js?v=1',
@@ -649,6 +666,7 @@ var PRECACHE_URLS = [
   'js/core/boot/SafeModeController.js?v=42',
   'js/core/pwa/ServiceWorkerRegistrar.js?v=42',
   'js/core/pwa/InstallPromptManager.js?v=42',
+  'js/core/pwa/FcmClient.js?v=1', // PHASE A8 — added to keep offline-boot precache in sync with index.html's new <script> tag; SW_VERSION bumped to v94 (see top of file) so this list is re-fetched
   'js/core/pwa/NotificationManager.js?v=42',
   'js/core/VoiceInputController.js?v=42'
 ];
@@ -735,14 +753,62 @@ self.addEventListener('sync', function (event) {
 //     location.hash on cold start and calls navigate() for any recognized
 //     page, exactly as it does for a bookmarked/shared deep link, so this
 //     simply reuses that existing, already-tested mechanism.
+// PHASE A8 — Firebase Cloud Messaging: يستقبل push events حتى عندما تكون
+// صفحة الـ PWA مغلقة تمامًا (هذا هو بالضبط ما لم يكن ممكنًا قبل A8 —
+// راجع docs/PROJECT_CONFIGURATION_GUIDE.md قسم Firebase/FCM). لا يلمس
+// أي حدث آخر في هذا الملف (install/activate/fetch/sync/message/
+// notificationclick) — إضافة بحتة، معزولة تمامًا، بنفس بنية payload
+// المُصمَّمة في Config/10_Fcm.gs (title/body/data.page مطابقان تمامًا
+// لما يقرأه notificationclick أدناه أصلًا — لا حاجة لتغيير notificationclick
+// نفسه).
+//
+// ملاحظة معمارية مهمة (موثَّقة أيضًا في PHASE A8 blueprint، القسم L):
+// هذا المعالج لا يستدعي SyncCoordinator ولا أي مزامنة إطلاقًا. هو فقط
+// يعرض إشعار النظام. المزامنة الفعلية (SyncCoordinator.requestSync
+// ('notification')) تحدث لاحقًا، فقط بعد أن يفتح المستخدم التطبيق فعليًا
+// بالضغط على الإشعار — داخل notificationclick أدناه → postMessage →
+// js/core/pwa/NotificationManager.js. عدم تشغيل مزامنة من هنا مقصود:
+// Service Worker في حالة push لا يملك سياق تطبيق حي (لا SyncCoordinator
+// محمَّل، لا IndexedDB جاهزة بالضرورة)، ومحاولة ذلك هنا كانت ستتحول
+// فعليًا لصنف من الـ polling/duplicate-sync الممنوع صراحة (§28 من طلب A8).
+self.addEventListener('push', function (event) {
+  var data = {};
+  try { data = event.data ? event.data.json() : {}; } catch (e) { data = {}; }
+
+  var title = data.title || 'نظام الحسام للمحاماة';
+  var body  = data.body  || '';
+  var page  = data.page  || '';
+
+  event.waitUntil(
+    self.registration.showNotification(title, {
+      body: body,
+      icon: './assets/icons/icon-192.png',
+      badge: './assets/icons/icon-96.png',
+      data: {
+        page: page,
+        projectId: data.projectId || '',
+        entityType: data.entityType || '',
+        entityId: data.entityId || '',
+        notificationId: data.notificationId || ''
+      }
+    })
+  );
+});
+
 self.addEventListener('notificationclick', function (event) {
   event.notification.close();
   var page = (event.notification.data && event.notification.data.page) || '';
+  // PHASE A8: نُمرِّر أيضًا projectId (إن وُجد من push event أعلاه) ضمن
+  // نفس رسالة postMessage الموجودة — NotificationManager.js يستخدمه
+  // للمقارنة (§17) قبل استدعاء SyncCoordinator.requestSync('notification').
+  // إشعارات محلية (NotificationManager.js الحالي، بلا FCM) لا تضع
+  // projectId في data.notification أصلًا، فتبقى '' — سلوكها بلا تغيير.
+  var projectId = (event.notification.data && event.notification.data.projectId) || '';
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (clientList) {
       for (var i = 0; i < clientList.length; i++) {
         var client = clientList[i];
-        client.postMessage({ type: 'AHP_NOTIFICATION_CLICK', page: page });
+        client.postMessage({ type: 'AHP_NOTIFICATION_CLICK', page: page, projectId: projectId });
         if ('focus' in client) return client.focus();
       }
       if (self.clients.openWindow) {
