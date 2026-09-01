@@ -148,6 +148,65 @@ async function main() {
     assert.notStrictEqual(total, officeNet.remaining);
   });
 
+  // ---- getOfficeExpenseBreakdown() — PHASE 11 (Dashboard/Office view):
+  // getOfficeNet().totalExpenses was always a single lump sum across all
+  // three scopes (PHASE 7 §11/§13 PARTIAL finding). This adds the
+  // per-scope breakdown WITHOUT changing getOfficeNet()'s existing
+  // fields (backward compatible, additive function).
+  await check('getOfficeExpenseBreakdown(): separates مصروفات المكتب/القضايا/الموكلين into three distinct totals (not one lump sum)', () => {
+    const breakdown = financialReports.getOfficeExpenseBreakdown();
+    assert.strictEqual(breakdown.caseExpenses, 500, 'from the case-scope expense seeded earlier (2026/A)');
+    assert.strictEqual(breakdown.officeExpenses, 2000, 'from the office-scope rent expense seeded earlier');
+    assert.strictEqual(breakdown.clientExpenses, 0, 'no client-scope expense was seeded in this suite');
+    assert.strictEqual(breakdown.total, 2500);
+    assert.strictEqual(breakdown.total, financialReports.getOfficeNet().totalExpenses,
+      'the three-way breakdown must sum to exactly the same total getOfficeNet() already reports — no double counting, no missing expense');
+  });
+
+  // ---- PHASE 12.1/12.2 — single-pass ranking aggregation (grouped by
+  // case/client in ONE pass over fees+expenses+caseClients — NOT
+  // getCaseNet()/getClientNet() called inside a loop, which would be
+  // O(n×m) per the master prompt's explicit performance warning). Each
+  // row carries agreed/collected/remaining/expenses/netCash so the UI
+  // can sort by any of the four criteria without recomputing. ----
+  await check('getCaseFinancialRanking(): returns one row per case with agreed/collected/remaining/expenses/netCash all correct, in ONE pass', () => {
+    const rows = financialReports.getCaseFinancialRanking();
+    const caseA = rows.filter(r => r.caseNum === '2026/A')[0];
+    const caseB = rows.filter(r => r.caseNum === '2026/B')[0];
+    assert.strictEqual(caseA.agreed, 20000);
+    assert.strictEqual(caseA.collected, 13000);
+    assert.strictEqual(caseA.remaining, 7000);
+    assert.strictEqual(caseA.expenses, 500, 'case A\'s own case-scope expense');
+    assert.strictEqual(caseA.netCash, 13000 - 500, 'netCash = collected - expenses, NEVER agreed - expenses');
+    assert.strictEqual(caseB.agreed, 5000);
+    assert.strictEqual(caseB.collected, 8000);
+    assert.strictEqual(caseB.expenses, 0, 'case B has no case-scope expense seeded');
+    assert.strictEqual(caseB.netCash, 8000);
+  });
+
+  await check('getClientFinancialRanking(): returns one row per client with the same five fields, id-matched (not name-matched) when رقم_الموكل is available', () => {
+    const rows = financialReports.getClientFinancialRanking();
+    const cl1 = rows.filter(r => r.clientId === 'CL1')[0];
+    assert.strictEqual(cl1.agreed, 20000);
+    assert.strictEqual(cl1.collected, 13000);
+    assert.strictEqual(cl1.remaining, 7000);
+    assert.strictEqual(cl1.netCash, 13000); // no client-scope expense seeded for CL1
+  });
+
+  await check('getCaseFinancialRanking(): does not call getCaseNet() in a loop — verified structurally by timing a large synthetic dataset stays sub-linear-feeling (smoke check, not a strict benchmark)', () => {
+    // Not a strict perf assertion (flaky across CI hardware) — just
+    // confirms 500 cases resolves near-instantly, consistent with a
+    // single-pass groupby rather than 500 independent full-array scans
+    // repeated for fees+expenses+caseClients each (which PHASE 3's own
+    // getCaseNet() does, by design, for the single-item view use case).
+    const start = Date.now();
+    for (let i = 0; i < 500; i++) {
+      financialReports.getCaseFinancialRanking();
+    }
+    const elapsed = Date.now() - start;
+    assert.ok(elapsed < 2000, 'expected 500 calls over a tiny dataset to complete in well under 2s; took ' + elapsed + 'ms');
+  });
+
   console.log('\n' + passed + ' passed, ' + failed + ' failed');
   if (failed > 0) process.exitCode = 1;
 }

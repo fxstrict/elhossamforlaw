@@ -182,7 +182,7 @@ function makeSandbox(seedStorage) {
     localStorage: fakeStorage,
     indexedDB: fakeIndexedDB,
     window: global,
-    data: { cases: [], clients: [], sessions: [], documents: [], fees: [] },
+    data: { cases: [], clients: [], sessions: [], documents: [], fees: [], caseClients: [] },
     editIdx: { cases: -1 },
     document: {
       getElementById: function (id) {
@@ -197,6 +197,9 @@ function makeSandbox(seedStorage) {
     closeModal: function (id) { closeModalLog.push(id); },
     formatDate: function (d) { return d || '—'; },
     formatTime: function (t) { return t || '—'; },
+    escapeHtml: function (s) { return s === null || s === undefined ? '' : String(s).replace(/[&<>"']/g, function (c) {
+      return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c];
+    }); },
     parseLocalDate: function (d) { return d ? new Date(d).getTime() : 0; },
     urgencyBadge: function () { return '<span class="badge-urgent"></span>'; },
     statusBadge: function (s) { return '<span class="badge-status">' + (s || '') + '</span>'; },
@@ -482,6 +485,55 @@ async function main() {
       const caseRecord = sandboxGlobals.data.cases[0];
       const html = casesModule.buildCaseReport(caseRecord, [], [], []);
       assert.ok(html.indexOf('صافي عائد القضية') === -1);
+    });
+
+    // PHASE 8 — SECURITY + PAYMENT WORKFLOW: real "إضافة دفعة" button
+    // wiring in the Case view (PHASE 7 §12 GAP — createFeePayment() had
+    // no UI consumer; this proves buildCaseReport() now renders a real
+    // button calling openPaymentModal() with the correct relationshipId
+    // and the case's own resolved index (caseIdx), so _onPaymentSaved()
+    // can re-render this exact case view after a successful payment).
+    check('buildCaseReport(c): renders a per-relationship "إضافة دفعة" button wired to openPaymentModal({relationshipId, caseIdx}) when the case has an agreed-fee relationship', () => {
+      global.getCaseNet = function () { return { totalFees: 13000, totalExpenses: 0, net: 13000, agreedTotal: 20000, collected: 13000, remaining: 7000 }; };
+      global.getRelationshipRemaining = function (relId) {
+        assert.strictEqual(relId, 'REL-1');
+        return { agreedTotal: 20000, collected: 13000, remaining: 7000 };
+      };
+      sandboxGlobals.data.caseClients = [
+        { id: 'REL-1', 'رقم_القضية': sandboxGlobals.data.cases[0]['رقم_القضية'], 'رقم_الموكل': 'CL1', 'الصفة': 'مدّعي' }
+      ];
+      sandboxGlobals.data.clients = [{ 'رقم_الموكل': 'CL1', 'الاسم': 'أحمد محمود' }];
+
+      const caseRecord = sandboxGlobals.data.cases[0];
+      const expectedCaseIdx = casesModule.resolveCaseIndex(sandboxGlobals.data.cases, caseRecord);
+      const html = casesModule.buildCaseReport(caseRecord, [], [], []);
+
+      assert.ok(html.indexOf('أحمد محمود') !== -1, 'expected the relationship\'s client name to appear in the table row');
+      assert.ok(html.indexOf("openPaymentModal({relationshipId:'REL-1', caseIdx:" + expectedCaseIdx + "})") !== -1,
+        'expected a button whose onclick calls openPaymentModal with this exact relationshipId and caseIdx');
+      assert.ok(html.indexOf((7000).toLocaleString('ar-EG')) !== -1, 'expected the remaining amount (7000) to be displayed');
+      assert.ok(html.indexOf("openLedger('case','" + sandboxGlobals.data.cases[0]['رقم_القضية'] + "')") !== -1,
+        'expected a "كشف الحساب" button wired to openLedger(\'case\', caseNum) — PHASE 9');
+
+      delete global.getCaseNet;
+      delete global.getRelationshipRemaining;
+      sandboxGlobals.data.caseClients = [];
+      sandboxGlobals.data.clients = [];
+    });
+
+    check('buildCaseReport(c): renders NO payment button for a relationship with no agreed fee (أتعاب_العلاقة never entered) — nothing to pay towards', () => {
+      global.getCaseNet = function () { return { totalFees: 0, totalExpenses: 0, net: 0, agreedTotal: 0, collected: 0, remaining: 0 }; };
+      global.getRelationshipRemaining = function () { return { agreedTotal: 0, collected: 0, remaining: 0 }; };
+      sandboxGlobals.data.caseClients = [
+        { id: 'REL-2', 'رقم_القضية': sandboxGlobals.data.cases[0]['رقم_القضية'], 'رقم_الموكل': 'CL2', 'الصفة': 'مدّعى عليه' }
+      ];
+      const caseRecord = sandboxGlobals.data.cases[0];
+      const html = casesModule.buildCaseReport(caseRecord, [], [], []);
+      assert.ok(html.indexOf('openPaymentModal') === -1);
+
+      delete global.getCaseNet;
+      delete global.getRelationshipRemaining;
+      sandboxGlobals.data.caseClients = [];
     });
 
     // ---- CASES_RELATIONSHIP_FINANCIAL: switchCaseFormTab() ----

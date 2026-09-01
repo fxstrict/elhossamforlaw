@@ -182,7 +182,7 @@ function makeSandbox(seedStorage) {
     localStorage: fakeStorage,
     indexedDB: fakeIndexedDB,
     window: global,
-    data: { clients: [], cases: [], fees: [] },
+    data: { clients: [], cases: [], fees: [], caseClients: [] },
     editIdx: { clients: -1 },
     document: {
       getElementById: function (id) {
@@ -203,6 +203,9 @@ function makeSandbox(seedStorage) {
     updateBadges: function () { badgeCalls.count++; },
     closeModal: function (id) { closeModalLog.push(id); },
     formatDate: function (d) { return d || '—'; },
+    escapeHtml: function (s) { return s === null || s === undefined ? '' : String(s).replace(/[&<>"']/g, function (c) {
+      return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c];
+    }); },
     val: function (id) {
       const el = fakeElements[id];
       return el ? el.value : '';
@@ -536,6 +539,53 @@ async function main() {
       assert.strictEqual(typeof global.getClientNet, 'undefined');
       const html = clientsModule.buildClientReport(sandboxGlobals.data.clients.filter(function (c) { return c[clientsModule.CLIENTS_ID_FIELD] === secondClientId; })[0]);
       assert.ok(html.indexOf('صافي عائد الموكل') === -1);
+    });
+
+    // PHASE 8 — SECURITY + PAYMENT WORKFLOW: real "إضافة دفعة" button
+    // wiring in the Client view (PHASE 7 §12/§13 GAP — no per-case
+    // breakdown existed, only one client-wide aggregate; this proves
+    // buildClientReport() now lists each case-relationship on its own
+    // row with a real button calling openPaymentModal({relationshipId,
+    // clientIdx}), matching the audit prompt's §6 example table).
+    check('buildClientReport(c): renders a per-case "إضافة دفعة" button wired to openPaymentModal({relationshipId, clientIdx}) for a client with an agreed-fee case relationship', () => {
+      const thisClient = sandboxGlobals.data.clients.filter(function (c) { return c[clientsModule.CLIENTS_ID_FIELD] === secondClientId; })[0];
+      global.getClientNet = function () { return { totalFees: 13000, totalExpenses: 0, net: 13000, agreedTotal: 20000, collected: 13000, remaining: 7000 }; };
+      global.getRelationshipRemaining = function (relId) {
+        assert.strictEqual(relId, 'REL-9');
+        return { agreedTotal: 20000, collected: 13000, remaining: 7000 };
+      };
+      sandboxGlobals.data.caseClients = [
+        { id: 'REL-9', 'رقم_القضية': '2026/123', 'رقم_الموكل': secondClientId, 'الصفة': 'مدّعي' }
+      ];
+      const expectedClientIdx = clientsModule.resolveClientIndex(sandboxGlobals.data.clients, thisClient);
+
+      const html = clientsModule.buildClientReport(thisClient);
+
+      assert.ok(html.indexOf('2026/123') !== -1, 'expected the case number to appear as its own row');
+      assert.ok(html.indexOf("openPaymentModal({relationshipId:'REL-9', clientIdx:" + expectedClientIdx + "})") !== -1,
+        'expected a button whose onclick calls openPaymentModal with this exact relationshipId and clientIdx');
+      assert.ok(html.indexOf((7000).toLocaleString('ar-EG')) !== -1, 'expected the remaining amount (7000) to be displayed');
+      assert.ok(html.indexOf("openLedger('client','" + secondClientId + "')") !== -1,
+        'expected a "كشف الحساب" button wired to openLedger(\'client\', clientId) — PHASE 10');
+
+      delete global.getClientNet;
+      delete global.getRelationshipRemaining;
+      sandboxGlobals.data.caseClients = [];
+    });
+
+    check('buildClientReport(c): renders NO payment button for a case-relationship with no agreed fee', () => {
+      const thisClient = sandboxGlobals.data.clients.filter(function (c) { return c[clientsModule.CLIENTS_ID_FIELD] === secondClientId; })[0];
+      global.getClientNet = function () { return { totalFees: 0, totalExpenses: 0, net: 0, agreedTotal: 0, collected: 0, remaining: 0 }; };
+      global.getRelationshipRemaining = function () { return { agreedTotal: 0, collected: 0, remaining: 0 }; };
+      sandboxGlobals.data.caseClients = [
+        { id: 'REL-10', 'رقم_القضية': '2026/456', 'رقم_الموكل': secondClientId, 'الصفة': 'مدّعى عليه' }
+      ];
+      const html = clientsModule.buildClientReport(thisClient);
+      assert.ok(html.indexOf('openPaymentModal') === -1);
+
+      delete global.getClientNet;
+      delete global.getRelationshipRemaining;
+      sandboxGlobals.data.caseClients = [];
     });
 
     // ---- genClientQR(): no-ops with a toast when portal_token is absent ----
