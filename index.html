@@ -218,11 +218,24 @@
 والمستندات، تنبيهات مواعيد تلقائية، تقارير ومزامنة سحابية آمنة. لطلب  الدعم عبر واتساب 01016000360.">
 <!-- TODO: استبدل الرابط التالي برابط نشر البرنامج الفعلي -->
 <meta property="og:url" content="https://fxstrict.github.io/elhossamforlaw/">
-<!-- ملاحظة: تم إضافة ملف الصورة الفعلي على المسار assets/og/og-image.png
-     (1200×630) — لازم يُرفع هذا الملف مع index.html بنفس هذا المسار
-     النسبي في أي استضافة نهائية حتى يظهر عند المشاركة على واتساب/فيسبوك. -->
-<meta property="og:image" content="assets/og/og-image.png">
-<meta property="og:image:secure_url" content="assets/og/og-image.png">
+<!-- PHASE A9.2 FIX: og:image/twitter:image were relative paths
+     ("assets/og/og-image.png"). Facebook's and WhatsApp's crawlers do
+     not reliably resolve relative image URLs against the page's own
+     <base>/location the way a browser does — this is the confirmed
+     root cause of previews not showing the image. Fixed to the same
+     absolute domain already used (correctly) by canonical/og:url
+     above, which is this project's real published GitHub Pages URL —
+     no domain was invented here.
+     og:image:width/height are now 1200x630, matching the actual
+     re-encoded asset (the previous file was 1733x907 while these tags
+     claimed 1200x630 — a genuine mismatch, not just a formatting
+     nit; crawlers may use the declared size to lay out the preview
+     before fully downloading the image). File size was also reduced
+     ~1.7MB -> ~854KB by the resize, for faster/more reliable crawler
+     fetch (WhatsApp in particular is known to be unreliable with
+     multi-megabyte share images). -->
+<meta property="og:image" content="https://fxstrict.github.io/elhossamforlaw/assets/og/og-image.png">
+<meta property="og:image:secure_url" content="https://fxstrict.github.io/elhossamforlaw/assets/og/og-image.png">
 <meta property="og:image:type" content="image/png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
@@ -232,7 +245,7 @@
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="نظام الحسام — البرنامج الاحترافي لإدارة مكاتب المحاماة">
 <meta name="twitter:description" content="إدارة القضايا والجلسات وملفات العملاء والمستندات مع تنبيهات وتقارير ومزامنة سحابية. لطلب البرنامج كاملاً اتصل بالدعم: 01016000360.">
-<meta name="twitter:image" content="assets/og/og-image.png">
+<meta name="twitter:image" content="https://fxstrict.github.io/elhossamforlaw/assets/og/og-image.png">
 <meta name="twitter:image:alt" content="نظام الحسام لإدارة مكاتب المحاماة">
 
 <!-- Structured Data (schema.org) لتحسين ظهور النتيجة في نتائج البحث -->
@@ -344,6 +357,11 @@
 <link rel="preload" as="script" href="js/debug/RuntimeDebugLayer.js?v=42" fetchpriority="high">
 <link rel="preload" as="script" href="js/api/api.js?v=42" fetchpriority="high">
 <link rel="preload" as="script" href="js/core/OfflineQueue.js?v=42" fetchpriority="high">
+<!-- PHASE A7 — SyncCheckpoint.js: standalone per-sheet incremental-sync
+     cursor store, same localStorage pattern as OfflineQueue.js above and
+     loaded immediately after it for the same reason (no dependencies on
+     anything else, safe to be available early). -->
+<link rel="preload" as="script" href="js/core/SyncCheckpoint.js?v=42" fetchpriority="high">
 <link rel="preload" as="script" href="js/ui-utils.js?v=42" fetchpriority="high">
 <link rel="preload" as="script" href="js/print-utils.js?v=42" fetchpriority="high">
 <link rel="preload" as="script" href="js/core/StorageAdapter.js?v=42" fetchpriority="high">
@@ -384,6 +402,19 @@
 <link rel="preload" as="script" href="js/core/RepositoryReadyTimeout.js?v=42" fetchpriority="high">
 <link rel="preload" as="script" href="js/modules/cases.js?v=45" fetchpriority="high">
 <link rel="preload" as="script" href="js/modules/settings.js?v=42" fetchpriority="high">
+<!-- PHASE A7 — SyncEngine.js: Frontend Incremental Sync orchestration
+     (Receive -> Validate -> Apply -> Commit Checkpoint). Additive only,
+     loaded after settings.js (bootLoadFromSheets() calls into it) and
+     after every *RepositoryReadyPromise / ApiService / SyncCheckpoint
+     it depends on at call time — see js/core/SyncEngine.js header. -->
+<link rel="preload" as="script" href="js/core/SyncEngine.js?v=42" fetchpriority="high">
+<!-- PHASE A7.5 — SyncCoordinator.js: unifies every sync trigger (boot,
+     manual, online, future notification) behind one TTL/cooldown/
+     single-flight gate. Loaded after everything it calls into as a
+     black box (OfflineQueue, SyncCheckpoint, SyncEngine, settings.js's
+     loadFromSheets()) and before firstrun.js, which is the first
+     caller in script order. -->
+<link rel="preload" as="script" href="js/core/SyncCoordinator.js?v=1" fetchpriority="high">
 <link rel="preload" as="script" href="js/modules/firstrun.js?v=42" fetchpriority="high">
 <link rel="preload" as="script" href="js/modules/calendar.js?v=42" fetchpriority="low">
 <link rel="preload" as="script" href="js/modules/children.js?v=42" fetchpriority="low">
@@ -2342,6 +2373,8 @@ style="color:var(--muted);font-size:12px;margin-top:4px;"> جارٍ تحميل
 </div>
 <script src="js/api/api.js?v=42"></script>
 <script src="js/core/OfflineQueue.js?v=42"></script>
+<!-- PHASE A7 — see preload comment above. -->
+<script src="js/core/SyncCheckpoint.js?v=42"></script>
 <script src="js/ui-utils.js?v=42"></script>
 <script src="js/print-utils.js?v=42"></script>
 <script src="js/core/StorageAdapter.js?v=42"></script>
@@ -2901,7 +2934,11 @@ window.addEventListener('DOMContentLoaded',function(){
   // استعادة رابط الشيت المحفوظ
   var savedSheetUrl=localStorage.getItem('sheetUrl');
   if(savedSheetUrl) displaySheetUrl(savedSheetUrl);
-  if(API_URL){bootLoadFromSheets();setTimeout(pingConnection,2000);}
+  // PHASE A7.5 — SyncCoordinator: was bootLoadFromSheets() directly.
+  // Reason 'boot' respects TTL/cooldown (see SyncCoordinator.js §19) —
+  // a very recent successful sync (e.g. reload shortly after another
+  // boot) no longer re-hits Apps Script unnecessarily.
+  if(API_URL){if(typeof SyncCoordinator!=='undefined'){SyncCoordinator.requestSync('boot');}else{bootLoadFromSheets();}setTimeout(pingConnection,2000);}
   document.querySelectorAll('.modal-overlay').forEach(function(o){o.addEventListener('click',function(e){if(e.target===o)o.classList.remove('open');});});
 
   // PHASE 13.4 — PART 8: BOOTSTRAP REGRESSION FIX
@@ -2922,7 +2959,11 @@ window.addEventListener('DOMContentLoaded',function(){
       if(repoApiUrl!==undefined&&repoApiUrl!==API_URL){
         API_URL=repoApiUrl;
         updateConnectionStatus();
-        if(API_URL){bootLoadFromSheets();setTimeout(pingConnection,2000);}
+        // PHASE A7.5 — SyncCoordinator: was bootLoadFromSheets() directly.
+        // Same 'boot' reason as the DOMContentLoaded call above (this is
+        // the settingsRepositoryReadyPromise-driven re-check of the same
+        // boot-time sync, not a distinct user action).
+        if(API_URL){if(typeof SyncCoordinator!=='undefined'){SyncCoordinator.requestSync('boot');}else{bootLoadFromSheets();}setTimeout(pingConnection,2000);}
       }
       if(repoDriveUrl!==undefined&&repoDriveUrl!==DRIVE_URL){
         DRIVE_URL=repoDriveUrl;
@@ -2968,6 +3009,10 @@ window.addEventListener('DOMContentLoaded',function(){
 </script>
 
 <script src="js/modules/settings.js?v=42"></script>
+<!-- PHASE A7 — SyncEngine.js (see preload comment above) -->
+<script src="js/core/SyncEngine.js?v=42"></script>
+<!-- PHASE A7.5 — SyncCoordinator.js (see preload comment above) -->
+<script src="js/core/SyncCoordinator.js?v=1"></script>
 <script src="js/modules/firstrun.js?v=42"></script>
 <script src="js/modules/calendar.js?v=42"></script>
 <script src="js/modules/children.js?v=42"></script>
@@ -3230,6 +3275,14 @@ window.addEventListener('DOMContentLoaded',function(){
      js/core/pwa/InstallPromptManager.js for the full contract. Loaded
      last, same reasoning as ServiceWorkerRegistrar.js above. -->
 <script src="js/core/pwa/InstallPromptManager.js?v=42"></script>
+<!-- PHASE A8 — Firebase Cloud Messaging token bridge. Loaded before
+     NotificationManager.js (which calls window.ahpGetFcmToken() after the
+     person explicitly grants permission). Does nothing on boot: no CDN
+     fetch, no Firebase init, until that call actually happens. See
+     js/core/pwa/FcmClient.js for the full contract and why the existing
+     service-worker.js registration is reused instead of a second,
+     separate firebase-messaging-sw.js. -->
+<script src="js/core/pwa/FcmClient.js?v=1"></script>
 <!-- PHASE PWA-NOTIFICATIONS — local, professional system-tray notifications
      for the app's own alerts (sessions today/soon, overdue tasks, cases
      missing opponent/documents), shown only at app-open time, no external
