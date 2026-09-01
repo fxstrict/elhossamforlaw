@@ -117,6 +117,34 @@ const ApiService = {
   },
 
   /**
+   * PHASE A7 — STEP 9 (Frontend Pull Sync). يستدعي المسار الجديد
+   * ?sheet=<sheet>&action=sync&cursor=<cursor> (راجع Config/06_Api.gs:
+   * apiSyncSheet()). لا يستبدل loadData() أعلاه — إضافة كليًا مستقلة،
+   * لا تغيير على أي دالة موجودة فى هذا الملف.
+   * @param {string} sheetName  - Arabic sheet name, e.g. 'القضايا'
+   * @param {?string} [cursor]  - Base64 cursor من نداء سابق، أو null/'' للبداية
+   * @returns {Promise<{sheet:string, items:Array, nextCursor:?string, hasMore:boolean}>}
+   *          عند فشل الشبكة: يرجع {items:[], nextCursor: cursor (كما هو،
+   *          بلا تقدّم), hasMore:false} — Checkpoint القديم لا يتحرك أبدًا
+   *          عند فشل، بنفس فلسفة §31 (Checkpoint Safety) فى الطلب.
+   */
+  async syncSheet(sheetName, cursor) {
+    try {
+      const qs = '?sheet=' + encodeURIComponent(sheetName) + '&action=sync' +
+        (cursor ? '&cursor=' + encodeURIComponent(cursor) : '');
+      const r = await this._get(qs);
+      const body = await r.json();
+      if (!r.ok || (body && body.error)) {
+        throw new Error('[ApiService.syncSheet] ' + (body && body.error ? body.error : ('HTTP ' + r.status)));
+      }
+      return body;
+    } catch (e) {
+      console.warn('[ApiService.syncSheet] Sheet:', sheetName, e);
+      return { sheet: sheetName, items: [], nextCursor: cursor || null, hasMore: false };
+    }
+  },
+
+  /**
    * Loads ALL sheets in one call (sequential — preserves original behaviour).
    *
    * Replaces: loadFromSheets() fetch loop
