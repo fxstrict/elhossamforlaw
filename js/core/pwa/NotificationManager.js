@@ -393,9 +393,42 @@
       if (result === 'granted') {
         setEnabled(true);
         checkAndNotify();
+        registerFcmTokenIfAvailable(); // PHASE A8 — same explicit user gesture, no separate permission ask
       }
     });
   };
+
+  // ------------------------------------------------------------------
+  // PHASE A8 — FCM token registration (reuses the existing
+  // apiAddRow('أجهزة_FCM', ...) endpoint via ApiService.saveData(), exactly
+  // as PHASE A8's blueprint required — no new backend endpoint). No-ops
+  // completely if this deployment has no Firebase config (see
+  // js/core/pwa/FcmClient.js) or ApiService/OfflineQueue aren't loaded —
+  // this file must never throw regardless of what's available.
+  // ------------------------------------------------------------------
+  function registerFcmTokenIfAvailable() {
+    safely(function () {
+      if (typeof global.ahpGetFcmToken !== 'function') return;
+      global.ahpGetFcmToken().then(function (token) {
+        if (!token || typeof global.ApiService === 'undefined' || typeof global.ApiService.saveData !== 'function') return;
+        var now = new Date().toISOString();
+        var projectId = safely(function () { return global.localStorage.getItem('ahp_project_id') || ''; }, '');
+        // id === token: apiAddRow()'s existing idempotency guard (same id
+        // -> overwrite in place) is what gives us "same token -> update
+        // existing record, not a duplicate row" for free — no new
+        // dedup logic needed anywhere, per PHASE A8's design.
+        global.ApiService.saveData('أجهزة_FCM', {
+          id: token,
+          token: token,
+          device_label: safely(function () { return navigator.userAgent.slice(0, 120); }, ''),
+          created_at: now,
+          updated_at: now,
+          status: 'active',
+          project_id: projectId
+        });
+      });
+    }, undefined);
+  }
 
   global.handleNotifToggleChange = function handleNotifToggleChange(checkbox) {
     setEnabled(!!(checkbox && checkbox.checked));
@@ -428,6 +461,26 @@
     navigator.serviceWorker.addEventListener('message', function (event) {
       if (event.data && event.data.type === 'AHP_NOTIFICATION_CLICK' && event.data.page) {
         safely(function () { if (typeof global.navigate === 'function') global.navigate(event.data.page); }, undefined);
+
+        // PHASE A8 — §17 Project Isolation + §L SyncCoordinator Integration.
+        // event.data.projectId is '' for the pre-existing local-only
+        // notifications (service-worker.js's notificationclick never set it
+        // before A8), so this whole block is skipped for those exactly as
+        // before — only real FCM-delivered notifications carry a
+        // projectId and trigger a sync.
+        var incomingProjectId = event.data.projectId || '';
+        if (incomingProjectId) {
+          var currentProjectId = safely(function () { return global.localStorage.getItem('ahp_project_id') || ''; }, '');
+          if (currentProjectId && incomingProjectId !== currentProjectId) {
+            console.warn('[NotificationManager] Ignored notification for a different project (projectId mismatch) — no sync triggered.');
+            return;
+          }
+          safely(function () {
+            if (global.SyncCoordinator && typeof global.SyncCoordinator.requestSync === 'function') {
+              global.SyncCoordinator.requestSync('notification');
+            }
+          }, undefined);
+        }
       }
     });
   }
