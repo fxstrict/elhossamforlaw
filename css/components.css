@@ -237,9 +237,24 @@
   content:'';position:absolute;inset:-16px;border-radius:50%;
   background:radial-gradient(circle,rgba(201,168,76,0.38) 0%,rgba(201,168,76,0) 70%);
   filter:blur(7px);opacity:0;z-index:0;
-  animation:splash-glow-in .5s ease-in-out forwards .1s;
+  /* PHASE A9.3 — was a flat 0→1 fade; now a gentle low→medium→stable
+     ramp (same property/duration budget, transform/opacity only) so
+     the gold glow reads as settling in rather than snapping on. */
+  animation:splash-glow-in .65s ease-in-out forwards .1s;
 }
-.splash-logo-ring{opacity:0;animation:splash-fade .55s ease-in-out forwards .05s;}
+/* PHASE A9.3 — ring entrance: was opacity-only; now also a subtle
+   scale + very small rotation (±6deg) so the ring reads as easing
+   into place with the logo instead of just fading. Circle's bounding
+   box is centered at (60,60) — same as its own center — so the
+   default transform-origin already lines up with no extra property
+   needed. Transform/opacity only; matches the logo's own .6s timing
+   and easing curve so both settle together. Neutralized entirely
+   under prefers-reduced-motion (existing rule below already lists
+   .splash-logo-ring and forces transform:none). */
+.splash-logo-ring{
+  opacity:0;transform:scale(.94) rotate(-6deg);
+  animation:splash-ring-in .6s cubic-bezier(0.4,0,0.2,1) forwards .05s;
+}
 
 .splash-title{
   font-size:26px;font-weight:900;color:#0D1B2A;letter-spacing:.5px;
@@ -286,8 +301,21 @@
   0%{opacity:0;transform:scale(.82);}
   100%{opacity:1;transform:scale(1);}
 }
-@keyframes splash-glow-in{from{opacity:0;}to{opacity:1;}}
+/* PHASE A9.3 — three-stop ramp (low → medium → stable) replacing the
+   old flat from/to fade; still opacity-only, still forwards-filled. */
+@keyframes splash-glow-in{
+  0%{opacity:0;}
+  45%{opacity:.55;}
+  100%{opacity:1;}
+}
 @keyframes splash-fade{from{opacity:0;}to{opacity:1;}}
+/* PHASE A9.3 — logo ring entrance: opacity + small scale + small
+   rotation settling to the identity transform. transform/opacity
+   only; no layout properties touched. */
+@keyframes splash-ring-in{
+  0%{opacity:0;transform:scale(.94) rotate(-6deg);}
+  100%{opacity:1;transform:scale(1) rotate(0deg);}
+}
 @keyframes splash-rise{
   from{opacity:0;transform:translateY(6px);}
   to{opacity:1;transform:translateY(0);}
@@ -296,6 +324,32 @@
   0%{background-position:0% 50%;}
   50%{background-position:100% 50%;}
   100%{background-position:0% 50%;}
+}
+
+/* PHASE A9.2 — FORENSIC FIX: application-name-under-logo visibility.
+   ROOT CAUSE of "appears on some devices, not others": every staged
+   element above (.splash-title, .splash-subtitle, .splash-version,
+   .splash-contact, .splash-footer) starts from a hard-coded
+   `opacity:0` in its base rule and is made visible ONLY by its
+   @keyframes animation reaching `forwards` fill. That is correct on
+   any browser that actually runs the animation — but on a device/
+   WebView build where CSS animations are disabled, dropped, or
+   overridden by something outside this app (some OEM Android WebView
+   "data saver"/low-power builds skip non-essential animations
+   entirely; some MDM/antivirus injected stylesheets set
+   `animation:none!important` globally) the element is left sitting at
+   its base `opacity:0` forever — nothing ever runs to change it. This
+   is a real display bug, not merely a slow one, and no amount of
+   `display:block` fixes it, since `display` was never the property in
+   question. `firstrun.js` adds a JS-side safety net (see
+   "SPLASH TEXT VISIBILITY GUARANTEE" there) that forces these elements
+   visible if the animation has not already done so — this CSS-only
+   rule below is the first line of defense for the more common case of
+   `animation-fill-mode` simply not being understood by the engine. */
+@supports not (animation-fill-mode: forwards) {
+  .splash-logo,.splash-logo-ring,.splash-title,.splash-subtitle,.splash-version,.splash-contact,.splash-footer{
+    opacity:1!important;transform:none!important;
+  }
 }
 
 /* Respect the user's OS-level motion preference: collapse every
