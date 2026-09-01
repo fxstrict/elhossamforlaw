@@ -53,62 +53,6 @@ window.__splashStart = window.__splashStart || Date.now();
 // before the animation timeline above has completed.
 var MIN_VISIBLE_MS = 3300;
 
-// ==================================================================
-// PHASE A9.2 — SPLASH TEXT VISIBILITY GUARANTEE (forensic fix)
-// ------------------------------------------------------------------
-// SYMPTOM investigated: "الحسام" / "نظام إدارة مكاتب المحاماة" under
-// the logo appears on some devices and not others.
-// ROOT CAUSE: every staged splash element (.splash-title,
-// .splash-subtitle, .splash-version, .splash-contact, .splash-footer)
-// is defined in css/components.css with a hard-coded `opacity:0` in
-// its BASE rule, and is only ever made visible by its own
-// `@keyframes ... forwards` animation completing. That is by design
-// (it drives the sequential reveal timeline) and works correctly on
-// any browser that actually executes CSS animations — but it has no
-// fallback for a device/WebView build where CSS animations are
-// silently disabled, dropped, or globally overridden (observed in the
-// wild on some OEM Android "battery saver"/data-saver WebView builds,
-// and by some MDM/antivirus-injected stylesheets that set
-// `animation:none!important` on the whole page). On such a device the
-// base `opacity:0` is the only rule that ever applies, so the text is
-// not merely delayed — it never appears, on every load, permanently.
-// This is a genuinely different failure mode from a slow device (which
-// only delays the reveal; MIN_VISIBLE_MS above already accounts for
-// that) and `display:block` would not touch it, since `display` was
-// never the property left in the wrong state.
-//
-// FIX: a single, idempotent, root-cause-agnostic safety net, timed to
-// fire at 3100ms — after the LAST staged element's own reveal
-// animation would have finished on a working device (footer:
-// 2.4s start + .5s duration = 2.9s, +200ms margin) and still before
-// the earliest possible splash-hide (MIN_VISIBLE_MS=3300ms, +200ms
-// margin the other direction), so it can never cut a real animation
-// short and never races the hide timers. Check each staged element's
-// actual computed opacity; any element still stuck at 0 is forced to
-// its intended end state (opacity:1, no transform) inline. On a
-// device where the animation works normally this is a silent no-op
-// (every check passes, nothing is touched). Purely additive: reads
-// computed style and, only when needed, sets inline opacity/transform
-// on the five existing splash elements — no new DOM, no new classes,
-// no change to timing/markup/other files.
-setTimeout(function () {
-  try {
-    // PHASE A9.3: added '.splash-logo' — the logo itself had the same
-    // base opacity:0-until-animation-runs pattern as the text below but
-    // was not covered by this net. No other id added/removed/reordered.
-    var ids = ['.splash-logo', '.splash-title', '.splash-subtitle', '.splash-version', '.splash-contact', '.splash-footer'];
-    for (var i = 0; i < ids.length; i++) {
-      var el = document.querySelector(ids[i]);
-      if (!el) continue;
-      var computedOpacity = parseFloat(window.getComputedStyle(el).opacity);
-      if (isNaN(computedOpacity) || computedOpacity < 0.99) {
-        el.style.opacity = '1';
-        el.style.transform = 'none';
-      }
-    }
-  } catch (err) {}
-}, 3100);
-
 // Hard safety cap — a last-resort ceiling in case DOMContentLoaded is
 // somehow delayed far longer than usual. Raised from the previous
 // 1.5s (which was SHORTER than the new sequential animation and would
