@@ -399,6 +399,42 @@
   };
 
   // ------------------------------------------------------------------
+  // PHASE A8 — HOTFIX: manual re-registration button (#notifRegisterFcmBtn
+  // in index.html). Solves the case where Notification.permission is
+  // ALREADY 'granted' from a previous session (before FCM was configured,
+  // or after any prior grant) — in that case #notifEnableBtn stays hidden
+  // (its display is only toggled to visible when state === 'default'), so
+  // there was previously NO way for the person to trigger
+  // registerFcmTokenIfAvailable() again from the UI. This button is always
+  // visible and simply re-runs the exact same permission+registration
+  // flow as handleEnableNotificationsClick() above — requestPermission()
+  // already short-circuits to an immediate 'granted'/'denied' callback
+  // when permission isn't 'default' (see requestPermission()'s own body),
+  // so this is 100% safe to call at any time and never shows a duplicate
+  // browser permission prompt if one was already answered. Purely
+  // additive — does not change any existing function's behavior.
+  // ------------------------------------------------------------------
+  global.handleRegisterFcmDeviceClick = function handleRegisterFcmDeviceClick() {
+    requestPermission(function (result) {
+      refreshSettingsCardUI();
+      if (result === 'granted') {
+        setEnabled(true);
+        checkAndNotify();
+        registerFcmTokenIfAvailable();
+        safely(function () {
+          if (typeof global.toast === 'function') global.toast('تم تسجيل هذا الجهاز لاستقبال إشعارات الهاتف', 'success');
+          else global.alert('تم تسجيل هذا الجهاز لاستقبال إشعارات الهاتف');
+        }, undefined);
+      } else if (result === 'denied') {
+        safely(function () {
+          if (typeof global.toast === 'function') global.toast('الإشعارات محظورة من إعدادات الهاتف/المتصفح — فعّلها يدويًا ثم أعد الضغط', 'error');
+          else global.alert('الإشعارات محظورة من إعدادات الهاتف/المتصفح — فعّلها يدويًا ثم أعد الضغط');
+        }, undefined);
+      }
+    });
+  };
+
+  // ------------------------------------------------------------------
   // PHASE A8 — FCM token registration (reuses the existing
   // apiAddRow('أجهزة_FCM', ...) endpoint via ApiService.saveData(), exactly
   // as PHASE A8's blueprint required — no new backend endpoint). No-ops
