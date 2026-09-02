@@ -255,7 +255,11 @@
 // is served networkFirstShell() (always fresh), and its only change was
 // to add three new <select> controls inside existing case-form tabs
 // (no cached-file reference changed).
-var SW_VERSION = 'v96'; // PHASE A8 HOTFIX — manual FCM re-registration button added
+var SW_VERSION = 'v97'; // DIAGNOSTIC BUMP — forces a guaranteed-fresh SW install/activate cycle
+                         // on every device, so a `view-source:` check of this exact string
+                         // number right after deploy proves definitively whether GitHub Pages
+                         // is serving this file (no code logic changed from v96 — see PHASE A8
+                         // HOTFIX comment above for the last actual functional change).
                          // (Payment security hardening, Ledger,
                          // Financial Dashboard, Financial Reports UI,
                          // Expense case-autofill): fees.js, cases.js,
