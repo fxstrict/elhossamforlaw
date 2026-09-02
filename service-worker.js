@@ -255,7 +255,20 @@
 // is served networkFirstShell() (always fresh), and its only change was
 // to add three new <select> controls inside existing case-form tabs
 // (no cached-file reference changed).
-var SW_VERSION = 'v98'; // BUGFIX — push handler now reads title/body from
+var SW_VERSION = 'v99'; // PHASE A9 — Backend-only change (Config/00_Config.gs,
+                         // 06_Api.gs, 10_Fcm.gs): FCM notification coverage
+                         // expanded to more sheets/events (add on القضايا/
+                         // الموكلين/المستندات/أعمال_المحضرين/الأتعاب, critical
+                         // update events on القضايا/الجلسات/الأعمال الإدارية,
+                         // delete events on القضايا/الجلسات) + a batching
+                         // window to collapse rapid consecutive notifications
+                         // (e.g. during OfflineQueue.replay()). No frontend
+                         // shell file (JS/CSS/HTML) changed in this round, so
+                         // PRECACHE_URLS below is untouched — the version bump
+                         // itself was requested explicitly to mark this as a
+                         // new deployed release, per the established
+                         // "SW_VERSION bump per delivery" convention in this
+                         // file. push handler now reads title/body from
                          // data.notification.{title,body} (the actual shape
                          // FCM sends), instead of the always-empty
                          // data.title/data.body. See the 'push' listener
@@ -803,6 +816,10 @@ self.addEventListener('push', function (event) {
         projectId: data.projectId || '',
         entityType: data.entityType || '',
         entityId: data.entityId || '',
+        // PHASE A9 — حقل إضافي بحت ('add'|'update'|'delete') يرسله الباك
+        // إند الآن (Config/10_Fcm.gs). لا يمسّ أيًا من الحقول السابقة —
+        // إن لم يُرسَل (إشعار قديم قبل هذا التحديث)، تبقى '' كما كانت.
+        entityAction: data.entityAction || '',
         notificationId: data.notificationId || ''
       }
     })
