@@ -255,7 +255,7 @@
 // is served networkFirstShell() (always fresh), and its only change was
 // to add three new <select> controls inside existing case-form tabs
 // (no cached-file reference changed).
-var SW_VERSION = 'v95'; // PHASE A8 — Firebase Cloud Messaging (push event added)
+var SW_VERSION = 'v96'; // PHASE A8 HOTFIX — manual FCM re-registration button added
                          // (Payment security hardening, Ledger,
                          // Financial Dashboard, Financial Reports UI,
                          // Expense case-autofill): fees.js, cases.js,
@@ -667,7 +667,7 @@ var PRECACHE_URLS = [
   'js/core/pwa/ServiceWorkerRegistrar.js?v=42',
   'js/core/pwa/InstallPromptManager.js?v=42',
   'js/core/pwa/FcmClient.js?v=1', // PHASE A8 — added to keep offline-boot precache in sync with index.html's new <script> tag; SW_VERSION bumped to v94 (see top of file) so this list is re-fetched
-  'js/core/pwa/NotificationManager.js?v=42',
+  'js/core/pwa/NotificationManager.js?v=43',
   'js/core/VoiceInputController.js?v=42'
 ];
 

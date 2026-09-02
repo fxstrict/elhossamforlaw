@@ -1289,9 +1289,11 @@ style="color:var(--muted);font-size:12px;margin-top:4px;"> جارٍ تحميل
       </label>
       <button class="btn btn-primary" id="notifEnableBtn" onclick="handleEnableNotificationsClick()" style="display:none;">&#128276; تفعيل إشعارات النظام الآن</button>
       <button class="btn" id="notifTestBtn" onclick="handleSendTestNotificationClick()">&#128229; إرسال إشعار تجريبي</button>
+      <button class="btn" id="notifRegisterFcmBtn" onclick="handleRegisterFcmDeviceClick()">&#128260; تسجيل هذا الجهاز لإشعارات الهاتف (Firebase)</button>
     </div>
     <div id="notifPermissionStatus" style="font-size:12px;color:var(--muted);margin-bottom:6px;">&#9899; جارِ التحقق...</div>
     <p style="font-size:11px;color:var(--muted);margin:0;">&#128266; نغمة الإشعار يتم تحديدها من إعدادات هاتفك: افتح إعدادات الهاتف &#8592; التطبيقات &#8592; هذا التطبيق &#8592; الإشعارات &#8592; النغمة، واختر أي نغمة من نغمات جهازك.</p>
+    <p style="font-size:11px;color:var(--muted);margin:6px 0 0;">&#128161; لو الإشعارات مفعّلة بالفعل ولسه مش وصلك إشعار جلسة/مهمة جديدة، دوس زر "تسجيل هذا الجهاز" أعلاه — بيعيد تسجيل هذا الجهاز في نظام Firebase دون الحاجة لأي إعادة ضبط للأذونات.</p>
   </div>
   </div>
 
@@ -3289,7 +3291,7 @@ window.addEventListener('DOMContentLoaded',function(){
      server. Wires the #notificationsCard markup above; see
      js/core/pwa/NotificationManager.js for the full contract. Loaded last,
      same reasoning as ServiceWorkerRegistrar.js/InstallPromptManager.js. -->
-<script src="js/core/pwa/NotificationManager.js?v=42"></script>
+<script src="js/core/pwa/NotificationManager.js?v=43"></script>
 <!-- PHASE 35 — Voice Input (Speech-to-Text): adds a microphone button to
      every input[type="text"] / textarea field (never to numeric/date/tel/
      email/url/checkbox/file fields) so users can dictate instead of type.
