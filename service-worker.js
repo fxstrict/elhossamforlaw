@@ -255,9 +255,17 @@
 // is served networkFirstShell() (always fresh), and its only change was
 // to add three new <select> controls inside existing case-form tabs
 // (no cached-file reference changed).
-var SW_VERSION = 'v99'; // PHASE A9 — Backend-only change (Config/00_Config.gs,
-                         // 06_Api.gs, 10_Fcm.gs): FCM notification coverage
-                         // expanded to more sheets/events (add on القضايا/
+var SW_VERSION = 'v100'; // PHASE_B — notificationclick postMessage now carries
+                         // title/body/entityType/entityId/notificationId too
+                         // (this file, index.html + NotificationManager.js
+                         // changed together — see their own PHASE_B notes),
+                         // so the new client-side notification history/
+                         // center can log FCM-delivered notifications, not
+                         // just local ones. page/projectId fields unchanged.
+                         // Previous note (v99, PHASE A9 — Backend-only change,
+                         // Config/00_Config.gs, 06_Api.gs, 10_Fcm.gs): FCM
+                         // notification coverage expanded to more sheets/events
+                         // (add on القضايا/
                          // الموكلين/المستندات/أعمال_المحضرين/الأتعاب, critical
                          // update events on القضايا/الجلسات/الأعمال الإدارية,
                          // delete events on القضايا/الجلسات) + a batching
@@ -835,11 +843,26 @@ self.addEventListener('notificationclick', function (event) {
   // إشعارات محلية (NotificationManager.js الحالي، بلا FCM) لا تضع
   // projectId في data.notification أصلًا، فتبقى '' — سلوكها بلا تغيير.
   var projectId = (event.notification.data && event.notification.data.projectId) || '';
+  // PHASE_B — SW_VERSION v100: حقول إضافية بحتة لمركز الإشعارات
+  // (NotificationManager.js) — كانت موجودة بالفعل في event.notification
+  // (العنوان/المحتوى) أو event.notification.data (من 'push' أعلاه) لكن
+  // لم تكن تُمرَّر فى postMessage. لا تُغيّر أي حقل قديم (page/projectId
+  // يبقيان كما هما بالضبط)، فقط إضافة فى نهاية الكائن.
+  var notifData = event.notification.data || {};
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (clientList) {
       for (var i = 0; i < clientList.length; i++) {
         var client = clientList[i];
-        client.postMessage({ type: 'AHP_NOTIFICATION_CLICK', page: page, projectId: projectId });
+        client.postMessage({
+          type: 'AHP_NOTIFICATION_CLICK',
+          page: page,
+          projectId: projectId,
+          title: event.notification.title || '',
+          body: event.notification.body || '',
+          entityType: notifData.entityType || '',
+          entityId: notifData.entityId || '',
+          notificationId: notifData.notificationId || ''
+        });
         if ('focus' in client) return client.focus();
       }
       if (self.clients.openWindow) {
