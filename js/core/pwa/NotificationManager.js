@@ -98,6 +98,40 @@
   var NOTIF_ICON = 'assets/icons/icon-192.png';
   var NOTIF_BADGE = 'assets/icons/icon-96.png';
 
+  // ------------------------------------------------------------------
+  // PHASE_B — per-category toggles (implements the "EXTENSION POINTS"
+  // documented at the bottom of this file: "iterate computeAlertSnapshot()'s
+  // keys into individual checkboxes, gate deliver() on each"). Purely
+  // additive: default is ON for every group (identical behavior to
+  // before this change for anyone who never touches the new checkboxes),
+  // device-local only (same storage convention as ENABLED_KEY above),
+  // does not touch FCM/service-worker/backend at all.
+  // ------------------------------------------------------------------
+  var CATEGORY_GROUPS = {
+    sessions: ['sessions-today', 'sessions-soon', 'sessions-week'],
+    tasks: ['tasks-overdue'],
+    cases: ['cases-no-opponent', 'cases-no-documents']
+  };
+  var CATEGORY_KEY_PREFIX = 'ahpNotifCat_'; // + groupId -> 'true' | 'false' | absent(=on)
+
+  function isCategoryEnabled(groupId) {
+    return safely(function () {
+      var v = global.localStorage.getItem(CATEGORY_KEY_PREFIX + groupId);
+      return v === null ? true : v === 'true';
+    }, true);
+  }
+
+  function setCategoryEnabled(groupId, flag) {
+    safely(function () { global.localStorage.setItem(CATEGORY_KEY_PREFIX + groupId, flag ? 'true' : 'false'); }, undefined);
+  }
+
+  function groupForAlertKey(key) {
+    for (var g in CATEGORY_GROUPS) {
+      if (CATEGORY_GROUPS[g].indexOf(key) !== -1) return g;
+    }
+    return null; // مفتاح غير مصنَّف (مثال: 'test') — لا تعطيله أبدًا عبر هذه التوجلات
+  }
+
   function safely(fn, fallback) {
     try { return fn(); } catch (e) { return fallback; }
   }
@@ -284,11 +318,136 @@
   }
 
   // ------------------------------------------------------------------
+  // PHASE_B — §"مركز الإشعارات" من الخريطة المطلوبة. لم يكن موجودًا
+  // إطلاقًا (لا Notification Center، لا NotificationsUI، لا
+  // NotificationManager تخزين تاريخي — بحثت فى كل الملفات). أُضيف هنا
+  // بأقل عدد ممكن من الملفات (صفر ملفات جديدة): نفس الملف + إضافة صغيرة
+  // فى index.html لمكان العرض (mount-point، بنفس اتفاقية #notificationsCard
+  // القائمة). تخزين محلي بحت (localStorage)، بلا سيرفر، بلا IndexedDB
+  // جديدة. يسجّل كل إشعار محلي (deliver() أدناه) وكل إشعار FCM يُضغَط
+  // عليه فعليًا (عبر postMessage الموسَّع من service-worker.js SW_VERSION
+  // v100) — إشعار FCM لا يُسجَّل إلا لو فُتح فعلًا (القيد التقني: Service
+  // Worker وحده، بلا تطبيق مفتوح، لا يملك وصولًا لـ localStorage).
+  // ------------------------------------------------------------------
+  var HISTORY_KEY = 'ahpNotificationsHistory';
+  var HISTORY_MAX = 50;
+  // تصنيف أولوية تقريبي للعرض فقط (لا يؤثر على الإرسال/التسليم) — حسب
+  // نفس الجدول المطلوب فى الخريطة (جلسات=حرِج، مهام متأخرة=عالية،
+  // تنبيه نظام=حرِج، غير ذلك=عادية).
+  var PRIORITY_BY_GROUP = { sessions: 'حرِجة', tasks: 'عالية', cases: 'عادية' };
+
+  function loadHistory() {
+    return safely(function () {
+      var raw = global.localStorage.getItem(HISTORY_KEY);
+      return raw ? JSON.parse(raw) : [];
+    }, []) || [];
+  }
+
+  function saveHistory(list) {
+    safely(function () { global.localStorage.setItem(HISTORY_KEY, JSON.stringify(list.slice(0, HISTORY_MAX))); }, undefined);
+  }
+
+  /** @param {{id?:string,key?:string,title:string,body?:string,page?:string,source:'local'|'push'}} entry */
+  function pushHistory(entry) {
+    safely(function () {
+      var list = loadHistory();
+      var group = entry.key ? groupForAlertKey(entry.key) : null;
+      list.unshift({
+        id: entry.id || (Date.now() + '-' + Math.random().toString(36).slice(2, 8)),
+        title: entry.title || '',
+        body: entry.body || '',
+        page: entry.page || '',
+        priority: (group && PRIORITY_BY_GROUP[group]) || (entry.source === 'push' ? 'عالية' : 'عادية'),
+        source: entry.source || 'local',
+        time: Date.now(),
+        read: false
+      });
+      saveHistory(list);
+      renderHistoryPanel();
+    }, undefined);
+  }
+
+  function markHistoryRead(id) {
+    safely(function () {
+      var list = loadHistory();
+      var found = false;
+      list.forEach(function (e) { if (e.id === id) { e.read = true; found = true; } });
+      if (found) { saveHistory(list); renderHistoryPanel(); }
+    }, undefined);
+  }
+
+  function unreadCount() {
+    return safely(function () { return loadHistory().filter(function (e) { return !e.read; }).length; }, 0);
+  }
+
+  function timeAgoLabel(ts) {
+    var diffMin = Math.round((Date.now() - ts) / 60000);
+    if (diffMin < 1) return 'الآن';
+    if (diffMin < 60) return 'منذ ' + diffMin + ' د';
+    var diffH = Math.round(diffMin / 60);
+    if (diffH < 24) return 'منذ ' + diffH + ' س';
+    return 'منذ ' + Math.round(diffH / 24) + ' يوم';
+  }
+
+  /** Renders the (optional — no-op if markup absent) #notifHistoryList
+   * mount-point + the unread badge on #notifHistoryToggleBtn. */
+  function renderHistoryPanel() {
+    safely(function () {
+      var list = global.document.getElementById('notifHistoryList');
+      var badge = global.document.getElementById('notifHistoryBadge');
+      var unread = unreadCount();
+      if (badge) {
+        badge.textContent = unread > 0 ? String(unread) : '';
+        badge.style.display = unread > 0 ? 'inline-block' : 'none';
+      }
+      if (!list) return; // اللوحة غير مفتوحة/غير موجودة على هذه الصفحة — التخزين يستمر فى الخلفية فقط
+      var items = loadHistory();
+      if (!items.length) {
+        list.innerHTML = '<div style="padding:10px;color:var(--muted);font-size:12px;">لا توجد إشعارات مسجَّلة بعد.</div>';
+        return;
+      }
+      list.innerHTML = items.map(function (e) {
+        return '<div onclick="handleNotifHistoryItemClick(\'' + e.id + '\',\'' + (e.page || '') + '\')" ' +
+          'style="padding:8px 10px;border-bottom:1px solid rgba(255,255,255,0.06);cursor:pointer;' +
+          (e.read ? 'opacity:0.6;' : 'background:rgba(201,168,76,0.06);') + '">' +
+          '<div style="display:flex;justify-content:space-between;gap:8px;font-size:12px;">' +
+          '<strong>' + escapeHtmlLocal_(e.title) + '</strong>' +
+          '<span style="color:var(--muted);white-space:nowrap;">' + timeAgoLabel(e.time) + '</span></div>' +
+          (e.body ? '<div style="font-size:11px;color:var(--muted);margin-top:2px;">' + escapeHtmlLocal_(e.body) + '</div>' : '') +
+          '<div style="font-size:10px;color:var(--muted);margin-top:2px;">' + escapeHtmlLocal_(e.priority) + '</div>' +
+          '</div>';
+      }).join('');
+    }, undefined);
+  }
+
+  // لا يعتمد على أي دالة escape مركزية قد لا تكون محمَّلة على كل صفحة —
+  // نفس فلسفة safely() فى بقية هذا الملف: احتياط دفاعي بحت.
+  function escapeHtmlLocal_(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  global.handleNotifHistoryToggleClick = function handleNotifHistoryToggleClick() {
+    var panel = global.document.getElementById('notifHistoryPanel');
+    if (!panel) return;
+    var willShow = panel.style.display === 'none' || !panel.style.display;
+    panel.style.display = willShow ? 'block' : 'none';
+    if (willShow) renderHistoryPanel();
+  };
+
+  global.handleNotifHistoryItemClick = function handleNotifHistoryItemClick(id, page) {
+    markHistoryRead(id);
+    if (page) safely(function () { if (typeof global.navigate === 'function') global.navigate(page); }, undefined);
+  };
+
+  // ------------------------------------------------------------------
   // Delivery — real system-tray notification via the Service Worker
   // registration (falls back to the plain Notification constructor only
   // if no Service Worker is available at all, e.g. unsupported browser).
   // ------------------------------------------------------------------
   function deliver(alert) {
+    pushHistory({ key: alert.key, title: alert.title, body: alert.body, page: alert.page, source: 'local' }); // PHASE_B
     var options = {
       body: alert.body,
       icon: NOTIF_ICON,
@@ -322,6 +481,8 @@
     if (permissionState() !== 'granted') return;
     var alerts = safely(computeAlertSnapshot, []) || [];
     alerts.forEach(function (alert) {
+      var group = groupForAlertKey(alert.key);
+      if (group && !isCategoryEnabled(group)) return; // هذه الفئة مُعطَّلة صراحةً من إعدادات المستخدم
       deliver(alert);
     });
   }
@@ -373,6 +534,14 @@
     var enableBtn = global.document.getElementById('notifEnableBtn');
     var testBtn = global.document.getElementById('notifTestBtn');
     var toggle = global.document.getElementById('notifToggleCheckbox');
+    // PHASE_B — per-category checkboxes (optional markup; no-op if absent
+    // on a given page, same defensive pattern as every element above).
+    var catSessions = global.document.getElementById('notifCatSessions');
+    var catTasks = global.document.getElementById('notifCatTasks');
+    var catCases = global.document.getElementById('notifCatCases');
+    if (catSessions) catSessions.checked = isCategoryEnabled('sessions');
+    if (catTasks) catTasks.checked = isCategoryEnabled('tasks');
+    if (catCases) catCases.checked = isCategoryEnabled('cases');
 
     var state = permissionState();
     var labels = {
@@ -473,6 +642,13 @@
     }
   };
 
+  /** PHASE_B — per-category checkbox handler (#notifCatSessions/
+   * #notifCatTasks/#notifCatCases in index.html). groupId must be one of
+   * CATEGORY_GROUPS' keys above. */
+  global.handleNotifCategoryToggleChange = function handleNotifCategoryToggleChange(checkbox, groupId) {
+    setCategoryEnabled(groupId, !!(checkbox && checkbox.checked));
+  };
+
   global.handleSendTestNotificationClick = function handleSendTestNotificationClick() {
     if (permissionState() !== 'granted') { refreshSettingsCardUI(); return; }
     sendTestNotification();
@@ -497,6 +673,20 @@
     navigator.serviceWorker.addEventListener('message', function (event) {
       if (event.data && event.data.type === 'AHP_NOTIFICATION_CLICK' && event.data.page) {
         safely(function () { if (typeof global.navigate === 'function') global.navigate(event.data.page); }, undefined);
+
+        // PHASE_B — يسجَّل فى مركز الإشعارات المحلي (فقط الإشعارات
+        // القادمة فعليًا من FCM، أي التي تحمل projectId — نفس التمييز
+        // المستخدم أدناه بالضبط؛ الإشعارات المحلية البحتة (NotificationManager
+        // نفسه) مسجَّلة بالفعل من deliver() مباشرة، فلا تُسجَّل مرتين هنا).
+        if (event.data.projectId) {
+          pushHistory({
+            id: event.data.notificationId || undefined,
+            title: event.data.title || 'إشعار',
+            body: event.data.body || '',
+            page: event.data.page,
+            source: 'push'
+          });
+        }
 
         // PHASE A8 — §17 Project Isolation + §L SyncCoordinator Integration.
         // event.data.projectId is '' for the pre-existing local-only
@@ -544,8 +734,8 @@
 
   // ------------------------------------------------------------------
   // EXTENSION POINTS (documented, not implemented — future phases only):
-  //   - Per-category on/off toggles: iterate computeAlertSnapshot()'s
-  //     `key`s into individual checkboxes, gate deliver() on each.
+  //   - Per-category on/off toggles: DONE — PHASE_B, see CATEGORY_GROUPS/
+  //     isCategoryEnabled()/checkAndNotify() above.
   //   - Quiet hours: check a stored "from"/"to" pair before deliver().
   //   - Scheduled/recurring reminders independent of app-open: would
   //     require the Push API + a real push server (explicitly out of
@@ -558,6 +748,18 @@
     requestPermission: requestPermission,
     isEnabled: isEnabled,
     setEnabled: setEnabled,
-    permissionState: permissionState
+    permissionState: permissionState,
+    isCategoryEnabled: isCategoryEnabled,
+    setCategoryEnabled: setCategoryEnabled,
+    getHistory: loadHistory,
+    unreadCount: unreadCount
   };
+
+  // يرسم الشارة (عدد غير المقروء) عند التحميل مباشرة، حتى قبل فتح
+  // الإعدادات — نفس اتفاقية refreshSettingsCardUI() أسفل هذا الملف.
+  if (global.document.readyState === 'loading') {
+    global.document.addEventListener('DOMContentLoaded', renderHistoryPanel);
+  } else {
+    renderHistoryPanel();
+  }
 })(window);
