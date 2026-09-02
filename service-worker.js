@@ -255,11 +255,11 @@
 // is served networkFirstShell() (always fresh), and its only change was
 // to add three new <select> controls inside existing case-form tabs
 // (no cached-file reference changed).
-var SW_VERSION = 'v97'; // DIAGNOSTIC BUMP — forces a guaranteed-fresh SW install/activate cycle
-                         // on every device, so a `view-source:` check of this exact string
-                         // number right after deploy proves definitively whether GitHub Pages
-                         // is serving this file (no code logic changed from v96 — see PHASE A8
-                         // HOTFIX comment above for the last actual functional change).
+var SW_VERSION = 'v98'; // BUGFIX — push handler now reads title/body from
+                         // data.notification.{title,body} (the actual shape
+                         // FCM sends), instead of the always-empty
+                         // data.title/data.body. See the 'push' listener
+                         // below for the full explanation. No other change.
                          // (Payment security hardening, Ledger,
                          // Financial Dashboard, Financial Reports UI,
                          // Expense case-autofill): fees.js, cases.js,
@@ -779,8 +779,18 @@ self.addEventListener('push', function (event) {
   var data = {};
   try { data = event.data ? event.data.json() : {}; } catch (e) { data = {}; }
 
-  var title = data.title || 'نظام الحسام للمحاماة';
-  var body  = data.body  || '';
+  // BUGFIX (SW_VERSION v98): FCM HTTP v1 (Config/10_Fcm.gs) and Firebase
+  // Console's "Send test message" both send title/body nested under
+  // `notification.{title,body}`, NOT as top-level `data.title`/`data.body`.
+  // Reading `data.title` directly always came back undefined, so every
+  // push notification silently fell back to the generic default title
+  // and an empty body — even though the push itself arrived and rendered
+  // correctly. `data.title`/`data.body` are kept as a secondary fallback
+  // only, in case any future caller ever sends a flat (non-`notification`)
+  // payload — no other behavior in this handler changes.
+  var notif = data.notification || {};
+  var title = notif.title || data.title || 'نظام الحسام للمحاماة';
+  var body  = notif.body  || data.body  || '';
   var page  = data.page  || '';
 
   event.waitUntil(
