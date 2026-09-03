@@ -1378,8 +1378,35 @@ style="color:var(--muted);font-size:12px;margin-top:4px;"> جارٍ تحميل
       <button class="btn btn-primary" id="notifEnableBtn" onclick="handleEnableNotificationsClick()" style="display:none;">&#128276; تفعيل إشعارات النظام الآن</button>
       <button class="btn" id="notifTestBtn" onclick="handleSendTestNotificationClick()">&#128229; إرسال إشعار تجريبي</button>
       <button class="btn" id="notifRegisterFcmBtn" onclick="handleRegisterFcmDeviceClick()">&#128260; تسجيل هذا الجهاز لإشعارات الهاتف (Firebase)</button>
+      <button class="btn" id="notifHistoryToggleBtn" onclick="handleNotifHistoryToggleClick()" style="position:relative;">
+        &#128203; سجل الإشعارات
+        <span id="notifHistoryBadge" style="display:none;background:#c0392b;color:#fff;border-radius:10px;padding:1px 6px;font-size:10px;margin-inline-start:4px;"></span>
+      </button>
+    </div>
+    <!-- PHASE_B — مركز الإشعارات: لوحة مطوية بسيطة، بلا صفحة/مسار جديد،
+         مغلقة افتراضيًا. renderHistoryPanel() فى NotificationManager.js
+         يملأ #notifHistoryList عند الفتح. -->
+    <div id="notifHistoryPanel" style="display:none;max-height:260px;overflow-y:auto;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:8px;margin-bottom:10px;">
+      <div id="notifHistoryList"></div>
     </div>
     <div id="notifPermissionStatus" style="font-size:12px;color:var(--muted);margin-bottom:6px;">&#9899; جارِ التحقق...</div>
+    <!-- PHASE_B — per-category toggles. Same #notificationsCard, no new
+         settings surface created (per project rule: extend existing card
+         instead of duplicating it). Purely additive; defaults ON. -->
+    <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin:8px 0;font-size:12px;color:var(--muted);">
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+        <input type="checkbox" id="notifCatSessions" onchange="handleNotifCategoryToggleChange(this,'sessions')" style="width:15px;height:15px;cursor:pointer;">
+        إشعارات الجلسات
+      </label>
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+        <input type="checkbox" id="notifCatTasks" onchange="handleNotifCategoryToggleChange(this,'tasks')" style="width:15px;height:15px;cursor:pointer;">
+        إشعارات الأعمال الإدارية
+      </label>
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+        <input type="checkbox" id="notifCatCases" onchange="handleNotifCategoryToggleChange(this,'cases')" style="width:15px;height:15px;cursor:pointer;">
+        إشعارات القضايا الناقصة
+      </label>
+    </div>
     <p style="font-size:11px;color:var(--muted);margin:0;">&#128266; نغمة الإشعار يتم تحديدها من إعدادات هاتفك: افتح إعدادات الهاتف &#8592; التطبيقات &#8592; هذا التطبيق &#8592; الإشعارات &#8592; النغمة، واختر أي نغمة من نغمات جهازك.</p>
     <p style="font-size:11px;color:var(--muted);margin:6px 0 0;">&#128161; لو الإشعارات مفعّلة بالفعل ولسه مش وصلك إشعار جلسة/مهمة جديدة، دوس زر "تسجيل هذا الجهاز" أعلاه — بيعيد تسجيل هذا الجهاز في نظام Firebase دون الحاجة لأي إعادة ضبط للأذونات.</p>
   </div>
