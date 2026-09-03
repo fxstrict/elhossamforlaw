@@ -99,84 +99,84 @@
 
   var ENTITY_DEFS = [
     {
-      type: 'case', labelAr: 'قضية', page: 'cases', idField: 'رقم_القضية',
+      type: 'case', labelAr: 'قضية', page: 'cases', idField: 'رقم_القضية', icon: '&#9878;',
       getLabel: function (r) { return joinNonEmpty([readOrNull(r, 'رقم_القضية'), readOrNull(r, 'عنوان_القضية')]); },
       getSecondary: function (r) { return readOrNull(r, 'اسم_الموكل'); },
       getStatus: function (r) { return readOrNull(r, 'الحالة'); },
       getDate: function (r) { return readOrNull(r, 'تاريخ_الإنشاء'); }
     },
     {
-      type: 'client', labelAr: 'موكل', page: 'clients', idField: 'رقم_الموكل',
+      type: 'client', labelAr: 'موكل', page: 'clients', idField: 'رقم_الموكل', icon: '&#128101;',
       getLabel: function (r) { return readOrNull(r, 'الاسم'); },
       getSecondary: function (r) { return readOrNull(r, 'الهاتف'); },
       getStatus: function () { return null; },
       getDate: function () { return null; }
     },
     {
-      type: 'session', labelAr: 'جلسة', page: 'sessions', idField: 'رقم_الجلسة',
+      type: 'session', labelAr: 'جلسة', page: 'sessions', idField: 'رقم_الجلسة', icon: '&#128197;',
       getLabel: function (r) { return readOrNull(r, 'عنوان_القضية'); },
       getSecondary: function (r) { return readOrNull(r, 'المحكمة'); },
       getStatus: function (r) { return readOrNull(r, 'الحالة'); },
       getDate: function (r) { return readOrNull(r, 'التاريخ'); }
     },
     {
-      type: 'document', labelAr: 'مستند', page: 'documents', idField: 'رقم_المستند',
+      type: 'document', labelAr: 'مستند', page: 'documents', idField: 'رقم_المستند', icon: '&#128206;',
       getLabel: function (r) { return readOrNull(r, 'اسم_المستند'); },
       getSecondary: function (r) { return readOrNull(r, 'رقم_القضية'); },
       getStatus: function () { return null; },
       getDate: function (r) { return readOrNull(r, 'تاريخ_الإيداع'); }
     },
     {
-      type: 'task', labelAr: 'مهمة', page: 'tasks', idField: 'رقم_المهمة',
+      type: 'task', labelAr: 'مهمة', page: 'tasks', idField: 'رقم_المهمة', icon: '&#9989;',
       getLabel: function (r) { return readOrNull(r, 'العنوان'); },
       getSecondary: function (r) { return joinNonEmpty([readOrNull(r, 'اسم_الموكل'), readOrNull(r, 'عنوان_القضية')]); },
       getStatus: function (r) { return readOrNull(r, 'الحالة'); },
       getDate: function (r) { return readOrNull(r, 'الموعد_النهائي'); }
     },
     {
-      type: 'opponent', labelAr: 'خصم', page: 'opponents', idField: 'رقم_الخصم',
+      type: 'opponent', labelAr: 'خصم', page: 'opponents', idField: 'رقم_الخصم', icon: '&#129333;',
       getLabel: function (r) { return readOrNull(r, 'الاسم'); },
       getSecondary: function (r) { return readOrNull(r, 'الرقم_القومي'); },
       getStatus: function () { return null; },
       getDate: function () { return null; }
     },
     {
-      type: 'child', labelAr: 'طفل', page: 'children', idField: 'رقم_الطفل',
+      type: 'child', labelAr: 'طفل', page: 'children', idField: 'رقم_الطفل', icon: '&#128118;',
       getLabel: function (r) { return readOrNull(r, 'الاسم'); },
       getSecondary: function (r) { return readOrNull(r, 'رقم_القضية'); },
       getStatus: function () { return null; },
       getDate: function (r) { return readOrNull(r, 'تاريخ_الميلاد'); }
     },
     {
-      type: 'fee', labelAr: 'أتعاب', page: 'fees', idField: 'رقم_العملية',
+      type: 'fee', labelAr: 'أتعاب', page: 'fees', idField: 'رقم_العملية', icon: '&#128176;',
       getLabel: function (r) { return joinNonEmpty([readOrNull(r, 'نوع_الأتعاب'), readOrNull(r, 'المبلغ')]); },
       getSecondary: function (r) { return readOrNull(r, 'اسم_الموكل'); },
       getStatus: function () { return null; },
       getDate: function (r) { return readOrNull(r, 'تاريخ_الاستلام'); }
     },
     {
-      type: 'library', labelAr: 'المكتبة', page: 'library', idField: 'id',
+      type: 'library', labelAr: 'المكتبة', page: 'library', idField: 'id', icon: '&#128218;',
       getLabel: function (r) { return readOrNull(r, 'العنوان'); },
       getSecondary: function (r) { return readOrNull(r, 'القسم'); },
       getStatus: function () { return null; },
       getDate: function (r) { return readOrNull(r, 'تاريخ_الإنشاء'); }
     },
     {
-      type: 'template', labelAr: 'صيغة', page: 'templates', idField: 'id',
+      type: 'template', labelAr: 'صيغة', page: 'templates', idField: 'id', icon: '&#128196;',
       getLabel: function (r) { return readOrNull(r, 'العنوان'); },
       getSecondary: function (r) { return readOrNull(r, 'القسم'); },
       getStatus: function () { return null; },
       getDate: function (r) { return readOrNull(r, 'تاريخ_الإنشاء'); }
     },
     {
-      type: 'expense', labelAr: 'مصروف', page: 'expenses', idField: 'id',
+      type: 'expense', labelAr: 'مصروف', page: 'expenses', idField: 'id', icon: '&#128181;',
       getLabel: function (r) { return joinNonEmpty([readOrNull(r, 'التصنيف'), readOrNull(r, 'المصدر')]); },
       getSecondary: function (r) { return readOrNull(r, 'المصدر'); },
       getStatus: function (r) { return readOrNull(r, 'الحالة'); },
       getDate: function (r) { return readOrNull(r, 'التاريخ'); }
     },
     {
-      type: 'processServerWork', labelAr: 'عمل محضرين', page: 'processServerWorks', idField: 'رقم_العمل',
+      type: 'processServerWork', labelAr: 'عمل محضرين', page: 'processServerWorks', idField: 'رقم_العمل', icon: '&#128220;',
       getLabel: function (r) { return joinNonEmpty([readOrNull(r, 'طبيعة_الاعلان'), readOrNull(r, 'رقم_المحضرين')]); },
       getSecondary: function (r) { return readOrNull(r, 'المحكمة'); },
       getStatus: function (r) { return readOrNull(r, 'الحالة'); },
@@ -214,7 +214,7 @@
       status: def.getStatus ? def.getStatus(record) : null,
       date: def.getDate ? def.getDate(record) : null,
       page: def.page,
-      meta: { entityLabelAr: def.labelAr }
+      meta: { entityLabelAr: def.labelAr, entityIcon: def.icon }
     };
   }
 
@@ -273,20 +273,20 @@
       // into this GlobalSearchController instance (e.g. not loaded in
       // this build/page). Zero results, no error — distinguishes "not
       // wired" from "wired but failing".
-      return { type: def.type, label: def.labelAr, items: [], total: 0, error: null };
+      return { type: def.type, label: def.labelAr, icon: def.icon, items: [], total: 0, error: null };
     }
 
     var q = safeStr(term).trim();
     if (!q) {
       // Deliberate: blank query = no results, no Repository call. See
       // file header "EMPTY-QUERY BEHAVIOR".
-      return { type: def.type, label: def.labelAr, items: [], total: 0, error: null };
+      return { type: def.type, label: def.labelAr, icon: def.icon, items: [], total: 0, error: null };
     }
 
     if (typeof repo.isReady === 'function' && !repo.isReady()) {
       var notReadyErr = { message: 'Repository not ready: ' + entityType };
       logError('searchEntity(' + entityType + ') — repository not ready', notReadyErr.message);
-      return { type: def.type, label: def.labelAr, items: [], total: 0, error: notReadyErr };
+      return { type: def.type, label: def.labelAr, icon: def.icon, items: [], total: 0, error: notReadyErr };
     }
 
     var limit = (options && typeof options.limit === 'number') ? options.limit : this._resultLimitPerEntity;
@@ -295,10 +295,10 @@
       var result = repo.search({ search: q, limit: limit });
       var items = (result && result.items ? result.items : []).map(function (r) { return normalizeRecord(def, r); });
       var total = (result && typeof result.total === 'number') ? result.total : items.length;
-      return { type: def.type, label: def.labelAr, items: items, total: total, error: null };
+      return { type: def.type, label: def.labelAr, icon: def.icon, items: items, total: total, error: null };
     } catch (err) {
       logError('searchEntity(' + entityType + ') — repository.search() threw', err);
-      return { type: def.type, label: def.labelAr, items: [], total: 0, error: { message: err && err.message ? err.message : String(err) } };
+      return { type: def.type, label: def.labelAr, icon: def.icon, items: [], total: 0, error: { message: err && err.message ? err.message : String(err) } };
     }
   };
 

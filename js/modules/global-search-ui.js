@@ -81,11 +81,12 @@ function renderGlobalSearchScopeTabs() {
   var defs = _gsGetEntityDefs();
   var html = '<button type="button" class="global-search-scope-tab" role="tab" ' +
     'aria-selected="' + (_gsCurrentScope === 'all' ? 'true' : 'false') + '" ' +
-    'onclick="setGlobalSearchScope(\'all\')">الكل</button>';
+    'onclick="setGlobalSearchScope(\'all\')"><span class="global-search-scope-icon">&#128203;</span>الكل</button>';
   defs.forEach(function (def) {
     html += '<button type="button" class="global-search-scope-tab" role="tab" ' +
       'aria-selected="' + (_gsCurrentScope === def.type ? 'true' : 'false') + '" ' +
       'onclick="setGlobalSearchScope(' + JSON.stringify(def.type) + ')">' +
+      '<span class="global-search-scope-icon">' + (def.icon || '') + '</span>' +
       _gsEsc(def.labelAr) + '</button>';
   });
   container.innerHTML = html;
@@ -290,6 +291,7 @@ function renderGlobalSearchResultGroups(grouped) {
 
   container.innerHTML = grouped.groups.map(function (group) {
     var headerHtml = '<div class="global-search-group-header">' +
+      '<span class="global-search-group-icon">' + (group.icon || '') + '</span>' +
       '<span>' + _gsEsc(group.label) + '</span>' +
       '<span class="global-search-group-count">(' + group.total + ')</span>' +
       (group.error ? '<span class="global-search-group-error">تعذر البحث في هذا القسم</span>' : '') +
@@ -303,14 +305,20 @@ function renderGlobalSearchResultGroups(grouped) {
         ? '<div class="global-search-result-secondary">' + secondaryParts.map(function (p) { return '<span>' + p + '</span>'; }).join('') + '</div>'
         : '';
       var statusHtml = item.status ? '<span class="global-search-result-status">' + _gsEsc(item.status) + '</span>' : '';
+      var iconHtml = (item.meta && item.meta.entityIcon)
+        ? '<span class="global-search-result-icon">' + item.meta.entityIcon + '</span>' : '';
 
       return '<button type="button" class="global-search-result-item" ' +
         'data-page="' + _gsEsc(item.page) + '" data-type="' + _gsEsc(item.type) + '" data-entity-id="' + _gsEsc(item.entityId) + '">' +
-        '<div class="global-search-result-main">' +
-        '<span class="global-search-result-label">' + _gsEsc(item.label || '—') + '</span>' +
+        '<span class="global-search-result-chevron">&#8249;</span>' +
+        '<span class="global-search-result-body">' +
+        '<span class="global-search-result-main">' +
         statusHtml +
-        '</div>' +
+        '<span class="global-search-result-label">' + _gsEsc(item.label || '—') + '</span>' +
+        '</span>' +
         secondaryHtml +
+        '</span>' +
+        iconHtml +
         '</button>';
     }).join('');
 
