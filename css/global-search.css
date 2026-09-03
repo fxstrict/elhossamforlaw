@@ -8,36 +8,59 @@
    .search or any other generic class already used elsewhere in the
    app. Reuses existing design tokens (css/variables.css) and existing
    shared components (.search-wrap, .btn, .btn-*, .empty-state,
-   .empty-container, .toolbar, .page-toolbar) exactly as-is, without
-   overriding their rules.
+   .empty-container) exactly as-is, without overriding their rules.
 
-   No reference UI screenshots were available at implementation time
-   (PHASE 01 §0 / PHASE 02 §2) — this is a clean, functional, RTL,
-   mobile-first layout, not a final visual design. No new design
-   system, no fixed widths that could break small screens.
+   COLOR TOKEN NOTE (worth recording — easy to misread): this app's
+   variable NAMES are the opposite of what they look like at a glance.
+   --navy/--navy-lt resolve to light ivory/white (#F8F5EF / #FFFFFF),
+   and --white/--offwhite resolve to dark navy tones (#1A2640 /
+   #2C3E50) — confirmed from css/base.css `body{background:#F0EBE2;
+   color:var(--white)}`. This file uses the tokens exactly the same
+   way the rest of the app already does (e.g. .session-item,
+   .task-item in css/components.css), so light cream surfaces + dark
+   navy text + gold accents fall out correctly despite the naming.
+
+   PHASE 02.1 — VISUAL ALIGNMENT PASS: updated once the actual
+   reference screenshot ("٣ صفحة البحث.png") became available, to
+   match its pill-shaped search input, filled/outlined scope chips,
+   per-entity icons, and chevron-led result rows — WITHOUT adopting
+   that mockup's bottom-tab-bar / hamburger-drawer app shell, which is
+   a different, larger, separate concern from this page's own styling
+   (see the chat message accompanying this update for the full
+   comparison).
    ================================================================ */
 
 #page-globalSearch { direction: rtl; }
 
-/* ---- Toolbar / input ---- */
+/* ---- Toolbar / input (pill-shaped, gold border — matches reference) ---- */
 
-.global-search-toolbar { margin-bottom: 12px; }
+.global-search-toolbar { margin-bottom: 14px; }
 
 .global-search-input-wrap input {
   width: 100%;
   box-sizing: border-box;
-  padding-left: 34px; /* room for the clear button on the left in RTL */
+  padding-left: 38px; /* room for the clear button */
+  padding-top: 13px;
+  padding-bottom: 13px;
+  border-radius: 999px !important;
+  border: 1.5px solid rgba(201, 168, 76, 0.45) !important;
+  background: #fff;
 }
+.global-search-input-wrap input:focus {
+  border-color: var(--gold) !important;
+  box-shadow: 0 0 0 3px rgba(201, 168, 76, 0.15);
+}
+.global-search-input-wrap .icon { color: var(--gold-dk); }
 
 .global-search-clear-btn {
   position: absolute;
-  left: 8px;
+  left: 10px;
   top: 50%;
   transform: translateY(-50%);
   border: none;
   background: transparent;
   color: var(--muted);
-  font-size: 14px;
+  font-size: 13px;
   line-height: 1;
   cursor: pointer;
   padding: 6px;
@@ -49,7 +72,7 @@
   color: var(--white);
 }
 
-/* ---- Search Scope tabs ---- */
+/* ---- Search Scope tabs (filled-when-selected pill chips + icon) ---- */
 
 .global-search-scope {
   display: flex;
@@ -59,33 +82,40 @@
 }
 
 .global-search-scope-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   appearance: none;
-  border: 1px solid rgba(201, 168, 76, 0.25);
-  background: var(--navy-lt);
+  border: 1px solid rgba(201, 168, 76, 0.35);
+  background: #fff;
   color: var(--offwhite);
   border-radius: 999px;
-  padding: 6px 14px;
+  padding: 7px 14px;
   font-size: 12.5px;
   font-weight: 600;
   cursor: pointer;
   transition: var(--transition);
   white-space: nowrap;
+  font-family: inherit;
 }
+.global-search-scope-icon { font-size: 13px; line-height: 1; }
+
 .global-search-scope-tab:hover { border-color: var(--gold); }
 .global-search-scope-tab:focus-visible {
   outline: 2px solid var(--gold);
   outline-offset: 1px;
 }
 .global-search-scope-tab[aria-selected="true"] {
-  background: var(--gold);
-  border-color: var(--gold-dk);
-  color: #2A1F00;
+  background: var(--steel);
+  border-color: var(--steel);
+  color: #fff;
 }
 
 /* ---- Total count line ---- */
 
 .global-search-total-count {
   font-size: 12.5px;
+  font-weight: 600;
   color: var(--muted);
   margin-bottom: 10px;
 }
@@ -112,8 +142,9 @@
   align-items: center;
   justify-content: space-between;
   font-size: 12.5px;
-  color: var(--muted);
-  margin-bottom: 8px;
+  font-weight: 600;
+  color: var(--offwhite);
+  margin-bottom: 9px;
 }
 
 .global-search-recent-list {
@@ -125,11 +156,11 @@
 .global-search-recent-chip {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  background: var(--navy-lt);
-  border: 1px solid rgba(201, 168, 76, 0.2);
+  gap: 7px;
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.12);
   border-radius: 999px;
-  padding: 5px 6px 5px 12px;
+  padding: 6px 7px 6px 13px;
   font-size: 12.5px;
   color: var(--offwhite);
   cursor: pointer;
@@ -167,14 +198,15 @@
 .global-search-group-header {
   display: flex;
   align-items: baseline;
-  gap: 8px;
+  gap: 7px;
   font-size: 13.5px;
   font-weight: 700;
-  color: var(--gold);
-  border-bottom: 1px solid rgba(201, 168, 76, 0.2);
-  padding-bottom: 7px;
-  margin-bottom: 8px;
+  color: var(--offwhite);
+  border-bottom: 1px solid rgba(201, 168, 76, 0.3);
+  padding-bottom: 8px;
+  margin-bottom: 9px;
 }
+.global-search-group-icon { font-size: 14px; }
 
 .global-search-group-count {
   font-size: 12px;
@@ -191,20 +223,21 @@
 .global-search-group-items {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
 
+/* Result row: [chevron] [title + status + secondary]  ...  [entity icon] */
 .global-search-result-item {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  align-items: center;
+  gap: 10px;
   width: 100%;
   box-sizing: border-box;
   text-align: right;
-  background: var(--navy-lt);
-  border: 1px solid rgba(201, 168, 76, 0.12);
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.08);
   border-radius: var(--radius);
-  padding: 10px 14px;
+  padding: 11px 14px;
   cursor: pointer;
   transition: var(--transition);
   font-family: inherit;
@@ -217,16 +250,43 @@
   outline: none;
 }
 
+.global-search-result-chevron {
+  flex: 0 0 auto;
+  color: var(--gold-dk);
+  font-size: 18px;
+  line-height: 1;
+}
+
+.global-search-result-icon {
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: var(--navy);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+}
+
+.global-search-result-body {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
 .global-search-result-main {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 10px;
+  gap: 8px;
+  min-width: 0;
 }
 
 .global-search-result-label {
   font-size: 13.5px;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--white);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -236,6 +296,7 @@
 .global-search-result-status {
   flex: 0 0 auto;
   font-size: 11px;
+  font-weight: 600;
   color: var(--info);
   background: rgba(41, 128, 185, 0.1);
   border-radius: 6px;
@@ -263,7 +324,7 @@
 }
 .global-search-initial .icon {
   font-size: 40px;
-  opacity: 0.3;
+  opacity: 0.35;
   margin-bottom: 10px;
 }
 .global-search-initial p {
@@ -277,5 +338,5 @@
 
 @media (max-width: 640px) {
   .global-search-recent-chip-label { max-width: 140px; }
-  .global-search-result-main { flex-wrap: wrap; }
+  .global-search-result-item { align-items: flex-start; }
 }
