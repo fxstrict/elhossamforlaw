@@ -1,0 +1,281 @@
+/* ================================================================
+   css/global-search.css — Global Search Workspace | نظام الحسام للمحاماة
+   ================================================================
+   PHASE 02 — GLOBAL SEARCH / SEARCH WORKSPACE.
+   Every selector below is scoped under .global-search-* (or targets an
+   id that only exists on #page-globalSearch) per the PHASE 02 brief
+   §40 (CSS Isolation): nothing here redefines .card/.button/.input/
+   .search or any other generic class already used elsewhere in the
+   app. Reuses existing design tokens (css/variables.css) and existing
+   shared components (.search-wrap, .btn, .btn-*, .empty-state,
+   .empty-container, .toolbar, .page-toolbar) exactly as-is, without
+   overriding their rules.
+
+   No reference UI screenshots were available at implementation time
+   (PHASE 01 §0 / PHASE 02 §2) — this is a clean, functional, RTL,
+   mobile-first layout, not a final visual design. No new design
+   system, no fixed widths that could break small screens.
+   ================================================================ */
+
+#page-globalSearch { direction: rtl; }
+
+/* ---- Toolbar / input ---- */
+
+.global-search-toolbar { margin-bottom: 12px; }
+
+.global-search-input-wrap input {
+  width: 100%;
+  box-sizing: border-box;
+  padding-left: 34px; /* room for the clear button on the left in RTL */
+}
+
+.global-search-clear-btn {
+  position: absolute;
+  left: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 50%;
+}
+.global-search-clear-btn:hover,
+.global-search-clear-btn:focus-visible {
+  background: rgba(0, 0, 0, 0.06);
+  color: var(--white);
+}
+
+/* ---- Search Scope tabs ---- */
+
+.global-search-scope {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.global-search-scope-tab {
+  appearance: none;
+  border: 1px solid rgba(201, 168, 76, 0.25);
+  background: var(--navy-lt);
+  color: var(--offwhite);
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition);
+  white-space: nowrap;
+}
+.global-search-scope-tab:hover { border-color: var(--gold); }
+.global-search-scope-tab:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 1px;
+}
+.global-search-scope-tab[aria-selected="true"] {
+  background: var(--gold);
+  border-color: var(--gold-dk);
+  color: #2A1F00;
+}
+
+/* ---- Total count line ---- */
+
+.global-search-total-count {
+  font-size: 12.5px;
+  color: var(--muted);
+  margin-bottom: 10px;
+}
+
+/* ---- Error state ---- */
+
+.global-search-error {
+  background: #FCEEEC;
+  border: 1px solid #E0B4AC;
+  color: #8A2E22;
+  border-radius: var(--radius);
+  padding: 12px 16px;
+  font-size: 13px;
+  line-height: 1.7;
+  margin-bottom: 14px;
+}
+
+/* ---- Recent Searches ---- */
+
+.global-search-recent { margin-bottom: 18px; }
+
+.global-search-recent-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12.5px;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+
+.global-search-recent-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.global-search-recent-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--navy-lt);
+  border: 1px solid rgba(201, 168, 76, 0.2);
+  border-radius: 999px;
+  padding: 5px 6px 5px 12px;
+  font-size: 12.5px;
+  color: var(--offwhite);
+  cursor: pointer;
+  max-width: 100%;
+}
+.global-search-recent-chip:hover { border-color: var(--gold); }
+
+.global-search-recent-chip-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 220px;
+}
+
+.global-search-recent-chip-remove {
+  appearance: none;
+  border: none;
+  background: rgba(0, 0, 0, 0.06);
+  color: var(--muted);
+  border-radius: 50%;
+  width: 18px;
+  height: 18px;
+  line-height: 18px;
+  text-align: center;
+  font-size: 11px;
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+.global-search-recent-chip-remove:hover { color: var(--danger); }
+
+/* ---- Grouped Results ---- */
+
+.global-search-group { margin-bottom: 20px; }
+
+.global-search-group-header {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--gold);
+  border-bottom: 1px solid rgba(201, 168, 76, 0.2);
+  padding-bottom: 7px;
+  margin-bottom: 8px;
+}
+
+.global-search-group-count {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.global-search-group-error {
+  font-size: 12px;
+  color: var(--danger);
+  margin-inline-start: auto;
+}
+
+.global-search-group-items {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.global-search-result-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  box-sizing: border-box;
+  text-align: right;
+  background: var(--navy-lt);
+  border: 1px solid rgba(201, 168, 76, 0.12);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  cursor: pointer;
+  transition: var(--transition);
+  font-family: inherit;
+  color: inherit;
+}
+.global-search-result-item:hover,
+.global-search-result-item:focus-visible {
+  border-color: var(--gold);
+  box-shadow: var(--shadow-sm);
+  outline: none;
+}
+
+.global-search-result-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.global-search-result-label {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--white);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.global-search-result-status {
+  flex: 0 0 auto;
+  font-size: 11px;
+  color: var(--info);
+  background: rgba(41, 128, 185, 0.1);
+  border-radius: 6px;
+  padding: 2px 8px;
+}
+
+.global-search-result-secondary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* ---- Empty / initial states ---- */
+
+.global-search-empty,
+.global-search-initial {
+  color: var(--muted);
+}
+
+.global-search-initial {
+  text-align: center;
+  padding: 40px 20px;
+}
+.global-search-initial .icon {
+  font-size: 40px;
+  opacity: 0.3;
+  margin-bottom: 10px;
+}
+.global-search-initial p {
+  font-size: 12.5px;
+  line-height: 1.8;
+  max-width: 420px;
+  margin: 0 auto;
+}
+
+/* ---- Mobile ---- */
+
+@media (max-width: 640px) {
+  .global-search-recent-chip-label { max-width: 140px; }
+  .global-search-result-main { flex-wrap: wrap; }
+}
