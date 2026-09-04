@@ -406,7 +406,7 @@
 <link rel="preload" as="script" href="js/repositories/SettingsRepositoryWiring.js?v=42" fetchpriority="high">
 <link rel="preload" as="script" href="js/core/RepositoryReadyTimeout.js?v=42" fetchpriority="high">
 <link rel="preload" as="script" href="js/modules/cases.js?v=45" fetchpriority="high">
-<link rel="preload" as="script" href="js/modules/settings.js?v=42" fetchpriority="high">
+<link rel="preload" as="script" href="js/modules/settings.js?v=43" fetchpriority="high">
 <!-- PHASE A7 — SyncEngine.js: Frontend Incremental Sync orchestration
      (Receive -> Validate -> Apply -> Commit Checkpoint). Additive only,
      loaded after settings.js (bootLoadFromSheets() calls into it) and
@@ -3123,9 +3123,40 @@ window.addEventListener('DOMContentLoaded',function(){
     if(!(window.BootManager&&BootManager.shouldSkipLegacyRender())){updateBadges();renderDashboard();}
   }).catch(function(e){console.warn('Post-ready dashboard refresh skipped:',e);});
 });
+
+// PHASE SYNC-FIX-01 — Resume/Online sync triggers.
+// ROOT CAUSE of the stale "🟢 منذ يوم" status: before this phase, a Pull
+// Sync only ever ran at boot (DOMContentLoaded, the settingsRepository
+// reconciliation re-check above) or on manual refresh — see
+// js/core/SyncCoordinator.js's own header ("WHAT THIS FILE DELIBERATELY
+// DOES NOT DO": it explicitly did not wire visibilitychange/pageshow/
+// online). An app left open — backgrounded, phone locked, tab switched
+// away and back, or restored from BFCache — never re-synced on its own,
+// so lastSyncAt just kept aging.
+// No new debounce/lock is added here: SyncCoordinator.requestSync() already
+// single-flights concurrent calls (§10 — one in-flight Promise shared by
+// every caller) and shouldSync() already applies a 5-minute TTL + 10s
+// cooldown before allowing a non-manual reason through (SyncCoordinator.js).
+// So visibilitychange + pageshow + online firing together (e.g. unlocking
+// the phone and returning to the PWA) collapse into at most one real
+// network sync — the other calls are absorbed as no-ops by that existing
+// guard. This does not touch OfflineQueue's own 'online' replay() listener
+// (js/core/OfflineQueue.js — untouched, still runs first via
+// SyncCoordinator's own sequencing), FCM, Auth, or the Service Worker.
+document.addEventListener('visibilitychange',function(){
+  if(document.visibilityState==='visible'&&API_URL&&typeof SyncCoordinator!=='undefined'){SyncCoordinator.requestSync('resume');}
+});
+window.addEventListener('pageshow',function(e){
+  // e.persisted === true → page restored from BFCache; DOMContentLoaded
+  // does not fire again in that case, so this is the only boot-like hook.
+  if(e.persisted&&API_URL&&typeof SyncCoordinator!=='undefined'){SyncCoordinator.requestSync('resume');}
+});
+window.addEventListener('online',function(){
+  if(API_URL&&typeof SyncCoordinator!=='undefined'){SyncCoordinator.requestSync('online');}
+});
 </script>
 
-<script src="js/modules/settings.js?v=42"></script>
+<script src="js/modules/settings.js?v=43"></script>
 <!-- PHASE A7 — SyncEngine.js (see preload comment above) -->
 <script src="js/core/SyncEngine.js?v=42"></script>
 <!-- PHASE A7.5 — SyncCoordinator.js (see preload comment above) -->
