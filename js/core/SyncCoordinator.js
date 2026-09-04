@@ -181,7 +181,26 @@ const SyncCoordinator = (function () {
     if (_hasAnyCheckpoint()) {
       // §14 — Subsequent Sync: incremental only, no full pull.
       if (typeof SyncEngine !== 'undefined' && typeof SyncEngine.runIncrementalSync === 'function') {
-        await SyncEngine.runIncrementalSync();
+        var _incResult = await SyncEngine.runIncrementalSync();
+        // ROOT-CAUSE FIX (Forensic Audit — Topbar lastSyncAt freeze):
+        // runIncrementalSync() itself never touches lastSyncAt/SettingsRepository
+        // (confirmed: js/core/SyncEngine.js has zero references to either).
+        // loadFromSheets() is the ONLY place lastSyncAt is persisted, and it is
+        // only reached from this file via the "First Sync" branch below
+        // (_hasAnyCheckpoint()===false). Once a single checkpoint exists, every
+        // future boot/manual/online/resume sync took this incremental branch and
+        // the Topbar's "لآخر مزامنة" timestamp froze forever, even though real
+        // data kept syncing successfully via SyncEngine. This mirrors
+        // loadFromSheets()'s own existing "loaded>0 -> persist lastSyncAt" rule
+        // (partial success included, identical semantics already accepted there)
+        // using the exact same _persistSetting()/updateTopbarSyncMeta()
+        // primitives settings.js already exposes as globals (loaded before this
+        // file — see index.html script order) — no new storage path, no change
+        // to TTL/cooldown/single-flight/OfflineQueue/FCM/IndexedDB/SW.
+        if (_incResult && _incResult.succeeded > 0 && typeof _persistSetting === 'function') {
+          _persistSetting('lastSyncAt', new Date().toISOString());
+          if (typeof updateTopbarSyncMeta === 'function') updateTopbarSyncMeta();
+        }
       }
     } else {
       // §13 — First Sync: reuse the exact existing behavior verbatim.
