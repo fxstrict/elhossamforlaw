@@ -417,6 +417,16 @@ function showSyncIndicator(v){
     // attempt calls showSyncIndicator(true) or ('success') again.
     _topbarSyncState='error';
     if(typeof updateTopbarSyncMeta==='function')updateTopbarSyncMeta();
+  }else if(v==='partial'){
+    // PHASE SYNC-FIX-01 (§15/§21): a real but partial sync — reuses the
+    // existing 'error' visual state (no new CSS added) so the pill stays
+    // visible until the next sync outcome, but with wording that does not
+    // claim total failure OR total success.
+    if(textEl)textEl.textContent='مزامنة جزئية';
+    if(el)el.classList.add('show','error');
+    _syncIndicatorHideTimer=setTimeout(function(){if(el)el.classList.remove('show','error');},4000);
+    _topbarSyncState='partial';
+    if(typeof updateTopbarSyncMeta==='function')updateTopbarSyncMeta();
   }else{
     if(el)el.classList.remove('show');
     // v===false: clears only the transient pill (legacy behavior,
@@ -505,6 +515,10 @@ function updateTopbarSyncMeta(){
       full='✅ تمت المزامنة';compact='✓ تمت المزامنة';chipText='الآن';chipClass='tls-dot-success';stateClass='is-success';
     }else if(state==='error'){
       full='⚠️ تعذر الاتصال — العمل بالبيانات المحلية';compact='🔴 محلي';chipText='محلي';chipClass='tls-dot-error';stateClass='is-error';
+    }else if(state==='partial'){
+      // PHASE SYNC-FIX-01 (§15/§21): reuses the existing 'error' dot/class
+      // (no new CSS) with distinct wording — must not read as full success.
+      full='⚠️ مزامنة جزئية — بعض البيانات لم تُحدَّث';compact='⚠️ جزئي';chipText='جزئي';chipClass='tls-dot-error';stateClass='is-error';
     }else{
       // PHASE 13.4 — PART 14: STARTUP READINESS GUARD
       // This function can be invoked (via updateConnectionStatus(), called
@@ -622,7 +636,21 @@ async function loadFromSheets(){
     showSyncIndicator(false);
     var loaded=results.filter(function(r){return r==='loaded';}).length;
     var failed=results.filter(function(r){return r==='failed';}).length;
-    if(loaded>0){
+    if(loaded>0&&failed>0){
+      // PHASE SYNC-FIX-01 (§15/§16/TEST10): a REAL partial sync — some
+      // sheets updated, some did not. lastSyncAt is still updated (the
+      // sheets that succeeded really did just sync, and freezing the
+      // timestamp would also hide that partial progress), but the
+      // indicator/toast must not claim a full success — that was the
+      // exact false impression §15 asks not to give ("1 نجحت + 11 فشلت"
+      // must never read as "Sync ناجحة بالكامل").
+      updateBadges();renderDashboard();
+      if(window.ApplicationShell){ApplicationShell.markDirty('dashboard');ApplicationShell.markDirty('calendar');}
+      _persistSetting('lastSyncAt',new Date().toISOString());
+      if(typeof updateTopbarSyncMeta==='function')updateTopbarSyncMeta();
+      showSyncIndicator('partial');
+      toast('مزامنة جزئية: نجح تحديث '+loaded+' من '+pairs.length+' — تعذر تحديث الباقي','error');
+    }else if(loaded>0){
       updateBadges();renderDashboard();
       // PHASE 16.5.1 — DIRTY PROPAGATION (additive only, see phase brief)
       // Same reasoning as handleImport(): any subset of the 7 synced
