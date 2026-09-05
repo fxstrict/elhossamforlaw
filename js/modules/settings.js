@@ -389,7 +389,7 @@ function showSyncIndicator(v){
   var textEl=el?document.getElementById('syncIndicatorText'):null;
   if(_syncIndicatorHideTimer){clearTimeout(_syncIndicatorHideTimer);_syncIndicatorHideTimer=null;}
   if(_topbarSyncSuccessTimer){clearTimeout(_topbarSyncSuccessTimer);_topbarSyncSuccessTimer=null;}
-  if(el)el.classList.remove('success','error');
+  if(el)el.classList.remove('success','error','partial');
   if(v===true){
     if(textEl)textEl.textContent='جارٍ المزامنة…';
     if(el)el.classList.add('show');
@@ -418,13 +418,16 @@ function showSyncIndicator(v){
     _topbarSyncState='error';
     if(typeof updateTopbarSyncMeta==='function')updateTopbarSyncMeta();
   }else if(v==='partial'){
-    // PHASE SYNC-FIX-01 (§15/§21): a real but partial sync — reuses the
-    // existing 'error' visual state (no new CSS added) so the pill stays
-    // visible until the next sync outcome, but with wording that does not
-    // claim total failure OR total success.
+    // PHASE SYNC-FIX-01 — §15/§21: some sheets synced, some failed. Must
+    // NOT look identical to a full 'success' (that would misrepresent a
+    // partial result as complete), and must NOT look identical to 'error'
+    // either (real data DID update — hiding that under "محلي فقط" would be
+    // equally misleading). Reuses the same pill/topbar widgets, minimal
+    // new CSS (.sync-indicator.partial / .is-partial / .tls-dot-partial —
+    // all keyed off the existing --warning token, see css/components.css).
     if(textEl)textEl.textContent='مزامنة جزئية';
-    if(el)el.classList.add('show','error');
-    _syncIndicatorHideTimer=setTimeout(function(){if(el)el.classList.remove('show','error');},4000);
+    if(el)el.classList.add('show','partial');
+    _syncIndicatorHideTimer=setTimeout(function(){if(el)el.classList.remove('show','partial');},4000);
     _topbarSyncState='partial';
     if(typeof updateTopbarSyncMeta==='function')updateTopbarSyncMeta();
   }else{
@@ -506,19 +509,22 @@ function updateTopbarSyncMeta(){
   var chipTextEl=document.getElementById('tlsChipText');
   var lsEl=document.getElementById('topbarLastSync');
   if(lsEl&&fullEl&&compactEl&&chipDotEl&&chipTextEl){
-    lsEl.classList.remove('is-syncing','is-success','is-error','is-idle','is-neversynced');
+    lsEl.classList.remove('is-syncing','is-success','is-error','is-idle','is-neversynced','is-partial');
     var state=_topbarSyncState;
     var full,compact,chipText,chipClass,stateClass;
     if(state==='syncing'){
       full='🟡 جارٍ المزامنة...';compact='🟡 جارٍ...';chipText='جارٍ...';chipClass='tls-dot-syncing';stateClass='is-syncing';
     }else if(state==='success'){
       full='✅ تمت المزامنة';compact='✓ تمت المزامنة';chipText='الآن';chipClass='tls-dot-success';stateClass='is-success';
+    }else if(state==='partial'){
+      // PHASE SYNC-FIX-01 — §15: some sheets failed. Never render this as
+      // the same "✅ تمت المزامنة" full-success text (that would be a
+      // false impression of complete data), and lastSyncAt IS updated for
+      // this state (real, partial data did arrive) so the idle branch
+      // below is not reached right after a partial sync.
+      full='🟠 مزامنة جزئية — بعض الأوراق لم تُحدَّث';compact='🟠 جزئية';chipText='جزئية';chipClass='tls-dot-partial';stateClass='is-partial';
     }else if(state==='error'){
       full='⚠️ تعذر الاتصال — العمل بالبيانات المحلية';compact='🔴 محلي';chipText='محلي';chipClass='tls-dot-error';stateClass='is-error';
-    }else if(state==='partial'){
-      // PHASE SYNC-FIX-01 (§15/§21): reuses the existing 'error' dot/class
-      // (no new CSS) with distinct wording — must not read as full success.
-      full='⚠️ مزامنة جزئية — بعض البيانات لم تُحدَّث';compact='⚠️ جزئي';chipText='جزئي';chipClass='tls-dot-error';stateClass='is-error';
     }else{
       // PHASE 13.4 — PART 14: STARTUP READINESS GUARD
       // This function can be invoked (via updateConnectionStatus(), called
@@ -574,9 +580,18 @@ var _loadFromSheetsInProgress=false;
 // Local data is already rendered before this runs (see DOMContentLoaded in index.html).
 // This function must NEVER block the UI: no full-screen overlay, requests run in parallel
 // (not sequentially), each with a timeout, and failures never clear local data or freeze startup.
+// PHASE SYNC-FIX-01 — this function now returns a small status object
+// ({status:'success'|'partial'|'failed'|'skipped', loaded, failed, total})
+// instead of implicitly returning undefined in every branch. No existing
+// caller (index.html boot, testConnection(), refreshAll(),
+// bootLoadFromSheets(), firstrun.js) reads this return value today, so
+// this is additive/backward-compatible; SyncCoordinator.js (added this
+// phase) is the first real consumer, using it to decide retry/backoff
+// instead of the previous "never throws => always looks like success"
+// behavior.
 async function loadFromSheets(){
-  if(!API_URL)return;
-  if(_loadFromSheetsInProgress)return;
+  if(!API_URL)return{status:'skipped',reason:'no-api-url'};
+  if(_loadFromSheetsInProgress)return{status:'skipped',reason:'already-in-progress'};
   _loadFromSheetsInProgress=true;
   try{
     showSyncIndicator(true);
@@ -636,42 +651,51 @@ async function loadFromSheets(){
     showSyncIndicator(false);
     var loaded=results.filter(function(r){return r==='loaded';}).length;
     var failed=results.filter(function(r){return r==='failed';}).length;
-    if(loaded>0&&failed>0){
-      // PHASE SYNC-FIX-01 (§15/§16/TEST10): a REAL partial sync — some
-      // sheets updated, some did not. lastSyncAt is still updated (the
-      // sheets that succeeded really did just sync, and freezing the
-      // timestamp would also hide that partial progress), but the
-      // indicator/toast must not claim a full success — that was the
-      // exact false impression §15 asks not to give ("1 نجحت + 11 فشلت"
-      // must never read as "Sync ناجحة بالكامل").
-      updateBadges();renderDashboard();
-      if(window.ApplicationShell){ApplicationShell.markDirty('dashboard');ApplicationShell.markDirty('calendar');}
-      _persistSetting('lastSyncAt',new Date().toISOString());
-      if(typeof updateTopbarSyncMeta==='function')updateTopbarSyncMeta();
-      showSyncIndicator('partial');
-      toast('مزامنة جزئية: نجح تحديث '+loaded+' من '+pairs.length+' — تعذر تحديث الباقي','error');
-    }else if(loaded>0){
-      updateBadges();renderDashboard();
-      // PHASE 16.5.1 — DIRTY PROPAGATION (additive only, see phase brief)
-      // Same reasoning as handleImport(): any subset of the 7 synced
-      // keys above may have loaded, so dashboard+calendar (which read
-      // cases/sessions/clients/tasks) are marked dirty unconditionally
-      // whenever at least one sheet loaded successfully.
-      if(window.ApplicationShell){ApplicationShell.markDirty('dashboard');ApplicationShell.markDirty('calendar');}
-      _persistSetting('lastSyncAt',new Date().toISOString());
-      if(typeof updateTopbarSyncMeta==='function')updateTopbarSyncMeta();
-      showSyncIndicator('success');
-      toast('تم تحديث البيانات من Sheets ('+loaded+' أوراق)','success');
-    }else if(failed===pairs.length){
+    var total=pairs.length;
+    // PHASE SYNC-FIX-01 — §15/§16/§21: three distinct outcomes, and the
+    // UI must never present a PARTIAL result as a full SUCCESS.
+    //   failed === total  -> FAILED  (nothing reached the server: do NOT
+    //                         touch lastSyncAt, preserve the previous
+    //                         real value — §2/§16/§23 "لا تزوّر lastSyncAt")
+    //   failed === 0      -> SUCCESS (every sheet either loaded or was
+    //                         confirmed empty — a real, complete pull)
+    //   otherwise         -> PARTIAL (some sheets updated, some did not —
+    //                         still a REAL partial success, so lastSyncAt
+    //                         legitimately advances, but the user is told
+    //                         it was partial, not full)
+    var status = (failed===total) ? 'failed' : (failed===0 ? 'success' : 'partial');
+    if(status==='failed'){
       // Total sync failure (offline / Apps Script unreachable): keep working on local data.
       showSyncIndicator('error');
       toast('تعذرت المزامنة مع Sheets — العمل بالبيانات المحلية','error');
     }else{
+      if(loaded>0){
+        updateBadges();renderDashboard();
+        // PHASE 16.5.1 — DIRTY PROPAGATION (additive only, see phase brief)
+        // Same reasoning as handleImport(): any subset of the 7 synced
+        // keys above may have loaded, so dashboard+calendar (which read
+        // cases/sessions/clients/tasks) are marked dirty unconditionally
+        // whenever at least one sheet loaded successfully.
+        if(window.ApplicationShell){ApplicationShell.markDirty('dashboard');ApplicationShell.markDirty('calendar');}
+      }
+      // SUCCESS and PARTIAL both represent a real, non-fabricated
+      // successful contact with the server that applied at least one
+      // sheet's response (loaded or confirmed-empty) — lastSyncAt is
+      // legitimately advanced in both cases, never in FAILED.
       _persistSetting('lastSyncAt',new Date().toISOString());
       if(typeof updateTopbarSyncMeta==='function')updateTopbarSyncMeta();
-      showSyncIndicator('success');
-      toast('الاتصال نجح — لا توجد بيانات جديدة في الأوراق','info');
+      if(status==='partial'){
+        showSyncIndicator('partial');
+        toast('مزامنة جزئية — نجحت '+(total-failed)+' من '+total+' وفشلت '+failed+' — سيُعاد المحاولة تلقائيًا','error');
+      }else if(loaded>0){
+        showSyncIndicator('success');
+        toast('تم تحديث البيانات من Sheets ('+loaded+' أوراق)','success');
+      }else{
+        showSyncIndicator('success');
+        toast('الاتصال نجح — لا توجد بيانات جديدة في الأوراق','info');
+      }
     }
+    return {status:status,loaded:loaded,failed:failed,total:total};
   }finally{
     _loadFromSheetsInProgress=false;
   }
