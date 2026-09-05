@@ -78,9 +78,6 @@
  *   this file depends on the specific count.
  *
  * WHAT THIS FILE DELIBERATELY DOES NOT DO
- *   - Does not wire 'visibilitychange' / 'pageshow' / 'focus' to
- *     requestSync('resume') (§ "مهم" under §5) — 'resume' is API-only
- *     for now, called by nothing in this phase.
  *   - Does not add any Firebase/FCM/token/Firestore code (§29/§35).
  *   - Does not touch OfflineQueue.js's own 'online'/
  *     AHP_BACKGROUND_SYNC_TICK listeners (§26) — those still trigger
@@ -88,6 +85,31 @@
  *     calls OfflineQueue.replay() itself, once, as step 1 of its own
  *     sync sequence (§12), never adding a second listener for the same
  *     events.
+ *   - Does not add a 'focus' listener (request's §8 — "لا تضف focus بلا
+ *     حاجة"): 'visibilitychange' + 'pageshow' + 'online' (below) already
+ *     cover every resume path this phase's TEST 1–15 require.
+ *
+ * PHASE SYNC-FIX-01 ADDENDUM (this phase)
+ *   The paragraph above previously said this file does NOT wire
+ *   'visibilitychange'/'pageshow'/'focus' to requestSync('resume') — that
+ *   was true for A7.5 but is the direct, confirmed root cause of the
+ *   reported "🟢 منذ يوم" staleness: with no listener for any of those
+ *   events, a SyncCoordinator built entirely around
+ *   boot/manual/online/notification triggers had NO way to ever run
+ *   again once the user simply backgrounded and re-foregrounded an
+ *   already-open tab/PWA (the single most common real-world usage
+ *   pattern, and the request's own TEST 3/4/14/15). See the bottom of
+ *   this file (`_wireLifecycleTriggers`) for the actual fix: 'resume' on
+ *   visibilitychange->visible and on pageshow, 'online' on the window
+ *   'online' event — every one of them funneled through the SAME
+ *   requestSync() single-flight/TTL/cooldown gate already defined below,
+ *   so a burst of all three firing together (a real risk called out in
+ *   §4 of the request) still yields at most one actual sync: the second
+ *   and third calls arrive synchronously (same JS turn) after the first
+ *   has already assigned `_currentPromise`, so they short-circuit on the
+ *   §10 single-flight check before ever reaching shouldSync(). No new
+ *   debounce timer/constant was invented for this — TTL+cooldown+
+ *   single-flight (§7/§8/§10, unchanged) already fully cover it.
  * ================================================================
  */
 
@@ -167,6 +189,21 @@ const SyncCoordinator = (function () {
    * Step 4 (update state) is handled by the caller (_runSync), not
    * here, since retry needs to re-run steps 1-3 without touching
    * metadata between attempts.
+   *
+   * PHASE SYNC-FIX-01 — root-cause fix, second half (see SyncEngine.js
+   * header for the first half — the missing lastSyncAt persistence).
+   * BEFORE this phase, both branches below awaited their pull call and
+   * simply discarded whatever it returned. loadFromSheets() and
+   * runIncrementalSync() both NEVER throw on failure (by design — a
+   * network failure must not crash the caller, §12.4B/§18) — so a sync
+   * where every single sheet failed still resolved normally here, which
+   * made this function structurally incapable of ever reporting failure
+   * to _syncWithRetry() below. That meant: no retry/backoff ever ran on
+   * a real failure, and state.lastSuccessAt/consecutiveFailures (this
+   * file's own bookkeeping — §6) were wrong after a 100%-failed sync.
+   * Fix: read the status each function now returns and `throw` when it
+   * is 'failed' — everything else about both functions (what they fetch,
+   * how they apply, when THEY touch lastSyncAt) is untouched.
    * @returns {Promise<void>} rejects if any step throws — the retry
    *          wrapper below is what decides what happens next.
    */
@@ -180,34 +217,31 @@ const SyncCoordinator = (function () {
 
     if (_hasAnyCheckpoint()) {
       // §14 — Subsequent Sync: incremental only, no full pull.
-      if (typeof SyncEngine !== 'undefined' && typeof SyncEngine.runIncrementalSync === 'function') {
-        var _incResult = await SyncEngine.runIncrementalSync();
-        // ROOT-CAUSE FIX (Forensic Audit — Topbar lastSyncAt freeze):
-        // runIncrementalSync() itself never touches lastSyncAt/SettingsRepository
-        // (confirmed: js/core/SyncEngine.js has zero references to either).
-        // loadFromSheets() is the ONLY place lastSyncAt is persisted, and it is
-        // only reached from this file via the "First Sync" branch below
-        // (_hasAnyCheckpoint()===false). Once a single checkpoint exists, every
-        // future boot/manual/online/resume sync took this incremental branch and
-        // the Topbar's "لآخر مزامنة" timestamp froze forever, even though real
-        // data kept syncing successfully via SyncEngine. This mirrors
-        // loadFromSheets()'s own existing "loaded>0 -> persist lastSyncAt" rule
-        // (partial success included, identical semantics already accepted there)
-        // using the exact same _persistSetting()/updateTopbarSyncMeta()
-        // primitives settings.js already exposes as globals (loaded before this
-        // file — see index.html script order) — no new storage path, no change
-        // to TTL/cooldown/single-flight/OfflineQueue/FCM/IndexedDB/SW.
-        if (_incResult && _incResult.succeeded > 0 && typeof _persistSetting === 'function') {
-          _persistSetting('lastSyncAt', new Date().toISOString());
-          if (typeof updateTopbarSyncMeta === 'function') updateTopbarSyncMeta();
+      if (typeof SyncEngine !== 'undefined' && typeof SyncEngine.runIncrementalSyncAndPersist === 'function') {
+        var incResult = await SyncEngine.runIncrementalSyncAndPersist();
+        if (incResult && incResult.status === 'failed') {
+          throw new Error('[SyncCoordinator] incremental sync failed for all sheets');
         }
+      } else if (typeof SyncEngine !== 'undefined' && typeof SyncEngine.runIncrementalSync === 'function') {
+        // Defensive fallback if an older SyncEngine.js is present without
+        // the persisting wrapper — preserves pre-fix behavior exactly
+        // rather than throwing on a missing method.
+        await SyncEngine.runIncrementalSync();
       }
     } else {
       // §13 — First Sync: reuse the exact existing behavior verbatim.
       if (typeof loadFromSheets === 'function') {
-        await loadFromSheets();
+        var lfsResult = await loadFromSheets();
+        if (lfsResult && lfsResult.status === 'failed') {
+          throw new Error('[SyncCoordinator] initial loadFromSheets() failed for all sheets');
+        }
       }
       if (typeof SyncEngine !== 'undefined' && typeof SyncEngine.bootIncrementalSync === 'function') {
+        // bootIncrementalSync() keeps its existing never-throw contract
+        // (it is also called directly from settings.js's
+        // bootLoadFromSheets() legacy path) — a failure here alone does
+        // not fail the overall attempt when the first-sync full pull
+        // above already succeeded.
         await SyncEngine.bootIncrementalSync();
       }
     }
@@ -346,6 +380,69 @@ const SyncCoordinator = (function () {
     };
   }
 
+  // ==================================================================
+  // PHASE SYNC-FIX-01 — §4/§5/§6/§7/§8: resume/online lifecycle wiring
+  // ==================================================================
+  // Root cause (see file header ADDENDUM): nothing in the app previously
+  // called requestSync('resume') or requestSync('online') at all. Boot
+  // (index.html DOMContentLoaded) and manual (the refresh button) were
+  // the ONLY two triggers wired to this Coordinator — so once the tab/
+  // PWA was left open across a background/foreground cycle (or the
+  // device's connectivity dropped and came back) with no full page
+  // reload in between, no sync ever ran again, and the topbar's "منذ
+  // ..." timestamp necessarily went stale no matter how the rest of this
+  // file's TTL/cooldown/retry logic worked.
+  //
+  // Each listener below does the SAME two things and nothing else:
+  //   1. Decide the right `reason` for this event ('resume' or 'online').
+  //   2. Call requestSync(reason) — every dedup/TTL/cooldown/offline/
+  //      single-flight decision is made entirely inside requestSync()/
+  //      shouldSync() above, unchanged. No event handler here decides
+  //      "should a sync run" on its own.
+  // guarded against non-browser environments (Node test harness, SSR)
+  // exactly like the rest of this file's `typeof window !== 'undefined'`
+  // checks.
+  function _wireLifecycleTriggers() {
+    if (typeof document === 'undefined' || typeof window === 'undefined') return;
+
+    // §7 "resume" — visibilitychange->visible: covers "returning to the
+    // app after it was in the background" and "reopening the PWA" (TEST
+    // 3/14 of the request). shouldSync()'s existing TTL check already
+    // means this is a no-op if a sync completed successfully within the
+    // last DEFAULT_TTL_MS — no extra "was hidden long enough" timer
+    // needed on top of that (§7 "أو آخر Sync قديمة بما يكفي" — the TTL
+    // check IS that condition, reused rather than duplicated).
+    document.addEventListener('visibilitychange', function () {
+      if (document.visibilityState === 'visible') {
+        requestSync('resume');
+      }
+    });
+
+    // §6/§ "BFCache" — pageshow, specifically for the back-forward-cache
+    // restore case (event.persisted === true), which does NOT fire a
+    // fresh 'DOMContentLoaded'/boot trigger at all (TEST 15). Also fires
+    // on a normal fresh load with persisted===false; requestSync('resume')
+    // is harmless there too since the real boot trigger (index.html) has
+    // its own separate 'boot' reason and the two are deduped by the same
+    // single-flight/cooldown machinery either way.
+    window.addEventListener('pageshow', function () {
+      requestSync('resume');
+    });
+
+    // §5 "online" — connectivity returning. Distinct from
+    // OfflineQueue.js's own 'online' listener (still present, unchanged,
+    // still replays writes) — requestSync('online') here additionally
+    // runs OfflineQueue.replay() itself as step 1 of _attemptOnce() (§12
+    // above), then the correct pull. OfflineQueue.replay()'s own
+    // internal single-flight guard makes the two listeners firing on the
+    // same event safe (no double-replay of the same queued write).
+    window.addEventListener('online', function () {
+      requestSync('online');
+    });
+  }
+
+  _wireLifecycleTriggers();
+
   return {
     requestSync: requestSync,
     syncNow: syncNow,
@@ -355,7 +452,11 @@ const SyncCoordinator = (function () {
     // "exposed for tests only" convention — not used by any app code.
     DEFAULT_TTL_MS: DEFAULT_TTL_MS,
     DEFAULT_COOLDOWN_MS: DEFAULT_COOLDOWN_MS,
-    RETRY_DELAYS_MS: RETRY_DELAYS_MS
+    RETRY_DELAYS_MS: RETRY_DELAYS_MS,
+    // PHASE SYNC-FIX-01 — exposed for tests only (mirrors the pattern
+    // above), so tests can verify listeners were registered without
+    // relying on real visibilitychange/pageshow/online browser events.
+    _wireLifecycleTriggers: _wireLifecycleTriggers
   };
 })();
 

@@ -255,6 +255,103 @@ const SyncEngine = (function () {
   let _bootIncrementalSyncInProgress = false;
 
   /**
+   * ================================================================
+   * PHASE SYNC-FIX-01 — ROOT CAUSE FIX
+   * ================================================================
+   * runIncrementalSync() (above, UNCHANGED) never touched lastSyncAt,
+   * never called updateTopbarSyncMeta()/showSyncIndicator() — it only
+   * ever updated Repositories + SyncCheckpoint. That was fine for the
+   * VERY FIRST sync (SyncCoordinator's "first sync" branch runs
+   * loadFromSheets() first, which DOES persist lastSyncAt, THEN chains
+   * bootIncrementalSync() after it as a bonus). But
+   * SyncCoordinator._attemptOnce()'s "subsequent sync" branch — i.e.
+   * EVERY sync after the very first one, forever, including every boot
+   * and every manual-refresh button press — calls ONLY
+   * runIncrementalSync(), never loadFromSheets(). Since that path never
+   * touched lastSyncAt, the UI's "last sync" timestamp froze at whatever
+   * the first-ever sync wrote, even while real incremental syncs kept
+   * succeeding silently underneath — this is the actual mechanism behind
+   * the reported "🟢 منذ يوم" staying stuck.
+   *
+   * Fix: classify the real result (SUCCESS / PARTIAL / FAILED — same
+   * three states §15 asks loadFromSheets() to use) and, for SUCCESS/
+   * PARTIAL only, persist lastSyncAt through the exact same
+   * `_persistSetting` / `updateTopbarSyncMeta` / `showSyncIndicator`
+   * globals settings.js's own loadFromSheets() already uses (no new
+   * persistence mechanism invented). FAILED never touches lastSyncAt
+   * (§2/§16/§23 — "لا تزوّر lastSyncAt").
+   *
+   * This also fixes a second bug in the same spot: because
+   * runIncrementalSync() never threw and its result was previously
+   * discarded entirely by _attemptOnce(), a sync where ALL 12 sheets
+   * failed still resolved normally — SyncCoordinator's own retry/backoff
+   * (§9/§16 of A7.5) never engaged, and its internal state.lastSuccessAt
+   * was wrongly marked "success". runIncrementalSyncAndPersist()'s
+   * {status:'failed', ...} return now lets SyncCoordinator.js (this
+   * phase) `throw` in that case, so the existing 1s/2s/4s retry ladder
+   * actually runs, exactly as A7.5 already specifies for the first-sync
+   * path.
+   * ================================================================
+   */
+
+  /**
+   * @param {{succeeded:number, failed:number}} result
+   * @returns {'success'|'partial'|'failed'}
+   */
+  function _classifyResult(result) {
+    var total = result.succeeded + result.failed;
+    if (total === 0) return 'success'; // nothing to sync (empty SYNC_ENTITY_PAIRS) — not an error
+    if (result.failed === 0) return 'success';
+    if (result.succeeded === 0) return 'failed';
+    return 'partial';
+  }
+
+  /**
+   * Persists a REAL sync outcome through the exact same globals
+   * settings.js's own loadFromSheets() success path already uses. Only
+   * ever called for 'success'/'partial' — never for 'failed' (see file
+   * header). All three lookups are defensive (`typeof x === 'function'`)
+   * because SyncEngine.js can run in a test/Node context where
+   * settings.js's globals do not exist (mirrors this file's existing
+   * `typeof API_URL === 'undefined'` style guards elsewhere).
+   * @param {'success'|'partial'} status
+   */
+  function _persistSyncOutcome(status) {
+    try {
+      if (typeof _persistSetting === 'function') {
+        _persistSetting('lastSyncAt', new Date().toISOString());
+      }
+    } catch (e) { /* best-effort, mirrors _persistSetting's own internal catch */ }
+    try {
+      if (typeof updateTopbarSyncMeta === 'function') updateTopbarSyncMeta();
+    } catch (e) { /* defensive: UI may not be mounted (e.g. background tab) */ }
+    try {
+      if (typeof showSyncIndicator === 'function') {
+        showSyncIndicator(status === 'partial' ? 'partial' : 'success');
+      }
+    } catch (e) { /* defensive, same reasoning */ }
+  }
+
+  /**
+   * Same as runIncrementalSync(), plus: classifies the outcome and, for
+   * success/partial, persists lastSyncAt + refreshes the sync-status UI
+   * (see header block above for why this was missing and what broke).
+   * Never throws — callers that need retry-on-failure behavior should
+   * check the returned `status`, not a rejection (matches this file's
+   * existing "never throws" contract for bootIncrementalSync()).
+   * @returns {Promise<{status:string, results:Array, succeeded:number, failed:number}>}
+   */
+  async function runIncrementalSyncAndPersist() {
+    var result = await runIncrementalSync();
+    var status = _classifyResult(result);
+    if (status !== 'failed') {
+      _persistSyncOutcome(status);
+    }
+    result.status = status;
+    return result;
+  }
+
+  /**
    * Fire-and-forget boot entry point, mirroring bootLoadFromSheets()'s
    * own re-entrancy guard and never-throw contract. Intended to be
    * called strictly AFTER loadFromSheets() has resolved (see
@@ -270,7 +367,11 @@ const SyncEngine = (function () {
     if (typeof SyncCheckpoint === 'undefined') return;
     _bootIncrementalSyncInProgress = true;
     try {
-      await runIncrementalSync();
+      // PHASE SYNC-FIX-01: was runIncrementalSync() (result discarded).
+      // Now uses the persisting wrapper so this boot-time incremental
+      // pass also keeps lastSyncAt/topbar status honest, same as every
+      // other call site.
+      await runIncrementalSyncAndPersist();
     } catch (e) {
       try { console.warn('[SyncEngine] bootIncrementalSync failed:', e); } catch (e2) {}
     } finally {
@@ -282,6 +383,7 @@ const SyncEngine = (function () {
     SYNC_ENTITY_PAIRS: SYNC_ENTITY_PAIRS,
     syncEntityIncremental: syncEntityIncremental,
     runIncrementalSync: runIncrementalSync,
+    runIncrementalSyncAndPersist: runIncrementalSyncAndPersist,
     bootIncrementalSync: bootIncrementalSync,
     _translateTombstone: _translateTombstone // exposed for tests only
   };
