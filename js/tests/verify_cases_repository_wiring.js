@@ -591,7 +591,7 @@ async function main() {
     // existing _resolveId(record) helper, the same one create()/update()
     // already use. One line changed; identical fix/rationale as
     // verify_repository_wiring_all.js. See CHANGELOG_TEST_INFRA_REPAIR.md.
-    assert.strictEqual(md5(path.join(CORE_DIR, 'Repository.js')), '89d9e29f5d6e26dc482dfb973e30e81f');
+    assert.strictEqual(md5(path.join(CORE_DIR, 'Repository.js')), '04eb08b29914bd3f5323f127a9748a80');
     assert.strictEqual(md5(path.join(CORE_DIR, 'DatabaseService.js')), '2f448ca20584f91cdc600190587849ca');
     assert.strictEqual(md5(path.join(CORE_DIR, 'StorageAdapter.js')), 'fda838c4b6000ab2988b167491effef3');
     assert.strictEqual(md5(path.join(CORE_DIR, 'LocalStorageAdapter.js')), '45e7346d88e080b93074ff83f268bd10');

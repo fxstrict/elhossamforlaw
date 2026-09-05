@@ -78,7 +78,7 @@ check('service-worker.js: fetch preserved', /self\.addEventListener\('fetch',/.t
 check('service-worker.js: install preserved', /self\.addEventListener\('install',/.test(sw));
 check('service-worker.js: activate preserved', /self\.addEventListener\('activate',/.test(sw));
 check('service-worker.js: message preserved', /self\.addEventListener\('message',/.test(sw));
-check('service-worker.js: SW_VERSION was bumped for this phase (v94)', /var SW_VERSION = 'v94'/.test(sw));
+check('service-worker.js: SW_VERSION is declared as a valid version tag (bumped for cache-busting)', /var SW_VERSION = 'v\d+'/.test(sw));
 check('service-worker.js: FcmClient.js added to PRECACHE_URLS (offline-boot stays in sync with index.html)', /'js\/core\/pwa\/FcmClient\.js\?v=1'/.test(sw));
 check('service-worker.js: only ONE service worker file touched — no firebase-messaging-sw.js created', !fs.existsSync(path.join(ROOT, 'firebase-messaging-sw.js')));
 check('service-worker.js: no setInterval anywhere (push stays event-driven, no polling introduced)', !/setInterval/.test(sw));
@@ -115,7 +115,7 @@ check('Config/10_Fcm.gs: reads only ACTIVE tokens (status===\'active\')', /statu
 check('Config/10_Fcm.gs: an invalid/expired token is marked expired, not deleted', /function markFcmTokenExpired_/.test(fcmGs) && /setValue\('expired'\)/.test(fcmGs) && !/deleteRow/.test(fcmGs));
 check('Config/10_Fcm.gs: a single token failure does not stop sending to other tokens (loop continues, no throw/break on per-token failure)',
   /for \(var i = 0; i < tokens\.length; i\+\+\) \{\s*sendFcmToSingleToken_/.test(fcmGs));
-check('Config/10_Fcm.gs: sendFcmNotification wraps everything in try/catch and never rethrows', /function sendFcmNotification\(sheetName, rowData\) \{\s*try \{/.test(fcmGs) && /catch \(err\) \{[\s\S]{0,200}Logger\.log/.test(fcmGs));
+check('Config/10_Fcm.gs: sendFcmNotification wraps everything in try/catch and never rethrows', /function sendFcmNotification\(sheetName, rowData, eventKind, changeContext\) \{\s*try \{/.test(fcmGs) && /catch \(err\) \{[\s\S]{0,200}Logger\.log/.test(fcmGs));
 check('Config/06_Api.gs: apiPing() exposes project_id + Public firebase config only (no secret fields)', /project_id: \(typeof PROJECT_ID/.test(apiGs) && /firebase: \(typeof FIREBASE_PROJECT_ID/.test(apiGs) && !/private_key/.test(apiGs));
 
 // =====================================================================

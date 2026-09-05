@@ -145,6 +145,15 @@ function loadGasContext(sheetsByName) {
     jsonResponse: function (data) {
       const json = JSON.stringify(data);
       return { getContent: function () { return json; } };
+    },
+    // withRowLock() itself lives in Config/08_Utils.gs (not loaded here
+    // — same reasoning as jsonResponse above). apiAddRow()/apiUpdateRow()/
+    // apiDeleteRow() now wrap their row writes in withRowLock(timeoutMs,
+    // criticalFn). Stubbed as an immediate pass-through (no real lock,
+    // no LOCK_TIMEOUT path) so those functions run completely unmodified
+    // and this test can still inspect their result.
+    withRowLock: function (timeoutMs, criticalFn) {
+      return criticalFn();
     }
   };
   sandbox.global = sandbox;

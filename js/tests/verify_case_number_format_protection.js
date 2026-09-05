@@ -123,7 +123,18 @@ function loadGasContext(sheetsByName) {
     setupSheets: function () {},
     addToCalendar: function () { return 'evt-1'; },
     updateCalendarEvent: function (oldId) { return oldId || 'evt-1'; },
-    deleteCalendarEvent: function () {}
+    deleteCalendarEvent: function () {},
+    // LockService is a real Google Apps Script runtime global (not
+    // available in Node). withRowLock(), defined in the real 08_Utils.gs
+    // loaded below, calls LockService.getScriptLock() internally;
+    // apiAddRow()/apiUpdateRow()/apiDeleteRow() now wrap their row
+    // writes in withRowLock(). Stubbed as an always-available, no-op
+    // lock so those functions run completely unmodified.
+    LockService: {
+      getScriptLock: function () {
+        return { waitLock: function () {}, releaseLock: function () {} };
+      }
+    }
   };
   sandbox.global = sandbox;
   const context = vm.createContext(sandbox);
