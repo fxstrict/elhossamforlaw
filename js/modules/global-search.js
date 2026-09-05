@@ -99,84 +99,84 @@
 
   var ENTITY_DEFS = [
     {
-      type: 'case', labelAr: 'قضية', page: 'cases', idField: 'رقم_القضية', icon: '&#9878;',
+      type: 'case', labelAr: 'قضية', page: 'cases', idField: 'رقم_القضية', icon: '⚖️',
       getLabel: function (r) { return joinNonEmpty([readOrNull(r, 'رقم_القضية'), readOrNull(r, 'عنوان_القضية')]); },
       getSecondary: function (r) { return readOrNull(r, 'اسم_الموكل'); },
       getStatus: function (r) { return readOrNull(r, 'الحالة'); },
       getDate: function (r) { return readOrNull(r, 'تاريخ_الإنشاء'); }
     },
     {
-      type: 'client', labelAr: 'موكل', page: 'clients', idField: 'رقم_الموكل', icon: '&#128101;',
+      type: 'client', labelAr: 'موكل', page: 'clients', idField: 'رقم_الموكل', icon: '👥',
       getLabel: function (r) { return readOrNull(r, 'الاسم'); },
       getSecondary: function (r) { return readOrNull(r, 'الهاتف'); },
       getStatus: function () { return null; },
       getDate: function () { return null; }
     },
     {
-      type: 'session', labelAr: 'جلسة', page: 'sessions', idField: 'رقم_الجلسة', icon: '&#128197;',
+      type: 'session', labelAr: 'جلسة', page: 'sessions', idField: 'رقم_الجلسة', icon: '📅',
       getLabel: function (r) { return readOrNull(r, 'عنوان_القضية'); },
       getSecondary: function (r) { return readOrNull(r, 'المحكمة'); },
       getStatus: function (r) { return readOrNull(r, 'الحالة'); },
       getDate: function (r) { return readOrNull(r, 'التاريخ'); }
     },
     {
-      type: 'document', labelAr: 'مستند', page: 'documents', idField: 'رقم_المستند', icon: '&#128206;',
+      type: 'document', labelAr: 'مستند', page: 'documents', idField: 'رقم_المستند', icon: '📎',
       getLabel: function (r) { return readOrNull(r, 'اسم_المستند'); },
       getSecondary: function (r) { return readOrNull(r, 'رقم_القضية'); },
       getStatus: function () { return null; },
       getDate: function (r) { return readOrNull(r, 'تاريخ_الإيداع'); }
     },
     {
-      type: 'task', labelAr: 'مهمة', page: 'tasks', idField: 'رقم_المهمة', icon: '&#9989;',
+      type: 'task', labelAr: 'مهمة', page: 'tasks', idField: 'رقم_المهمة', icon: '✅',
       getLabel: function (r) { return readOrNull(r, 'العنوان'); },
       getSecondary: function (r) { return joinNonEmpty([readOrNull(r, 'اسم_الموكل'), readOrNull(r, 'عنوان_القضية')]); },
       getStatus: function (r) { return readOrNull(r, 'الحالة'); },
       getDate: function (r) { return readOrNull(r, 'الموعد_النهائي'); }
     },
     {
-      type: 'opponent', labelAr: 'خصم', page: 'opponents', idField: 'رقم_الخصم', icon: '&#129333;',
+      type: 'opponent', labelAr: 'خصم', page: 'opponents', idField: 'رقم_الخصم', icon: '🤺',
       getLabel: function (r) { return readOrNull(r, 'الاسم'); },
       getSecondary: function (r) { return readOrNull(r, 'الرقم_القومي'); },
       getStatus: function () { return null; },
       getDate: function () { return null; }
     },
     {
-      type: 'child', labelAr: 'طفل', page: 'children', idField: 'رقم_الطفل', icon: '&#128118;',
+      type: 'child', labelAr: 'طفل', page: 'children', idField: 'رقم_الطفل', icon: '👦',
       getLabel: function (r) { return readOrNull(r, 'الاسم'); },
       getSecondary: function (r) { return readOrNull(r, 'رقم_القضية'); },
       getStatus: function () { return null; },
       getDate: function (r) { return readOrNull(r, 'تاريخ_الميلاد'); }
     },
     {
-      type: 'fee', labelAr: 'أتعاب', page: 'fees', idField: 'رقم_العملية', icon: '&#128176;',
+      type: 'fee', labelAr: 'أتعاب', page: 'fees', idField: 'رقم_العملية', icon: '💰',
       getLabel: function (r) { return joinNonEmpty([readOrNull(r, 'نوع_الأتعاب'), readOrNull(r, 'المبلغ')]); },
       getSecondary: function (r) { return readOrNull(r, 'اسم_الموكل'); },
       getStatus: function () { return null; },
       getDate: function (r) { return readOrNull(r, 'تاريخ_الاستلام'); }
     },
     {
-      type: 'library', labelAr: 'المكتبة', page: 'library', idField: 'id', icon: '&#128218;',
+      type: 'library', labelAr: 'المكتبة', page: 'library', idField: 'id', icon: '📚',
       getLabel: function (r) { return readOrNull(r, 'العنوان'); },
       getSecondary: function (r) { return readOrNull(r, 'القسم'); },
       getStatus: function () { return null; },
       getDate: function (r) { return readOrNull(r, 'تاريخ_الإنشاء'); }
     },
     {
-      type: 'template', labelAr: 'صيغة', page: 'templates', idField: 'id', icon: '&#128196;',
+      type: 'template', labelAr: 'صيغة', page: 'templates', idField: 'id', icon: '📄',
       getLabel: function (r) { return readOrNull(r, 'العنوان'); },
       getSecondary: function (r) { return readOrNull(r, 'القسم'); },
       getStatus: function () { return null; },
       getDate: function (r) { return readOrNull(r, 'تاريخ_الإنشاء'); }
     },
     {
-      type: 'expense', labelAr: 'مصروف', page: 'expenses', idField: 'id', icon: '&#128181;',
+      type: 'expense', labelAr: 'مصروف', page: 'expenses', idField: 'id', icon: '💵',
       getLabel: function (r) { return joinNonEmpty([readOrNull(r, 'التصنيف'), readOrNull(r, 'المصدر')]); },
       getSecondary: function (r) { return readOrNull(r, 'المصدر'); },
       getStatus: function (r) { return readOrNull(r, 'الحالة'); },
       getDate: function (r) { return readOrNull(r, 'التاريخ'); }
     },
     {
-      type: 'processServerWork', labelAr: 'عمل محضرين', page: 'processServerWorks', idField: 'رقم_العمل', icon: '&#128220;',
+      type: 'processServerWork', labelAr: 'عمل محضرين', page: 'processServerWorks', idField: 'رقم_العمل', icon: '📜',
       getLabel: function (r) { return joinNonEmpty([readOrNull(r, 'طبيعة_الاعلان'), readOrNull(r, 'رقم_المحضرين')]); },
       getSecondary: function (r) { return readOrNull(r, 'المحكمة'); },
       getStatus: function (r) { return readOrNull(r, 'الحالة'); },
