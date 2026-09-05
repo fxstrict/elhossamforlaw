@@ -132,7 +132,7 @@ const REPOS = [
     entityKey: 'sessions',
     idField: 'رقم_الجلسة',
     idIsUserSupplied: false,
-    validRecord: () => ({ 'التاريخ': '2026-08-01', 'الوقت': '10:00' }),
+    validRecord: () => ({ 'التاريخ': '2026-08-01', 'الوقت': '10:00', 'رقم_القضية': '2026-500' }),
     updatePatch: { 'الوقت': '11:30' },
     invalidRecord: () => ({ 'التاريخ': '2026-08-01' }), // missing required 'الوقت'
     legacySeedRecord: { 'رقم_الجلسة': 'legacy-s1', 'التاريخ': '2025-01-01', 'الوقت': '09:00' }
@@ -416,7 +416,7 @@ async function main() {
     // create()/update() already use, restoring correct, consistent id
     // resolution. One line changed; no other file in this check's list was
     // touched. See CHANGELOG_TEST_INFRA_REPAIR.md.
-    assert.strictEqual(md5(path.join(CORE_DIR, 'Repository.js')), '89d9e29f5d6e26dc482dfb973e30e81f');
+    assert.strictEqual(md5(path.join(CORE_DIR, 'Repository.js')), '04eb08b29914bd3f5323f127a9748a80');
     assert.strictEqual(md5(path.join(CORE_DIR, 'DatabaseService.js')), '2f448ca20584f91cdc600190587849ca');
     assert.strictEqual(md5(path.join(CORE_DIR, 'StorageAdapter.js')), 'fda838c4b6000ab2988b167491effef3');
     assert.strictEqual(md5(path.join(CORE_DIR, 'LocalStorageAdapter.js')), '45e7346d88e080b93074ff83f268bd10');

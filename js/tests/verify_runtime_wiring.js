@@ -49,9 +49,9 @@ const INDEX_HTML = path.join(PROJECT_ROOT, 'index.html');
 // ----------------------------------------------------------------
 function checkScriptOrder() {
   const html = fs.readFileSync(INDEX_HTML, 'utf8');
-  const srcs = [...html.matchAll(/<script src="([^"]+)"><\/script>/g)].map(m => m[1]);
+  const srcs = [...html.matchAll(/<script src="([^"]+)"><\/script>/g)].map(m => m[1].split('?')[0]);
 
-  const indexOf = (needle) => srcs.findIndex(s => s === needle);
+  const indexOf = (needle) => srcs.findIndex(s => s === needle.split('?')[0]);
 
   const CORE = {
     storageAdapter: 'js/core/StorageAdapter.js',
@@ -246,7 +246,14 @@ async function checkBrowserRuntime() {
   //      even reaches the next script tag, regardless of script order.
   const KNOWN_NON_WIRING_PATTERNS = [
     /the server responded with a status of 403/,
-    /CasesRepository failed to open: ReferenceError: data is not defined/
+    /CasesRepository failed to open: ReferenceError: data is not defined/,
+    // fetch() cannot load same-origin JSON under the file:// scheme this
+    // harness loads index.html under (no local HTTP server) — this is a
+    // limitation of the file:// test harness itself, not a script
+    // load-order/wiring defect. Under a real http(s) deployment this
+    // fetch succeeds normally.
+    /Fetch API cannot load file:\/\/.*legal-directories\.json/,
+    /\[legal-directories\] failed to load dataset: TypeError: Failed to fetch/
   ];
   const unexpectedConsoleErrors = runtimeResult.consoleErrors.filter(
     (e) => !KNOWN_NON_WIRING_PATTERNS.some((re) => re.test(e))

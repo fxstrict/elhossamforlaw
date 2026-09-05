@@ -199,8 +199,8 @@ async function main() {
   // 10. index.html WIRING — static script-order check
   // ============================================================
   const html = fs.readFileSync(INDEX_HTML_PATH, 'utf8');
-  const srcs = [...html.matchAll(/<script src="([^"]+)"><\/script>/g)].map(m => m[1]);
-  const indexOf = (needle) => srcs.findIndex(s => s === needle);
+  const srcs = [...html.matchAll(/<script src="([^"]+)"><\/script>/g)].map(m => m[1].split('?')[0]);
+  const indexOf = (needle) => srcs.findIndex(s => s === needle.split('?')[0]);
 
   check('[Wiring] index.html loads js/core/StartupTimeoutManager.js exactly once', () => {
     assert.strictEqual(srcs.filter(s => s === 'js/core/StartupTimeoutManager.js').length, 1);

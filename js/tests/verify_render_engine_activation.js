@@ -86,7 +86,7 @@ function makeClassList() {
   return { add: function () {}, remove: function () {} };
 }
 function makeEl() {
-  return { classList: makeClassList(), style: {}, innerHTML: '', textContent: '', value: '', href: '', addEventListener: function () {}, getAttribute: function () { return null; } };
+  return { classList: makeClassList(), style: {}, innerHTML: '', textContent: '', value: '', href: '', addEventListener: function () {}, getAttribute: function () { return null; }, querySelector: function () { return null; }, insertBefore: function () {}, firstChild: null };
 }
 
 function makeSandbox(overrides) {
@@ -104,7 +104,8 @@ function makeSandbox(overrides) {
       getElementById: function (id) {
         if (!els[id]) els[id] = makeEl();
         return els[id];
-      }
+      },
+      createElement: function () { return makeEl(); }
     },
     innerWidth: 1200
   };
@@ -214,8 +215,8 @@ console.log('=== SECTION C: navigate() + RenderQueue present + render throws ===
   const sandbox = makeSandbox({ throwOn: 'cases' });
   loadRenderEngine(sandbox);
   loadShell(sandbox); // PHASE 28: navigate() now goes through ApplicationShell.enqueueRender().
-  check('C1: the exception propagates OUT of navigate() (matches pre-Phase-27 direct-call behavior)', function () {
-    assert.throws(function () { runNavigate(sandbox, 'cases'); }, /simulated render failure for cases/);
+  check('C1: the exception no longer propagates out of navigate() — it is caught and shown to the user (STABILITY FIX, see index.html\'s __vcRunRender comment)', function () {
+    assert.doesNotThrow(function () { runNavigate(sandbox, 'cases'); });
   });
   check('C2: the render function was invoked exactly once (no double-render via the fallback path)', function () {
     assert.strictEqual(sandbox.__renderCalls.cases, 1);

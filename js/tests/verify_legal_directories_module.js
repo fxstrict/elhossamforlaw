@@ -146,8 +146,11 @@ async function main() {
     const mod = freshModule();
     mod.renderLegalDirectories();
     await flush(); await flush();
-    registry.legalDirGrid.children[0].click(); // into "courts" (first enabled directory)
-    // find a folder card among current grid (courts dataset has a nested folder)
+    const enabledDirs = realDataset.directories.filter((d) => d.enabled !== false);
+    const dirIndexWithFolder = enabledDirs.findIndex((d) => (d.items || []).some((i) => i.type === 'folder'));
+    assert.ok(dirIndexWithFolder !== -1, 'expected at least one top-level directory containing a nested folder somewhere in the real dataset');
+    registry.legalDirGrid.children[dirIndexWithFolder].click(); // into a directory known to have a nested folder
+    // find a folder card among current grid
     const folderCard = registry.legalDirGrid.children.find((c) => c.dataset.nodeType === 'folder');
     assert.ok(folderCard, 'expected at least one folder card at this level of the demo dataset');
     folderCard.click();

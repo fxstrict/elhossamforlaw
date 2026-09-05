@@ -66,7 +66,7 @@ function info(label) {
 
   console.log('STEP 1 \u2014 Fresh install\n');
   await page.goto('file://' + INDEX_HTML, { waitUntil: 'load' });
-  await page.waitForTimeout(600);
+  await page.waitForTimeout(4300); // splash minimum-visible-time (MIN_VISIBLE_MS = 3300ms in js/modules/firstrun.js) + extra margin: v1.0.1 added js/license/* (LicenseCore/ActivationWizard), whose async init now runs before the splash-hide timer fires, pushing the wizard-open point out further than 3300ms alone
   check('wizard open on fresh install', await page.$eval('#firstRunWizard', el => el.classList.contains('open')));
 
   console.log('\nSTEP 2 \u2014 Save with empty URL\n');
@@ -78,7 +78,7 @@ function info(label) {
 
   console.log('\nSTEP 3 \u2014 Refresh\n');
   await page.reload({ waitUntil: 'load' });
-  await page.waitForTimeout(600);
+  await page.waitForTimeout(4300); // splash minimum-visible-time (MIN_VISIBLE_MS = 3300ms in js/modules/firstrun.js) + extra margin: v1.0.1 added js/license/* (LicenseCore/ActivationWizard), whose async init now runs before the splash-hide timer fires, pushing the wizard-open point out further than 3300ms alone
 
   console.log('\nSTEP 4 \u2014 First Run wizard still appears\n');
   check('wizard reappears after refresh (bug scenario confirmed fixed-safe)', await page.$eval('#firstRunWizard', el => el.classList.contains('open')));
@@ -108,7 +108,7 @@ function info(label) {
 
   console.log('\nSTEP 9 \u2014 Refresh\n');
   await page.reload({ waitUntil: 'load' });
-  await page.waitForTimeout(600);
+  await page.waitForTimeout(4300); // splash minimum-visible-time (MIN_VISIBLE_MS = 3300ms in js/modules/firstrun.js) + extra margin: v1.0.1 added js/license/* (LicenseCore/ActivationWizard), whose async init now runs before the splash-hide timer fires, pushing the wizard-open point out further than 3300ms alone
 
   console.log('\nSTEP 10 \u2014 Wizard never returns\n');
   check('wizard does not reopen', (await page.$eval('#firstRunWizard', el => el.classList.contains('open'))) === false);
@@ -126,7 +126,7 @@ function info(label) {
 
   console.log('\nSTEP 12 \u2014 Refresh\n');
   await page.reload({ waitUntil: 'load' });
-  await page.waitForTimeout(600);
+  await page.waitForTimeout(4300); // splash minimum-visible-time (MIN_VISIBLE_MS = 3300ms in js/modules/firstrun.js) + extra margin: v1.0.1 added js/license/* (LicenseCore/ActivationWizard), whose async init now runs before the splash-hide timer fires, pushing the wizard-open point out further than 3300ms alone
 
   console.log('\nSTEP 13 \u2014 Dashboard still opens\n');
   check('wizard does not reopen', (await page.$eval('#firstRunWizard', el => el.classList.contains('open'))) === false);
@@ -145,7 +145,7 @@ function info(label) {
 
   console.log('\nSTEP 15 \u2014 Refresh\n');
   await page.reload({ waitUntil: 'load' });
-  await page.waitForTimeout(600);
+  await page.waitForTimeout(4300); // splash minimum-visible-time (MIN_VISIBLE_MS = 3300ms in js/modules/firstrun.js) + extra margin: v1.0.1 added js/license/* (LicenseCore/ActivationWizard), whose async init now runs before the splash-hide timer fires, pushing the wizard-open point out further than 3300ms alone
 
   console.log('\nSTEP 16 \u2014 Observed state after clear + refresh\n');
   const wizardAfterClearRefresh = await page.$eval('#firstRunWizard', el => el.classList.contains('open'));
@@ -176,7 +176,7 @@ function info(label) {
 
   console.log('\nSTEP 18 \u2014 Refresh\n');
   await page.reload({ waitUntil: 'load' });
-  await page.waitForTimeout(600);
+  await page.waitForTimeout(4300); // splash minimum-visible-time (MIN_VISIBLE_MS = 3300ms in js/modules/firstrun.js) + extra margin: v1.0.1 added js/license/* (LicenseCore/ActivationWizard), whose async init now runs before the splash-hide timer fires, pushing the wizard-open point out further than 3300ms alone
 
   console.log('\nSTEP 19 \u2014 Dashboard opens normally\n');
   check('wizard does not appear', (await page.$eval('#firstRunWizard', el => el.classList.contains('open'))) === false);

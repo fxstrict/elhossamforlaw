@@ -44,13 +44,16 @@ function newEngine(extra) {
 (async function main() {
 
   // ---- 1. Schema sanity ----
-  await check('Schema declares all 16 required stores', () => {
+  await check('Schema declares all 19 required stores', () => {
     // PHASE 31 (RBAC): +3 stores ('users', 'auditLog', 'loginLog'),
     // 12 -> 15. See IndexedDBSchema.js's own PHASE 31 comment.
     // PHASE 37 (Opponents Module): +1 store ('opponents'), 15 -> 16.
+    // PHASE 38 (Process Server Works): +1 store ('processServerWorks'), 16 -> 17.
+    // CASES_RELATIONSHIP_FINANCIAL: +2 stores ('caseClients', 'expenses'), 17 -> 19.
     const expected = ['cases', 'clients', 'sessions', 'documents', 'tasks',
       'children', 'fees', 'library', 'templates', 'settings', 'metadata',
-      'clientMessages', 'users', 'auditLog', 'loginLog', 'opponents'];
+      'clientMessages', 'users', 'auditLog', 'loginLog', 'opponents',
+      'processServerWorks', 'caseClients', 'expenses'];
     const actual = SchemaNS.getStoreNames();
     expected.forEach(name => assert.ok(actual.indexOf(name) !== -1, 'missing store ' + name));
     assert.strictEqual(actual.length, expected.length);
@@ -85,7 +88,14 @@ function newEngine(extra) {
       loginLog: 'id',
       // PHASE 37 (Opponents Module): 'opponents' keyPath matches
       // OpponentsRepository's idField (رقم_الخصم).
-      opponents: 'رقم_الخصم'
+      opponents: 'رقم_الخصم',
+      // PHASE 38 (Process Server Works): 'processServerWorks' keyPath
+      // matches ProcessServerWorksRepository's idField (رقم_العمل).
+      processServerWorks: 'رقم_العمل',
+      // CASES_RELATIONSHIP_FINANCIAL: 'caseClients' and 'expenses' are
+      // both 'id'-keyed (junction/ledger records, not entity-numbered).
+      caseClients: 'id',
+      expenses: 'id'
     };
     SchemaNS.STORE_DEFINITIONS.forEach(def => {
       assert.strictEqual(def.keyPath, expectedKeyPaths[def.name], def.name);
@@ -96,14 +106,14 @@ function newEngine(extra) {
     // PHASE 31 (RBAC): DB_VERSION bumped 2 -> 3.
     // PHASE 37 (Opponents Module): DB_VERSION bumped 3 -> 4.
     assert.strictEqual(SchemaNS.DB_NAME, 'HossamLawOffice');
-    assert.strictEqual(SchemaNS.DB_VERSION, 4);
+    assert.strictEqual(SchemaNS.DB_VERSION, 6);
   });
 
   // ---- 2. Database opens correctly ----
   await check('Database opens and reports the expected version', async () => {
     const { engine } = newEngine();
     const db = await engine.open();
-    assert.strictEqual(db.version, 4); // PHASE 31 (RBAC): DB_VERSION 2 -> 3. PHASE 37 (Opponents): 3 -> 4.
+    assert.strictEqual(db.version, 6); // PHASE 31 (RBAC): DB_VERSION 2 -> 3. PHASE 37 (Opponents): 3 -> 4. PHASE 38 (Process Server Works): 4 -> 5. CASES_RELATIONSHIP_FINANCIAL: 5 -> 6.
     assert.strictEqual(engine.isOpen(), true);
     await engine.close();
   });
@@ -147,7 +157,7 @@ function newEngine(extra) {
     const { engine } = newEngine();
     await engine.open();
     const result = engine.getLastUpgradeResult();
-    assert.deepStrictEqual(result.appliedVersions, [1, 2, 3, 4]); // PHASE 31 (RBAC): version 3 added. PHASE 37 (Opponents): version 4 added.
+    assert.deepStrictEqual(result.appliedVersions, [1, 2, 3, 4, 5, 6]); // PHASE 31 (RBAC): version 3 added. PHASE 37 (Opponents): version 4 added. PHASE 38 (Process Server Works): version 5 added. CASES_RELATIONSHIP_FINANCIAL: version 6 added.
     assert.strictEqual(result.storesCreated.length, SchemaNS.getStoreNames().length);
     await engine.close();
   });
@@ -161,7 +171,7 @@ function newEngine(extra) {
     // should not re-run onupgradeneeded at all.
     const engine2 = new IndexedDBEngine({ indexedDBImpl: fake });
     const db2 = await engine2.open();
-    assert.strictEqual(db2.version, 4); // PHASE 31 (RBAC): DB_VERSION 2 -> 3. PHASE 37 (Opponents): 3 -> 4.
+    assert.strictEqual(db2.version, 6); // PHASE 31 (RBAC): DB_VERSION 2 -> 3. PHASE 37 (Opponents): 3 -> 4. PHASE 38 (Process Server Works): 4 -> 5. CASES_RELATIONSHIP_FINANCIAL: 5 -> 6.
     assert.strictEqual(engine2.getLastUpgradeResult(), null, 'no upgrade should have run on reopen');
     await engine2.close();
   });
@@ -251,7 +261,7 @@ function newEngine(extra) {
     const engine2 = new IndexedDBEngine({ indexedDBImpl: fake });
     await engine2.open();
     const result = engine2.getLastUpgradeResult();
-    assert.deepStrictEqual(result.appliedVersions, [1, 2, 3, 4], 'delete should force a fresh upgrade on next open'); // PHASE 31 (RBAC): version 3 added. PHASE 37 (Opponents): version 4 added.
+    assert.deepStrictEqual(result.appliedVersions, [1, 2, 3, 4, 5, 6], 'delete should force a fresh upgrade on next open'); // PHASE 31 (RBAC): version 3 added. PHASE 37 (Opponents): version 4 added. PHASE 38 (Process Server Works): version 5 added. CASES_RELATIONSHIP_FINANCIAL: version 6 added.
     await engine2.close();
   });
 
@@ -269,11 +279,11 @@ function newEngine(extra) {
     const engine = new IndexedDBEngine({ indexedDBImpl: fake });
     await engine.open();
     const firstUpgradeResult = engine.getLastUpgradeResult();
-    assert.deepStrictEqual(firstUpgradeResult.appliedVersions, [1, 2, 3, 4]); // PHASE 31 (RBAC): version 3 added. PHASE 37 (Opponents): version 4 added.
+    assert.deepStrictEqual(firstUpgradeResult.appliedVersions, [1, 2, 3, 4, 5, 6]); // PHASE 31 (RBAC): version 3 added. PHASE 37 (Opponents): version 4 added. PHASE 38 (Process Server Works): version 5 added. CASES_RELATIONSHIP_FINANCIAL: version 6 added.
     await engine.close();
 
     const db2 = await engine.open();
-    assert.strictEqual(db2.version, 4); // PHASE 31 (RBAC): DB_VERSION 2 -> 3. PHASE 37 (Opponents): 3 -> 4.
+    assert.strictEqual(db2.version, 6); // PHASE 31 (RBAC): DB_VERSION 2 -> 3. PHASE 37 (Opponents): 3 -> 4. PHASE 38 (Process Server Works): 4 -> 5. CASES_RELATIONSHIP_FINANCIAL: 5 -> 6.
     // No second upgrade ran, so the recorded result is unchanged from the
     // first (and only) upgrade — a fresh IndexedDBEngine on the same
     // backing store confirms this independently in the prior test.
@@ -349,7 +359,9 @@ function newEngine(extra) {
       // PHASE 31 (RBAC): schema DB_VERSION bumped 2 -> 3 (adds the
       // 'users'/'auditLog'/'loginLog' stores — see IndexedDBSchema.js).
       // PHASE 37 (Opponents): schema DB_VERSION bumped 3 -> 4.
-      assert.strictEqual(db.version, 4);
+      // PHASE 38 (Process Server Works): schema DB_VERSION bumped 4 -> 5.
+      // CASES_RELATIONSHIP_FINANCIAL: schema DB_VERSION bumped 5 -> 6.
+      assert.strictEqual(db.version, 6);
       assert.strictEqual(engine.isOpen(), true);
       await engine.close();
       assert.strictEqual(engine.isOpen(), false);
@@ -373,8 +385,10 @@ function newEngine(extra) {
     const db = await finalEngine.open();
     // PHASE 31 (RBAC): schema DB_VERSION bumped 2 -> 3.
     // PHASE 37 (Opponents): schema DB_VERSION bumped 3 -> 4.
-    assert.strictEqual(db.version, 4);
-    assert.deepStrictEqual(finalEngine.getLastUpgradeResult().appliedVersions, [1, 2, 3, 4]);
+    // PHASE 38 (Process Server Works): schema DB_VERSION bumped 4 -> 5.
+    // CASES_RELATIONSHIP_FINANCIAL: schema DB_VERSION bumped 5 -> 6.
+    assert.strictEqual(db.version, 6);
+    assert.deepStrictEqual(finalEngine.getLastUpgradeResult().appliedVersions, [1, 2, 3, 4, 5, 6]);
     await finalEngine.close();
   });
 

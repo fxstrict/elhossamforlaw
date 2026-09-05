@@ -71,7 +71,7 @@ function check(label, cond) {
 
     console.log('CASE A \u2014 Save pressed with no URL\n');
     await page.goto('file://' + INDEX_HTML, { waitUntil: 'load' });
-    await page.waitForTimeout(600);
+    await page.waitForTimeout(4300); // splash minimum-visible-time (MIN_VISIBLE_MS = 3300ms in js/modules/firstrun.js) + extra margin: v1.0.1 added js/license/* (LicenseCore/ActivationWizard), whose async init now runs before the splash-hide timer fires, pushing the wizard-open point out further than 3300ms alone
 
     await page.click('#firstRunWizard .modal-footer .btn-primary'); // حفظ وبدء البرنامج
     await page.waitForTimeout(150);
@@ -113,7 +113,7 @@ function check(label, cond) {
 
     // Refresh must not show the wizard again.
     await page.reload({ waitUntil: 'load' });
-    await page.waitForTimeout(600);
+    await page.waitForTimeout(4300); // splash minimum-visible-time (MIN_VISIBLE_MS = 3300ms in js/modules/firstrun.js) + extra margin: v1.0.1 added js/license/* (LicenseCore/ActivationWizard), whose async init now runs before the splash-hide timer fires, pushing the wizard-open point out further than 3300ms alone
     const wizardOpenAfterReload = await page.$eval('#firstRunWizard', el => el.classList.contains('open'));
     check('refresh after local-mode choice does not reopen the wizard (bug fixed)', wizardOpenAfterReload === false);
 
@@ -129,7 +129,7 @@ function check(label, cond) {
     const page = await context.newPage();
     console.log('\nCASE A \u2014 "\u0627\u0633\u062a\u064a\u0631\u0627\u062f \u0646\u0633\u062e\u0629 JSON" choice\n');
     await page.goto('file://' + INDEX_HTML, { waitUntil: 'load' });
-    await page.waitForTimeout(600);
+    await page.waitForTimeout(4300); // splash minimum-visible-time (MIN_VISIBLE_MS = 3300ms in js/modules/firstrun.js) + extra margin: v1.0.1 added js/license/* (LicenseCore/ActivationWizard), whose async init now runs before the splash-hide timer fires, pushing the wizard-open point out further than 3300ms alone
     await page.click('#firstRunWizard .modal-footer .btn-primary');
     await page.waitForTimeout(150);
     await page.click('#firstRunFallback button:nth-child(2)');
@@ -162,7 +162,7 @@ function check(label, cond) {
 
     console.log('\nCASE B \u2014 Save pressed with a VALID URL\n');
     await page.goto('file://' + INDEX_HTML, { waitUntil: 'load' });
-    await page.waitForTimeout(600);
+    await page.waitForTimeout(4300); // splash minimum-visible-time (MIN_VISIBLE_MS = 3300ms in js/modules/firstrun.js) + extra margin: v1.0.1 added js/license/* (LicenseCore/ActivationWizard), whose async init now runs before the splash-hide timer fires, pushing the wizard-open point out further than 3300ms alone
     await page.fill('#wizardApiUrlInput', 'https://script.google.com/macros/s/VALID_TEST_ID/exec');
     await page.click('#firstRunWizard .modal-footer .btn-primary');
     await page.waitForTimeout(400);
@@ -184,7 +184,7 @@ function check(label, cond) {
 
     // Refresh must not show the wizard again (Case D parity).
     await page.reload({ waitUntil: 'load' });
-    await page.waitForTimeout(600);
+    await page.waitForTimeout(4300); // splash minimum-visible-time (MIN_VISIBLE_MS = 3300ms in js/modules/firstrun.js) + extra margin: v1.0.1 added js/license/* (LicenseCore/ActivationWizard), whose async init now runs before the splash-hide timer fires, pushing the wizard-open point out further than 3300ms alone
     const wizardOpenAfterReload = await page.$eval('#firstRunWizard', el => el.classList.contains('open'));
     check('refresh after valid save does not reopen the wizard', wizardOpenAfterReload === false);
 
@@ -203,7 +203,7 @@ function check(label, cond) {
 
     console.log('\nCASE C \u2014 Save pressed with an INVALID URL\n');
     await page.goto('file://' + INDEX_HTML, { waitUntil: 'load' });
-    await page.waitForTimeout(600);
+    await page.waitForTimeout(4300); // splash minimum-visible-time (MIN_VISIBLE_MS = 3300ms in js/modules/firstrun.js) + extra margin: v1.0.1 added js/license/* (LicenseCore/ActivationWizard), whose async init now runs before the splash-hide timer fires, pushing the wizard-open point out further than 3300ms alone
     await page.fill('#wizardApiUrlInput', 'https://script.google.com/macros/s/BAD_TEST_ID/exec');
     await page.click('#firstRunWizard .modal-footer .btn-primary');
     await page.waitForTimeout(400);
@@ -242,7 +242,7 @@ function check(label, cond) {
 
     console.log('\nCASE E \u2014 Settings-page URL clear (existing control)\n');
     await page.goto('file://' + INDEX_HTML, { waitUntil: 'load' });
-    await page.waitForTimeout(600);
+    await page.waitForTimeout(4300); // splash minimum-visible-time (MIN_VISIBLE_MS = 3300ms in js/modules/firstrun.js) + extra margin: v1.0.1 added js/license/* (LicenseCore/ActivationWizard), whose async init now runs before the splash-hide timer fires, pushing the wizard-open point out further than 3300ms alone
     await page.fill('#wizardApiUrlInput', 'https://script.google.com/macros/s/VALID_TEST_ID/exec');
     await page.click('#firstRunWizard .modal-footer .btn-primary');
     await page.waitForTimeout(400);
@@ -280,7 +280,7 @@ function check(label, cond) {
 
     console.log('\nCASE F \u2014 wizard "Test Connection" button (valid URL)\n');
     await page.goto('file://' + INDEX_HTML, { waitUntil: 'load' });
-    await page.waitForTimeout(600);
+    await page.waitForTimeout(4300); // splash minimum-visible-time (MIN_VISIBLE_MS = 3300ms in js/modules/firstrun.js) + extra margin: v1.0.1 added js/license/* (LicenseCore/ActivationWizard), whose async init now runs before the splash-hide timer fires, pushing the wizard-open point out further than 3300ms alone
     await page.fill('#wizardApiUrlInput', 'https://script.google.com/macros/s/VALID_TEST_ID/exec');
     await page.click('#firstRunWizard .modal-footer .btn-ghost:not([onclick="wizardStartLocal()"])');
     await page.waitForTimeout(400);

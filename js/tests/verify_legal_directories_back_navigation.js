@@ -123,6 +123,8 @@ function flush() { return new Promise((resolve) => setTimeout(resolve, 0)); }
 async function main() {
   const datasetPath = path.join(__dirname, '..', 'data', 'directories', 'legal-directories.json');
   const realDataset = JSON.parse(fs.readFileSync(datasetPath, 'utf8'));
+  const enabledDirs = realDataset.directories.filter((d) => d.enabled !== false);
+  const dirIndexWithFolder = enabledDirs.findIndex((d) => (d.items || []).some((i) => i.type === 'folder'));
 
   function freshModule() {
     [
@@ -172,7 +174,7 @@ async function main() {
     // already does in the real app: push ONE history entry for the page
     // itself (depth 0 / root) the moment the user navigates to it.
     historyStub.pushState({ page: 'legalDirectories' }, '', '#legalDirectories');
-    registry.legalDirGrid.children[0].click(); // into first directory
+    registry.legalDirGrid.children[dirIndexWithFolder].click(); // into a directory known to have a nested folder
     const beforeFolder = historyStub._entryCount();
     const folderCard = registry.legalDirGrid.children.find((c) => c.dataset.nodeType === 'folder');
     assert.ok(folderCard, 'expected a folder in the demo dataset at this level');
@@ -191,7 +193,7 @@ async function main() {
     // already does in the real app: push ONE history entry for the page
     // itself (depth 0 / root) the moment the user navigates to it.
     historyStub.pushState({ page: 'legalDirectories' }, '', '#legalDirectories');
-    registry.legalDirGrid.children[0].click();
+    registry.legalDirGrid.children[dirIndexWithFolder].click();
     const folderCard = registry.legalDirGrid.children.find((c) => c.dataset.nodeType === 'folder');
     folderCard.click();
     assert.strictEqual(mod._stackDepthForTests(), 2);
@@ -211,7 +213,7 @@ async function main() {
     // already does in the real app: push ONE history entry for the page
     // itself (depth 0 / root) the moment the user navigates to it.
     historyStub.pushState({ page: 'legalDirectories' }, '', '#legalDirectories');
-    registry.legalDirGrid.children[0].click();
+    registry.legalDirGrid.children[dirIndexWithFolder].click();
     const folderCard = registry.legalDirGrid.children.find((c) => c.dataset.nodeType === 'folder');
     folderCard.click();
 
@@ -233,7 +235,7 @@ async function main() {
     // already does in the real app: push ONE history entry for the page
     // itself (depth 0 / root) the moment the user navigates to it.
     historyStub.pushState({ page: 'legalDirectories' }, '', '#legalDirectories');
-    registry.legalDirGrid.children[0].click();
+    registry.legalDirGrid.children[dirIndexWithFolder].click();
     const folderCard = registry.legalDirGrid.children.find((c) => c.dataset.nodeType === 'folder');
     folderCard.click();
 
@@ -255,7 +257,7 @@ async function main() {
     // already does in the real app: push ONE history entry for the page
     // itself (depth 0 / root) the moment the user navigates to it.
     historyStub.pushState({ page: 'legalDirectories' }, '', '#legalDirectories');
-    registry.legalDirGrid.children[0].click();
+    registry.legalDirGrid.children[dirIndexWithFolder].click();
     const folderCard = registry.legalDirGrid.children.find((c) => c.dataset.nodeType === 'folder');
     folderCard.click();
     const pointerBefore = historyStub._pointer();
@@ -276,7 +278,7 @@ async function main() {
     // already does in the real app: push ONE history entry for the page
     // itself (depth 0 / root) the moment the user navigates to it.
     historyStub.pushState({ page: 'legalDirectories' }, '', '#legalDirectories');
-    registry.legalDirGrid.children[0].click();
+    registry.legalDirGrid.children[dirIndexWithFolder].click();
     const folderCard = registry.legalDirGrid.children.find((c) => c.dataset.nodeType === 'folder');
     folderCard.click();
     assert.strictEqual(mod._stackDepthForTests(), 2);
@@ -297,7 +299,7 @@ async function main() {
     // already does in the real app: push ONE history entry for the page
     // itself (depth 0 / root) the moment the user navigates to it.
     historyStub.pushState({ page: 'legalDirectories' }, '', '#legalDirectories');
-    registry.legalDirGrid.children[0].click();
+    registry.legalDirGrid.children[dirIndexWithFolder].click();
     const folderCard = registry.legalDirGrid.children.find((c) => c.dataset.nodeType === 'folder');
     folderCard.click();
     historyStub.go(-2); // back to root, _stack is now []

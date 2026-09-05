@@ -61,7 +61,7 @@ function check(label, cond) {
 
   // ---- 1. Fresh load: wizard open, button text correct ----
   await page.goto('file://' + INDEX_HTML, { waitUntil: 'load' });
-  await page.waitForTimeout(600); // splash minimum-visible-time
+  await page.waitForTimeout(4300); // splash minimum-visible-time (MIN_VISIBLE_MS = 3300ms in js/modules/firstrun.js) + extra margin: v1.0.1 added js/license/* (LicenseCore/ActivationWizard), whose async init now runs before the splash-hide timer fires, pushing the wizard-open point out further than 3300ms alone
   const wizardOpenFresh = await page.$eval('#firstRunWizard', el => el.classList.contains('open'));
   check('fresh install -> wizard is open (no apiUrl, no localModeChosen)', wizardOpenFresh === true);
 
@@ -100,7 +100,7 @@ function check(label, cond) {
 
   // ---- 4. Reload -> wizard must NOT reopen ----
   await page.reload({ waitUntil: 'load' });
-  await page.waitForTimeout(600);
+  await page.waitForTimeout(4300); // splash minimum-visible-time (MIN_VISIBLE_MS = 3300ms in js/modules/firstrun.js) + extra margin: v1.0.1 added js/license/* (LicenseCore/ActivationWizard), whose async init now runs before the splash-hide timer fires, pushing the wizard-open point out further than 3300ms alone
   const wizardOpenAfterReload = await page.$eval('#firstRunWizard', el => el.classList.contains('open'));
   check('reopening the app does not show the wizard again', wizardOpenAfterReload === false);
 

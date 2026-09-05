@@ -357,7 +357,7 @@ async function main() {
     // RepositoryReadyCoordinator.js still loads exactly once and before
     // every script known to consume its API.
     const html = fs.readFileSync(INDEX_HTML_PATH, 'utf8');
-    const srcs = [...html.matchAll(/<script src="([^"]+)"><\/script>/g)].map((m) => m[1]);
+    const srcs = [...html.matchAll(/<script src="([^"]+)"><\/script>/g)].map((m) => m[1].split('?')[0]);
     assert.strictEqual(srcs.filter((s) => s === 'js/core/RepositoryReadyCoordinator.js').length, 1);
     const coordIdx = srcs.indexOf('js/core/RepositoryReadyCoordinator.js');
     const knownConsumers = [

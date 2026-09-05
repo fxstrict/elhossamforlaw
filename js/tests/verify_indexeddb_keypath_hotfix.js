@@ -165,6 +165,34 @@ const REAL_RECORDS = {
     searchText: 'test opponent',
     createdAt: '2026-07-16T00:00:00.000Z',
     updatedAt: '2026-07-16T00:00:00.000Z'
+  },
+  // PHASE 38 (Process Server Works): one new store, real Repository
+  // idField is 'رقم_العمل' — same rule every other fixture above follows.
+  processServerWorks: {
+    'رقم_العمل': 'PSW-0001',
+    'رقم_الموكل': 'CL-0001',
+    createdAt: '2026-07-16T00:00:00.000Z',
+    updatedAt: '2026-07-16T00:00:00.000Z'
+  },
+  // CASES_RELATIONSHIP_FINANCIAL: two new stores, both 'id'-keyed
+  // (junction/ledger records, not entity-numbered) — real Repository
+  // idField for both is 'id'.
+  caseClients: {
+    id: 'CC-0001',
+    'رقم_القضية': '2026-500',
+    'رقم_الموكل': 'CL-0001',
+    'الصفة': 'مدعي',
+    createdAt: '2026-07-16T00:00:00.000Z',
+    updatedAt: '2026-07-16T00:00:00.000Z'
+  },
+  expenses: {
+    id: 'EXP-0001',
+    'النطاق': 'عام',
+    'المبلغ': '500',
+    'التصنيف': 'رسوم',
+    'التاريخ': '2026-07-16',
+    createdAt: '2026-07-16T00:00:00.000Z',
+    updatedAt: '2026-07-16T00:00:00.000Z'
   }
 };
 
