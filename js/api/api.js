@@ -117,6 +117,54 @@ const ApiService = {
   },
 
   /**
+   * PHASE B — BOOTSTRAP RACE FIX. loadData() above intentionally
+   * swallows every failure (network error, non-OK HTTP status, invalid
+   * JSON, or a backend-level `{error:...}` response) into the exact
+   * same `[]` it returns for "the sheet genuinely exists and is empty"
+   * — correct for every one of its ~17 existing callers (a normal
+   * repository read degrading gracefully offline), but WRONG for a
+   * caller that needs to tell "confirmed empty" apart from "could not
+   * confirm anything" (see js/office/OfficeProfileService.js
+   * bootstrap()/_discoverServerProfile(), Phase B). This method is a
+   * fully independent, additive sibling — it does not alter loadData()
+   * or any of its existing call sites.
+   *
+   * Adds an 8s timeout (AbortSignal via the existing optional
+   * `timeoutMs` param on _get(), already used by syncSheet() below —
+   * no change to _get() itself) so a caller awaiting this can never
+   * hang indefinitely on a stalled connection.
+   *
+   * @param {string} sheetName
+   * @returns {Promise<{ok:true, rows:Array}|{ok:false, reason:string}>}
+   *   reason is one of: 'network' | 'http' | 'parse' | 'app_error'
+   */
+  async loadDataWithStatus(sheetName) {
+    let response;
+    try {
+      response = await this._get('?sheet=' + encodeURIComponent(sheetName), 8000);
+    } catch (e) {
+      return { ok: false, reason: 'network' };
+    }
+    if (!response.ok) {
+      return { ok: false, reason: 'http' };
+    }
+    let parsed;
+    try {
+      parsed = await response.json();
+    } catch (e) {
+      return { ok: false, reason: 'parse' };
+    }
+    if (!Array.isArray(parsed)) {
+      // Backend returns a plain {error:'...'} object (see Config/06_Api.gs
+      // doGet()'s catch-all and its "sheet مطلوب" guards) on failure —
+      // never an object on success (success is always a JSON array, even
+      // an empty one for a genuinely empty sheet).
+      return { ok: false, reason: 'app_error' };
+    }
+    return { ok: true, rows: parsed };
+  },
+
+  /**
    * PHASE A7 — STEP 9 (Frontend Pull Sync). يستدعي المسار الجديد
    * ?sheet=<sheet>&action=sync&cursor=<cursor> (راجع Config/06_Api.gs:
    * apiSyncSheet()). لا يستبدل loadData() أعلاه — إضافة كليًا مستقلة،
