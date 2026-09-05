@@ -156,9 +156,24 @@
    */
   async function _evaluate() {
     if (!window.OfficeProfileService) return;
-    if (typeof settingsRepositoryReadyPromise !== 'undefined') {
+
+    // PHASE B — BOOTSTRAP RACE FIX: wait for server discovery to actually
+    // settle (OfficeProfileService.bootstrap() — memoized, so this is a
+    // no-op re-await if index.html's boot listener already triggered it,
+    // and triggers it itself if this call happens to run first) BEFORE
+    // deciding whether to show this screen. Previously this only waited
+    // for local IndexedDB readiness, so a fresh device could show this
+    // overlay before syncPull() ever got a chance to discover an office
+    // that already exists on the server (see OfficeProfileService.js
+    // "PHASE B" section for the full root-cause writeup).
+    if (typeof window.OfficeProfileService.bootstrap === 'function') {
+      try { await window.OfficeProfileService.bootstrap(); } catch (e) {}
+    } else if (typeof settingsRepositoryReadyPromise !== 'undefined') {
+      // Fail-safe: older cached bundle without bootstrap() yet — exact
+      // previous behavior, unchanged.
       try { await settingsRepositoryReadyPromise; } catch (e) {}
     }
+
     if (window.OfficeProfileService.isConfigured()) {
       hide();
       return;

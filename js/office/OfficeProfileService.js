@@ -250,13 +250,160 @@
     if (subEl) subEl.textContent = profile.lawyerName;
   }
 
+  // ==========================================================================
+  // PHASE B — BOOTSTRAP RACE FIX
+  // --------------------------------------------------------------------------
+  // Root cause (confirmed by reading index.html's DOMContentLoaded listener):
+  // OfficeSetupWizard.init() (chained off LicenseCore.init().then(...)) and
+  // this file's syncPull() (chained off settingsRepositoryReadyPromise.then(
+  // ...) — a SECOND, fully independent promise chain) had no ordering
+  // guarantee between them. OfficeSetupWizard._evaluate() only ever awaited
+  // settingsRepositoryReadyPromise (i.e. "local IndexedDB is open") and then
+  // read isConfigured() — a synchronous, purely-local check — so a fresh
+  // device could show the mandatory setup screen before syncPull() had any
+  // chance to discover and pull an office profile that already exists on
+  // the server.
+  //
+  // A second, independent bug in the old syncPull() (left untouched above,
+  // still used by nothing now — see below): it built its "does an office
+  // exist" answer from ApiService.loadData(), which collapses THREE
+  // different outcomes into the identical `[]`: (1) the sheet is genuinely
+  // empty, (2) the network/request failed, (3) the backend returned an
+  // `{error:...}` object. There was no way to tell "confirmed no office"
+  // apart from "could not confirm anything" — exactly the risk named in the
+  // Phase B brief ("syncPull failed -> assume no office" is not acceptable).
+  //
+  // FIX — two parts, both purely additive:
+  //   1. js/api/api.js: ApiService.loadDataWithStatus() (new, independent
+  //      of loadData()) reports {ok:true, rows} vs {ok:false, reason}.
+  //   2. Here: bootstrap() is the ONE shared, memoized (idempotent) entry
+  //      point. Whichever of the two former call sites (the license chain
+  //      via OfficeSetupWizard, or the settings-ready chain in index.html)
+  //      reaches it first performs the actual discovery; the other simply
+  //      awaits the same in-flight/resolved promise. Both call sites now
+  //      see the SAME server-confirmed state before either one renders a
+  //      decision — there is no longer a window where one has it and the
+  //      other doesn't.
+  //
+  // NOT changed: syncPull(), _syncPush(), isConfigured(), applyToUI(),
+  // saveProfile(), DB_VERSION, IndexedDB schema, SyncEngine/OfflineQueue/
+  // SyncCheckpoint, Config/06_Api.gs. index.html's one call site was
+  // changed from `OfficeProfileService.syncPull()` to
+  // `OfficeProfileService.bootstrap()` — see that file's diff.
+  // ==========================================================================
+
+  var BootstrapStatus = Object.freeze({
+    SERVER_CONFIRMED_OFFICE: 'SERVER_CONFIRMED_OFFICE',
+    SERVER_CONFIRMED_NO_OFFICE: 'SERVER_CONFIRMED_NO_OFFICE',
+    SERVER_UNAVAILABLE: 'SERVER_UNAVAILABLE'
+  });
+
+  var _bootstrapPromise = null;
+
+  /**
+   * Talks to the backend exactly once per bootstrap() call and classifies
+   * the result. Never throws — every failure path resolves to
+   * SERVER_UNAVAILABLE so callers never need a try/catch of their own.
+   * @returns {Promise<{status:string, profile:?Object}>}
+   */
+  async function _discoverServerProfile() {
+    if (typeof ApiService === 'undefined' || typeof ApiService.loadDataWithStatus !== 'function') {
+      // No API layer wired at all (isolated test harness, or a page that
+      // never loaded js/api/api.js) — cannot confirm anything either way.
+      return { status: BootstrapStatus.SERVER_UNAVAILABLE, profile: null };
+    }
+    if (typeof API_URL === 'undefined' || !API_URL) {
+      // No backend configured yet for this installation — same as offline
+      // for discovery purposes; must NOT be read as "confirmed no office".
+      return { status: BootstrapStatus.SERVER_UNAVAILABLE, profile: null };
+    }
+
+    var result;
+    try {
+      result = await ApiService.loadDataWithStatus(SHEET_NAME);
+    } catch (e) {
+      // Defensive only — loadDataWithStatus() is itself designed to never
+      // throw, but a caller here can never be left unresolved either way.
+      return { status: BootstrapStatus.SERVER_UNAVAILABLE, profile: null };
+    }
+
+    if (!result.ok) {
+      return { status: BootstrapStatus.SERVER_UNAVAILABLE, profile: null };
+    }
+
+    var row = Array.isArray(result.rows) && result.rows[0];
+    if (!row) {
+      // Sheet reachable and confirmed empty — a real, positive answer,
+      // not a guess.
+      return { status: BootstrapStatus.SERVER_CONFIRMED_NO_OFFICE, profile: null };
+    }
+
+    var profile = {
+      officeName: String(row['اسم_المكتب'] || '').trim(),
+      lawyerName: String(row['اسم_المحامي'] || '').trim(),
+      address: String(row['العنوان'] || '').trim(),
+      branches: String(row['الفروع'] || '').trim(),
+      phones: String(row['أرقام_الهواتف'] || '').trim(),
+      whatsapp: String(row['واتساب_المكتب'] || '').trim()
+    };
+    if (!profile.officeName && !profile.lawyerName) {
+      // Row exists but both required fields are blank — treat exactly like
+      // "no office" (mirrors the same guard already in syncPull() above).
+      return { status: BootstrapStatus.SERVER_CONFIRMED_NO_OFFICE, profile: null };
+    }
+    return { status: BootstrapStatus.SERVER_CONFIRMED_OFFICE, profile: profile };
+  }
+
+  /**
+   * THE single entry point for Phase B. Idempotent/memoized — safe to call
+   * from any number of places (OfficeSetupWizard.init() AND index.html's
+   * boot listener both call it); the underlying discovery request runs
+   * exactly once per page load, and every caller awaits the same result.
+   *
+   * Guarantees:
+   *   - Never clears or overwrites a local profile except when the server
+   *     POSITIVELY confirms its own profile (SERVER_CONFIRMED_OFFICE).
+   *   - SERVER_UNAVAILABLE (network/HTTP/parse/app-level failure, or no
+   *     API_URL configured) NEVER touches local storage and is never
+   *     conflated with SERVER_CONFIRMED_NO_OFFICE.
+   *   - Resolves in bounded time (loadDataWithStatus()'s own 8s timeout) —
+   *     never hangs the UI indefinitely.
+   *
+   * @returns {Promise<{status:string, profile:?Object}>}
+   */
+  function bootstrap() {
+    if (_bootstrapPromise) return _bootstrapPromise;
+    _bootstrapPromise = (async function () {
+      if (typeof settingsRepositoryReadyPromise !== 'undefined') {
+        try { await settingsRepositoryReadyPromise; } catch (e) {}
+      }
+
+      var discovery = await _discoverServerProfile();
+
+      if (discovery.status === BootstrapStatus.SERVER_CONFIRMED_OFFICE) {
+        await _persistLocal(discovery.profile);
+        applyToUI(discovery.profile);
+      } else {
+        // SERVER_CONFIRMED_NO_OFFICE or SERVER_UNAVAILABLE: local storage
+        // (if any) is left exactly as it was; just re-apply whatever is
+        // already there (or DEFAULTS) so the sidebar/UI stays consistent.
+        applyToUI();
+      }
+
+      return discovery;
+    })();
+    return _bootstrapPromise;
+  }
+
   window.OfficeProfileService = {
     DEFAULTS: DEFAULTS,
+    BootstrapStatus: BootstrapStatus,
     getProfile: getProfile,
     getDisplayProfile: getDisplayProfile,
     isConfigured: isConfigured,
     saveProfile: saveProfile,
     syncPull: syncPull,
-    applyToUI: applyToUI
+    applyToUI: applyToUI,
+    bootstrap: bootstrap // PHASE B
   };
 })(typeof window !== 'undefined' ? window : this, typeof document !== 'undefined' ? document : undefined);
