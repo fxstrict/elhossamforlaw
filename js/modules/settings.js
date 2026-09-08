@@ -360,13 +360,27 @@ async function clearAllData(){
 function saveDriveFromModal(){DRIVE_URL=document.getElementById('fDriveUrl').value.trim();_persistSetting('driveUrl',DRIVE_URL);closeModal('modalDrive');toast('تم ربط Google Drive','success');}
 
 // SYNC — إصلاح CORS: نرسل text/plain
+// PHASE D — these two functions used to build their own request and
+// call fetch() directly, bypassing ApiService entirely (confirmed LIVE,
+// not dead code — js/modules/children.js:426 still calls syncToSheets()
+// directly; see the Phase D Read-Only Forensic Audit §3d). Switched to
+// ApiService._post(), the exact same chokepoint saveData()/updateData()/
+// deleteData() already use, so this one change gives both functions
+// (and therefore children.js) the installation credential for free. No
+// other behavior here changes: same body shape, same action values,
+// same silent-catch-and-warn error handling as before — this is
+// intentionally NOT the fuller OfflineQueue-integrated retry behavior
+// ApiService.saveData()/deleteData() have, because that would be a
+// larger behavioral change to children.js's save/delete flow than
+// Phase D's scope calls for (see brief §15: "Only change the exact
+// calls necessary for Phase D").
 async function syncToSheets(sheet,rowData,rowIndex){
   if(!API_URL)return;
-  try{var action=rowIndex>=0?'update':'add';var body={action:action,sheet:sheet,data:rowData};if(action==='update')body.rowIndex=rowIndex+1;await fetch(API_URL,{method:'POST',body:JSON.stringify(body),headers:{'Content-Type':'text/plain'}});}catch(e){console.warn('Sync:',e);}
+  try{var action=rowIndex>=0?'update':'add';var body={action:action,sheet:sheet,data:rowData};if(action==='update')body.rowIndex=rowIndex+1;await ApiService._post(body);}catch(e){console.warn('Sync:',e);}
 }
 async function syncDeleteToSheets(sheet,rowIndex){
   if(!API_URL)return;
-  try{await fetch(API_URL,{method:'POST',body:JSON.stringify({action:'delete',sheet:sheet,rowIndex:rowIndex+1}),headers:{'Content-Type':'text/plain'}});}catch(e){console.warn('Delete:',e);}
+  try{await ApiService._post({action:'delete',sheet:sheet,rowIndex:rowIndex+1});}catch(e){console.warn('Delete:',e);}
 }
 
 // Non-blocking background sync indicator — never covers the UI (unlike showLoading/#loadingOverlay).
@@ -617,7 +631,15 @@ async function loadFromSheets(){
     var results=await Promise.all(pairs.map(async function(pair){
       var sh=pair[0],k=pair[1];
       try{
-        var r=await fetch(API_URL+'?sheet='+encodeURIComponent(sh),{signal:AbortSignal.timeout(8000)});
+        // PHASE D — this was a direct fetch(), bypassing ApiService and
+        // therefore never carrying the installation credential (see the
+        // Phase D Read-Only Forensic Audit §3c: this function is the
+        // app's LIVE boot-time data pull, not dead code). Switched to
+        // ApiService._get(), the same chokepoint loadData()/syncSheet()
+        // already use — no other line in this function changes, and the
+        // 8s timeout behavior is preserved exactly (_get()'s own
+        // timeoutMs param).
+        var r=await ApiService._get('?sheet='+encodeURIComponent(sh),8000);
         var arr=await r.json();
         if(Array.isArray(arr)&&arr.length>0){
           if(sh==='الجلسات'){arr=arr.map(function(row){if(row['الوقت'])row['الوقت']=sanitizeTime(row['الوقت']);return row;});}
