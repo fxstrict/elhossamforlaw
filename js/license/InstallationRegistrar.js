@@ -208,9 +208,30 @@
     return !!(local && local.installationId && local.credential);
   }
 
+  /**
+   * PHASE D — read-only accessor for js/api/api.js (ApiService) to
+   * attach this installation's credential to outgoing requests. Reads
+   * from the exact same, single storage key this module already writes
+   * to — no new/duplicate credential storage is introduced (per Phase D
+   * brief §14/§28).
+   *
+   * @returns {?{installationId:string, credential:string}} null if no
+   *   credential has been issued/stored yet (e.g. legacy install that
+   *   never registered, or local storage was cleared) — ApiService
+   *   simply omits these fields in that case, which the server's Stage 1
+   *   policy already treats as a graced "missing_credential" request
+   *   (see Config/11_Auth.gs), not an error.
+   */
+  function getCredential() {
+    var local = _readLocal();
+    if (!local || !local.installationId || !local.credential) return null;
+    return { installationId: local.installationId, credential: local.credential };
+  }
+
   window.InstallationRegistrar = {
     register: register,
-    hasLocalCredential: hasLocalCredential
+    hasLocalCredential: hasLocalCredential,
+    getCredential: getCredential
   };
 
 })(typeof window !== 'undefined' ? window : this);
