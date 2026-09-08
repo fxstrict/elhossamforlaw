@@ -38,6 +38,26 @@ const ApiService = {
   },
 
   /**
+   * PHASE D — INSTALLATION CREDENTIAL ENFORCEMENT. Reads this device's
+   * already-issued credential from the single existing storage location
+   * (js/license/InstallationRegistrar.js — no new/duplicate storage is
+   * created here). Returns null if none exists yet (never registered,
+   * or local storage was cleared) — every caller below treats that as
+   * "omit the fields", never as an error; the server's Stage 1 policy
+   * already graces a request with no credential (see Config/11_Auth.gs).
+   * @returns {?{installationId:string, credential:string}}
+   */
+  _phaseDCredential() {
+    try {
+      if (typeof window !== 'undefined' && window.InstallationRegistrar &&
+          typeof window.InstallationRegistrar.getCredential === 'function') {
+        return window.InstallationRegistrar.getCredential();
+      }
+    } catch (e) { /* ignore — Fail-Open, same convention as InstallationRegistrar itself */ }
+    return null;
+  },
+
+  /**
    * Core POST to Apps Script.
    * Uses Content-Type: text/plain to avoid CORS preflight (P7 workaround).
    *
@@ -64,9 +84,17 @@ const ApiService = {
    * @returns {Promise<Response>}
    */
   async _post(body) {
+    // PHASE D — attach installationId/credential if this device has
+    // already been issued one (registerInstallation/checkLicenseStatus
+    // requests simply ignore these extra fields server-side — see
+    // Config/06_Api.gs, both are routed before the Phase D auth gate).
+    // Never overwrites a field the caller explicitly set on `body`.
+    const cred = this._phaseDCredential();
+    const outgoingBody = cred ? Object.assign({ installationId: cred.installationId, credential: cred.credential }, body) : body;
+
     const response = await fetch(this._url(), {
       method: 'POST',
-      body: JSON.stringify(body),
+      body: JSON.stringify(outgoingBody),
       headers: { 'Content-Type': 'text/plain' }
     });
     let parsed = null;
@@ -75,7 +103,19 @@ const ApiService = {
       throw new Error('[ApiService] HTTP ' + response.status + ' من Apps Script');
     }
     if (parsed && parsed.error) {
-      throw new Error('[ApiService] فشل تطبيقي من الخادم: ' + parsed.error);
+      // PHASE D — distinguish an authentication rejection (structured
+      // {error:'AUTH_FAILED', authCode:'...'} from Config/11_Auth.gs's
+      // _authFailureResponseIfAny_()) from an ordinary application error.
+      // Tagging isAuthError lets callers (saveData/updateData/deleteData
+      // below) decide NOT to hand this to OfflineQueue for endless retry
+      // — see brief §20 — without needing any change to OfflineQueue.js
+      // itself (a Protected Component).
+      const err = new Error('[ApiService] فشل تطبيقي من الخادم: ' + parsed.error);
+      if (parsed.authCode) {
+        err.isAuthError = true;
+        err.authCode = parsed.authCode;
+      }
+      throw err;
     }
     return response;
   },
@@ -87,10 +127,33 @@ const ApiService = {
    * @returns {Promise<Response>}
    */
   async _get(queryString, timeoutMs) {
+    // PHASE D — attach installationId/credential as query parameters.
+    // ⚠️ DOCUMENTED LIMITATION (brief §14 explicitly disfavors this,
+    // "unless an explicit architectural reason requires it" — this is
+    // that case): a custom Authorization header would trigger a CORS
+    // preflight (OPTIONS) request, which this Apps Script Web App does
+    // not implement (see this file's own _post() comment: "Uses
+    // Content-Type: text/plain to avoid CORS preflight" — the exact
+    // same constraint applies to GET + custom headers). A GET request
+    // has no body. Query parameters are therefore the only mechanism
+    // available for this transport without a larger change (converting
+    // these reads to POST), which was deliberately NOT done here to
+    // keep the Phase D diff minimal and avoid altering this method's
+    // existing timeout/AbortSignal behavior relied on by loadDataWithStatus()
+    // and syncSheet(). Risk: the credential may appear in Apps Script's
+    // own platform-level request logs (outside this codebase's control).
+    // Reported as a limitation in the Phase D implementation report, not
+    // silently accepted.
+    const cred = this._phaseDCredential();
+    const credSuffix = cred
+      ? (queryString.indexOf('?') === -1 ? '?' : '&') +
+        'installationId=' + encodeURIComponent(cred.installationId) +
+        '&credential=' + encodeURIComponent(cred.credential)
+      : '';
     const opts = timeoutMs
       ? { signal: AbortSignal.timeout(timeoutMs) }
       : {};
-    return fetch(this._url() + queryString, opts);
+    return fetch(this._url() + queryString + credSuffix, opts);
   },
 
   // ================================================================
@@ -254,7 +317,17 @@ const ApiService = {
       await this._post(body);
     } catch (e) {
       console.warn('[ApiService.saveData] Sheet:', sheetName, e);
-      if (typeof OfflineQueue !== 'undefined') OfflineQueue.enqueue(body); // Phase 29
+      // PHASE D — an authentication rejection (wrong/unknown/revoked
+      // credential) is not a transient network condition: retrying the
+      // exact same request via OfflineQueue will fail identically every
+      // time, forever (OfflineQueue.js itself is a Protected Component
+      // and is NOT modified — this check happens here instead, per
+      // brief §20). Network/HTTP failures fall through unchanged.
+      if (e && e.isAuthError) {
+        console.warn('[ApiService.saveData] AUTH_FAILED (' + e.authCode + ') — not queued for retry:', sheetName);
+      } else if (typeof OfflineQueue !== 'undefined') {
+        OfflineQueue.enqueue(body); // Phase 29
+      }
     }
   },
 
@@ -283,7 +356,12 @@ const ApiService = {
       await this._post(body);
     } catch (e) {
       console.warn('[ApiService.updateData] Sheet:', sheetName, e);
-      if (typeof OfflineQueue !== 'undefined') OfflineQueue.enqueue(body); // Phase 29
+      // PHASE D — see saveData() above for the reasoning.
+      if (e && e.isAuthError) {
+        console.warn('[ApiService.updateData] AUTH_FAILED (' + e.authCode + ') — not queued for retry:', sheetName);
+      } else if (typeof OfflineQueue !== 'undefined') {
+        OfflineQueue.enqueue(body); // Phase 29
+      }
     }
   },
 
@@ -341,7 +419,12 @@ const ApiService = {
       await this._post(body);
     } catch (e) {
       console.warn('[ApiService.deleteData] Sheet:', sheetName, e);
-      if (typeof OfflineQueue !== 'undefined') OfflineQueue.enqueue(body); // Phase 29
+      // PHASE D — see saveData() above for the reasoning.
+      if (e && e.isAuthError) {
+        console.warn('[ApiService.deleteData] AUTH_FAILED (' + e.authCode + ') — not queued for retry:', sheetName);
+      } else if (typeof OfflineQueue !== 'undefined') {
+        OfflineQueue.enqueue(body); // Phase 29
+      }
     }
   },
 
