@@ -85,6 +85,20 @@
             '<input type="file" id="licFileInput" accept=".hsm,.json,.txt" />' +
           '</div>' +
         '</div>' +
+        // PHASE C v3.2 — Activation Code step (optional, non-blocking).
+        // Hidden by default; revealed only after a successful `.hsm`
+        // activation and only if this device has no stored installation
+        // credential yet (see onActivateClick() below). Purely additive:
+        // no existing element, id, or listener above is touched.
+        '<div class="lic-field" id="licActivationCodeStep" hidden>' +
+          '<label>كود التفعيل (اختياري) — لتسجيل هذا الجهاز على الخادم</label>' +
+          '<input type="text" id="licActivationCodeInput" autocomplete="off" />' +
+          '<div class="lic-file-row">' +
+            '<button type="button" class="lic-btn-primary" id="licRegisterBtn">تسجيل</button>' +
+            '<button type="button" class="lic-btn-secondary" id="licSkipRegisterBtn">تخطي والمتابعة</button>' +
+          '</div>' +
+          '<div class="lic-reg-note" id="licRegNote"></div>' +
+        '</div>' +
         '<button type="button" class="lic-btn-primary" id="licActivateBtn">تفعيل</button>' +
         // BUGFIX (no way back): previously this overlay had only the
         // "تفعيل" button — someone who opened it via "تحديث / نقل
@@ -109,6 +123,12 @@
     els.activateBtn = overlay.querySelector('#licActivateBtn');
     els.cancelBtn = overlay.querySelector('#licCancelBtn');
     els.errorBox = overlay.querySelector('#licErrorBox');
+    // PHASE C v3.2 — Activation Code step elements.
+    els.activationCodeStep  = overlay.querySelector('#licActivationCodeStep');
+    els.activationCodeInput = overlay.querySelector('#licActivationCodeInput');
+    els.registerBtn          = overlay.querySelector('#licRegisterBtn');
+    els.skipRegisterBtn       = overlay.querySelector('#licSkipRegisterBtn');
+    els.regNote                = overlay.querySelector('#licRegNote');
 
     els.copyBtn.addEventListener('click', function () {
       var text = els.machineIdText.textContent;
@@ -133,7 +153,55 @@
       hide();
     });
 
+    // PHASE C v3.2 — Activation Code step handlers (§2.3).
+    // "تخطي": zero network calls, zero effect on the local license,
+    // simply closes the wizard exactly as if this step never existed —
+    // this is the path every legacy user (no Activation Code) takes.
+    els.skipRegisterBtn.addEventListener('click', function () {
+      hide();
+    });
+    els.registerBtn.addEventListener('click', onRegisterClick);
+
     _mounted = true;
+  }
+
+  async function onRegisterClick() {
+    var code = (els.activationCodeInput.value || '').trim();
+    if (!code) {
+      els.regNote.textContent = 'أدخل كود التفعيل أو اضغط «تخطي والمتابعة».';
+      return;
+    }
+    els.registerBtn.disabled = true;
+    els.skipRegisterBtn.disabled = true;
+    // Security requirement (PHASE_C_V3_2 §4 / Additional Security
+    // Requirements): the code is captured into a local variable and the
+    // input field is cleared BEFORE the network call — it is never
+    // persisted anywhere and never re-read from the DOM afterwards.
+    els.activationCodeInput.value = '';
+
+    if (!window.LicenseCore || !window.MachineFingerprint || !window.InstallationRegistrar) {
+      hide(); // Fail-Open: required modules unavailable, never block the user here
+      return;
+    }
+    var meta = window.LicenseCore.getStoredRecordMeta();
+    var machineId = await window.MachineFingerprint.getMachineId();
+
+    try {
+      await window.InstallationRegistrar.register({
+        licenseId: meta && meta.licenseId,
+        activationCode: code,
+        machineId: machineId
+      });
+    } catch (e) {
+      // InstallationRegistrar.register() is designed to never throw, but
+      // this catch is a final Fail-Open safety net regardless.
+    }
+
+    // Fail-Open unconditionally (PHASE_C_V3_2 §2.3/§5): whatever the
+    // outcome — success, a logical rejection, or a network failure —
+    // the local `.hsm` license already succeeded and is unaffected;
+    // the wizard always closes here.
+    hide();
   }
 
   function showError(reasonCode) {
@@ -163,7 +231,31 @@
       showError(result.reason);
       return;
     }
-    hide();
+
+    // PHASE C v3.2 §2.3/§3 — from here on, the local `.hsm` license has
+    // ALREADY succeeded and been persisted by LicenseCore.activate()
+    // (verified against the actual code: _writeStoredRecord() +
+    // reevaluate() both already ran above, before this point is ever
+    // reached). Everything below is additive and Fail-Open: it can
+    // never affect the license activation that already completed.
+    if (window.InstallationRegistrar && window.InstallationRegistrar.hasLocalCredential()) {
+      // This device already registered successfully in an earlier
+      // session — do not bother the user with the step again.
+      hide();
+      return;
+    }
+    if (!els.activationCodeStep) {
+      // Defensive fallback if the step's markup is ever unavailable.
+      hide();
+      return;
+    }
+    els.activationCodeStep.removeAttribute('hidden');
+    els.registerBtn.disabled = false;
+    els.skipRegisterBtn.disabled = false;
+    els.regNote.textContent = '';
+    // Deliberately does NOT call hide() here — the user proceeds via
+    // either "تسجيل" (onRegisterClick) or "تخطي والمتابعة", both of
+    // which always end by calling hide() themselves.
   }
 
   async function refreshMachineId() {
@@ -199,6 +291,11 @@
     // never shows stale text/errors left over from a cancelled attempt.
     if (els.textarea) els.textarea.value = '';
     clearError();
+    // PHASE C v3.2 — reset the Activation Code step back to hidden so a
+    // future open never shows it stale before a fresh `.hsm` success.
+    if (els.activationCodeStep) els.activationCodeStep.setAttribute('hidden', 'hidden');
+    if (els.activationCodeInput) els.activationCodeInput.value = '';
+    if (els.regNote) els.regNote.textContent = '';
   }
 
   /** Reacts to license:state events dispatched by LicenseCore. */
