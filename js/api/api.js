@@ -421,6 +421,48 @@ const ApiService = {
     }
   },
 
+  /**
+   * PHASE C v3/v3.1/v3.2 — Per-Installation Registration.
+   * Routes to Config/11_Auth.gs → apiRegisterInstallation() (see that
+   * file for the full contract: REGISTERED / ALREADY_REGISTERED /
+   * REISSUED / and the failure `status` values).
+   *
+   * DELIBERATE DEVIATION from this file's usual wrapper convention
+   * (compare uploadFile()/setup() above, which catch internally and
+   * return a normalized {ok, ...} shape): this method does NOT catch
+   * anything and does NOT parse the body. It returns exactly what
+   * `_post()` returns, and lets a network/HTTP-level failure THROW,
+   * exactly like `_post()` itself.
+   *
+   * This is required, not an oversight: js/license/InstallationRegistrar.js
+   * must distinguish a network exception (fetch rejection, timeout, non-2xx
+   * HTTP) from a fully-valid server response that merely carries
+   * `success:false` (e.g. ALREADY_USED, REQUEST_ID_MISMATCH) — the two
+   * cases drive very different, security-relevant behavior there
+   * (see PHASE_C_V3_2_AMENDMENT.md §2.4/§4.5, "IMPORTANT HTTP ERROR
+   * RULE"). Swallowing the exception here the way uploadFile() does
+   * would erase that distinction and was explicitly disallowed by the
+   * approved design. Also note: Config/11_Auth.gs never puts an
+   * `error` field in its JSON body (only `status`/`message`), so this
+   * call also never trips `_post()`'s own generic
+   * `if (parsed && parsed.error) throw ...` path for a legitimate
+   * business rejection — only a real HTTP/network failure throws here.
+   *
+   * @param {{licenseId:string, activationCode:string, machineId:string,
+   *          requestId:string, forceReissue?:boolean}} fields
+   * @returns {Promise<Response>}
+   */
+  async registerInstallation(fields) {
+    return this._post({
+      action: 'registerInstallation',
+      licenseId: fields.licenseId,
+      activationCode: fields.activationCode,
+      machineId: fields.machineId,
+      requestId: fields.requestId,
+      forceReissue: !!fields.forceReissue
+    });
+  },
+
   // ================================================================
   // FILE / DRIVE
   // ================================================================
