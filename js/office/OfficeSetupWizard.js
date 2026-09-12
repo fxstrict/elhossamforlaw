@@ -168,10 +168,30 @@
     // "PHASE B" section for the full root-cause writeup).
     if (typeof window.OfficeProfileService.bootstrap === 'function') {
       try { await window.OfficeProfileService.bootstrap(); } catch (e) {}
+    } else if (typeof settingsRepositoryOpenPromise !== 'undefined') {
+      // PHASE F.3.2-B.4: prefer the genuine, un-timeout-wrapped open()
+      // promise over settingsRepositoryReadyPromise even in this
+      // fail-safe path — same reasoning as
+      // OfficeProfileService.bootstrap() (see that file's fix note).
+      try { await settingsRepositoryOpenPromise; } catch (e) {}
     } else if (typeof settingsRepositoryReadyPromise !== 'undefined') {
-      // Fail-safe: older cached bundle without bootstrap() yet — exact
-      // previous behavior, unchanged.
+      // Fail-safe: older cached bundle without bootstrap() or the
+      // exposed open() promise — exact previous behavior, unchanged.
       try { await settingsRepositoryReadyPromise; } catch (e) {}
+    }
+
+    // PHASE F.3.2-B.4: guard against a genuinely-not-ready repository
+    // (e.g. settingsRepository.open() itself failed, or an older
+    // OfficeProfileService bundle without isRepositoryReady()) ever
+    // being misread as "office not configured". NOT_READY/UNKNOWN must
+    // never be treated as NOT_CONFIGURED. When readiness cannot be
+    // confirmed, leave the current overlay visibility untouched instead
+    // of calling show() on an unproven state — a later license:state
+    // event (or another _evaluate() call) will re-check once the
+    // repository genuinely becomes ready.
+    if (typeof window.OfficeProfileService.isRepositoryReady === 'function' &&
+        !window.OfficeProfileService.isRepositoryReady()) {
+      return;
     }
 
     if (window.OfficeProfileService.isConfigured()) {

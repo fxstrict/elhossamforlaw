@@ -300,6 +300,76 @@
 
   var _bootstrapPromise = null;
 
+  // ==========================================================================
+  // PHASE F.3.2-B.4 — OFFLINE / WEAK-NETWORK OFFICE SETUP FLASH FIX
+  // --------------------------------------------------------------------------
+  // Root cause (confirmed by reading the current source): bootstrap() used
+  // to await `settingsRepositoryReadyPromise` — the SAME promise
+  // js/core/StartupTimeoutManager.js bounds to a 12s timeout (see
+  // js/repositories/SettingsRepositoryWiring.js). That wrapper is
+  // *intentionally* designed to resolve even when the underlying
+  // settingsRepository.open() has not actually finished, so every OTHER
+  // consumer of that promise never hangs app startup indefinitely. But
+  // OfficeSetupWizard._evaluate() treats bootstrap()'s resolution as "the
+  // repository is ready, safe to read isConfigured() now" — so if
+  // settingsRepository.open() is ever slow enough to hit that 12s bound
+  // (the forensic audit's proven unsafe transition), bootstrap() could
+  // resolve BEFORE settingsRepository.isReady() actually became true.
+  // isConfigured() would then read a still-empty in-memory cache and
+  // OfficeSetupWizard would incorrectly show() on an already-configured
+  // installation.
+  //
+  // FIX: bootstrap() now waits on the REAL, un-bounded
+  // `settingsRepositoryOpenPromise` (js/repositories/
+  // SettingsRepositoryWiring.js) — the actual Repository.open() promise
+  // itself, with no timeout race — instead of the bounded
+  // `settingsRepositoryReadyPromise`. This is "Priority 2" of the
+  // required state model: when the repository is not yet genuinely ready,
+  // WAIT for the legitimate open() completion rather than treating a
+  // timeout as completion; NOT_READY/UNKNOWN must never be manufactured
+  // into NOT_CONFIGURED.
+  //
+  // NOT changed: `settingsRepositoryReadyPromise` itself, or any of its
+  // other consumers (index.html Part 8 reconciliation, js/modules/
+  // settings.js, js/modules/firstrun.js) — they keep their existing
+  // 12s-bounded behavior unchanged. This fix only changes what THIS file
+  // awaits before making the Office Setup configured/not-configured
+  // decision.
+  // ==========================================================================
+
+  /**
+   * Resolves once settingsRepository.open() has GENUINELY completed
+   * (Repository state === 'ready'), with no timeout shortcut — unlike
+   * `settingsRepositoryReadyPromise`, which js/core/StartupTimeoutManager.js
+   * may resolve early. Never rejects (mirrors
+   * SettingsRepositoryWiring.js's own `.catch()` on the same underlying
+   * promise) so callers never need a try/catch of their own.
+   * @returns {Promise<void>}
+   */
+  function _repositoryOpenSettled() {
+    if (typeof settingsRepositoryOpenPromise !== 'undefined') {
+      return settingsRepositoryOpenPromise.catch(function () {});
+    }
+    // Defensive fallback only, for an older cached bundle that has
+    // SettingsRepositoryWiring.js without the exposed open() promise —
+    // previous (bounded) behavior, unchanged.
+    if (typeof settingsRepositoryReadyPromise !== 'undefined') {
+      return settingsRepositoryReadyPromise;
+    }
+    return Promise.resolve();
+  }
+
+  /**
+   * True only once the local Settings repository has ACTUALLY finished
+   * opening (Repository state === 'ready') — never inferred from a
+   * timeout-resolved readiness promise. Used by OfficeSetupWizard.js to
+   * avoid ever reading isConfigured() against an unready repository.
+   * @returns {boolean}
+   */
+  function isRepositoryReady() {
+    return _repoReady();
+  }
+
   /**
    * Talks to the backend exactly once per bootstrap() call and classifies
    * the result. Never throws — every failure path resolves to
@@ -374,9 +444,12 @@
   function bootstrap() {
     if (_bootstrapPromise) return _bootstrapPromise;
     _bootstrapPromise = (async function () {
-      if (typeof settingsRepositoryReadyPromise !== 'undefined') {
-        try { await settingsRepositoryReadyPromise; } catch (e) {}
-      }
+      // PHASE F.3.2-B.4: wait for the settings repository's ACTUAL
+      // open() completion — not the 12s-bounded
+      // settingsRepositoryReadyPromise — before doing anything that
+      // feeds the Office Setup configured/not-configured decision. See
+      // the fix note above _repositoryOpenSettled().
+      try { await _repositoryOpenSettled(); } catch (e) {}
 
       var discovery = await _discoverServerProfile();
 
@@ -401,6 +474,7 @@
     getProfile: getProfile,
     getDisplayProfile: getDisplayProfile,
     isConfigured: isConfigured,
+    isRepositoryReady: isRepositoryReady, // PHASE F.3.2-B.4
     saveProfile: saveProfile,
     syncPull: syncPull,
     applyToUI: applyToUI,
