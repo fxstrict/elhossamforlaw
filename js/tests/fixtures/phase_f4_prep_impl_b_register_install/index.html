@@ -1,0 +1,88 @@
+<!doctype html>
+<html><head><meta charset="utf-8"></head>
+<body>
+<div id="licenseManagerPanelMount"></div>
+<script>
+  // ---- Controlled test doubles (boundary stubs) — recorded for assertions ----
+  window.__spy = { calls: {}, record: function (name, args) { (this.calls[name] = this.calls[name] || []).push(args); } };
+  window.__toasts = [];
+  window.toast = function (msg, type) { window.__toasts.push({ msg: msg, type: type }); };
+
+  // window.__hasCredential controls InstallationRegistrar.hasLocalCredential()
+  // BEFORE register() is called. window.__registerBehavior: 'success' |
+  // 'fail' — 'success' flips __hasCredential to true inside register(),
+  // exactly like the real module's _writeLocal() would after a genuine
+  // REGISTERED/REISSUED server verdict; 'fail' leaves it untouched,
+  // exactly like every other terminal/network-error branch in the real
+  // register() (INVALID_ACTIVATION, network failure, etc.).
+  window.__hasCredential = false;
+  window.__registerBehavior = 'success';
+  window.InstallationRegistrar = {
+    hasLocalCredential: function () { return window.__hasCredential; },
+    register: async function (fields) {
+      window.__spy.record('register', [fields]);
+      if (window.__registerBehavior === 'success') window.__hasCredential = true;
+      // 'fail' — Fail-Open, does nothing, matches the real module exactly.
+    }
+  };
+
+  window.LicenseCore = {
+    getStatus: function () { return { state: 'ACTIVE', info: { licenseId: 'HSM-LIC-EXISTING-1', edition: 'Professional', customer: { name: 'مكتب تجريبي' } } }; },
+    getStoredRecordMeta: function () {
+      window.__spy.record('getStoredRecordMeta', []);
+      return { licenseId: 'HSM-LIC-EXISTING-1', activatedAt: '2026-01-01T00:00:00.000Z' };
+    }
+  };
+  window.MachineFingerprint = {
+    getMachineId: async function () {
+      window.__spy.record('getMachineId', []);
+      return 'HSM-AAAA-BBBB-CCCC';
+    }
+  };
+</script>
+<script src="/js/LicenseManagerPanel.js"></script>
+<script>
+  window.__resetSpies = function () { window.__spy.calls = {}; window.__toasts = []; };
+
+  window.__renderPanel = async function () { await window.LicenseManagerPanel.renderPanel(); };
+
+  window.__isRegisterButtonVisible = function () {
+    var btn = document.getElementById('licRegisterInstallBtn');
+    return !!btn && !btn.hasAttribute('hidden');
+  };
+
+  window.__clickRegisterButton = function () { document.getElementById('licRegisterInstallBtn').click(); };
+  window.__isStepVisible = function () {
+    var step = document.getElementById('licRegisterInstallStep');
+    return !!step && !step.hasAttribute('hidden');
+  };
+
+  window.__setCode = function (code) { document.getElementById('licRegisterInstallCodeInput').value = code; };
+
+  window.__clickSubmitAndWait = async function () {
+    document.getElementById('licRegisterInstallSubmitBtn').click();
+    await new Promise(r => setTimeout(r, 30));
+  };
+
+  window.__clickSubmitTwiceRapidly = async function () {
+    var btn = document.getElementById('licRegisterInstallSubmitBtn');
+    btn.click();
+    var disabledRightAfterFirstClick = btn.disabled;
+    btn.click();
+    await new Promise(r => setTimeout(r, 30));
+    return disabledRightAfterFirstClick;
+  };
+
+  window.__clickCancel = function () { document.getElementById('licRegisterInstallCancelBtn').click(); };
+
+  window.__inputValue = function () {
+    var el = document.getElementById('licRegisterInstallCodeInput');
+    return el ? el.value : null;
+  };
+
+  window.__noteText = function () {
+    var el = document.getElementById('licRegisterInstallNote');
+    return el ? el.textContent : null;
+  };
+</script>
+</body></html>
