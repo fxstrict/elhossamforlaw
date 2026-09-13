@@ -60,6 +60,29 @@
       '<div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;">' +
         '<button type="button" class="btn btn-primary" id="licUpdateLicenseBtn">تحديث / نقل الترخيص</button>' +
         '<button type="button" class="btn" id="licRecheckOnlineBtn">تحقق الآن عبر الإنترنت</button>' +
+        // PHASE F.4-PREP-IMPL-B — additive only. Visible only when this
+        // device has no stored installation credential yet (see
+        // InstallationRegistrar.hasLocalCredential()) — i.e. exactly the
+        // legacy/already-active installations this backfill affordance
+        // targets. Hidden again the moment a credential exists, since
+        // renderPanel() re-runs on every 'license:state' event.
+        (window.InstallationRegistrar && !window.InstallationRegistrar.hasLocalCredential()
+          ? '<button type="button" class="btn" id="licRegisterInstallBtn">تسجيل هذا التثبيت</button>'
+          : '') +
+      '</div>' +
+      // PHASE F.4-PREP-IMPL-B — Activation-Code entry step for the
+      // backfill registration affordance above. Hidden until the button
+      // is clicked; reuses the exact same .lic-field/.lic-btn-primary/
+      // .lic-btn-secondary/.lic-reg-note classes ActivationWizard.js
+      // already defines in css/license.css, so no new CSS is introduced.
+      '<div class="lic-field" id="licRegisterInstallStep" hidden style="margin-top:14px;max-width:360px;">' +
+        '<label>كود التفعيل — لتسجيل هذا الجهاز على الخادم</label>' +
+        '<input type="text" id="licRegisterInstallCodeInput" autocomplete="off">' +
+        '<div style="display:flex;gap:8px;margin-top:8px;">' +
+          '<button type="button" class="lic-btn-primary" id="licRegisterInstallSubmitBtn">تسجيل</button>' +
+          '<button type="button" class="lic-btn-secondary" id="licRegisterInstallCancelBtn">إلغاء</button>' +
+        '</div>' +
+        '<div class="lic-reg-note" id="licRegisterInstallNote"></div>' +
       '</div>';
 
     var updateBtn = document.getElementById('licUpdateLicenseBtn');
@@ -103,6 +126,118 @@
       if (window.toast) window.toast(_recheckResultMessage(result), result.checked ? 'success' : 'error');
       renderPanel();
     });
+
+    // PHASE F.4-PREP-IMPL-B — wiring for the backfill registration
+    // affordance (button + inline activation-code step) added above.
+    var registerInstallBtn = document.getElementById('licRegisterInstallBtn');
+    if (registerInstallBtn) registerInstallBtn.addEventListener('click', function () {
+      var step = document.getElementById('licRegisterInstallStep');
+      if (step) step.removeAttribute('hidden');
+      registerInstallBtn.setAttribute('hidden', 'hidden');
+    });
+
+    var registerInstallCancelBtn = document.getElementById('licRegisterInstallCancelBtn');
+    if (registerInstallCancelBtn) registerInstallCancelBtn.addEventListener('click', function () {
+      // Cancel: no register() call, no credential/license mutation — just
+      // collapses the step back and restores the button, same convention
+      // as ActivationWizard.js's own "تخطي والمتابعة"/Cancel handling.
+      _resetRegisterInstallStep();
+    });
+
+    var registerInstallSubmitBtn = document.getElementById('licRegisterInstallSubmitBtn');
+    if (registerInstallSubmitBtn) registerInstallSubmitBtn.addEventListener('click', onRegisterInstallSubmit);
+  }
+
+  /** Restores the backfill registration affordance to its collapsed,
+   *  pre-attempt state (used by Cancel and by a failed attempt). The
+   *  button only reappears if a credential still doesn't exist — if one
+   *  now does (e.g. a call actually succeeded), it stays hidden. */
+  function _resetRegisterInstallStep() {
+    var step = document.getElementById('licRegisterInstallStep');
+    var btn = document.getElementById('licRegisterInstallBtn');
+    var input = document.getElementById('licRegisterInstallCodeInput');
+    var note = document.getElementById('licRegisterInstallNote');
+    var submitBtn = document.getElementById('licRegisterInstallSubmitBtn');
+    var cancelBtn = document.getElementById('licRegisterInstallCancelBtn');
+    if (step) step.setAttribute('hidden', 'hidden');
+    if (btn && window.InstallationRegistrar && !window.InstallationRegistrar.hasLocalCredential()) btn.removeAttribute('hidden');
+    if (input) input.value = '';
+    if (note) note.textContent = '';
+    if (submitBtn) submitBtn.disabled = false;
+    if (cancelBtn) cancelBtn.disabled = false;
+  }
+
+  /**
+   * PHASE F.4-PREP-IMPL-B — invokes the EXISTING, unmodified
+   * InstallationRegistrar.register() (see js/license/InstallationRegistrar.js)
+   * with this device's existing, authoritative license identity — the
+   * same licenseId/machineId sourcing ActivationWizard.js's own
+   * onRegisterClick() already uses. No new registration API, no new
+   * credential storage, no license mutation.
+   */
+  async function onRegisterInstallSubmit() {
+    var input = document.getElementById('licRegisterInstallCodeInput');
+    var note = document.getElementById('licRegisterInstallNote');
+    var submitBtn = document.getElementById('licRegisterInstallSubmitBtn');
+    var cancelBtn = document.getElementById('licRegisterInstallCancelBtn');
+    if (!input || !submitBtn || !cancelBtn) return;
+
+    var code = (input.value || '').trim();
+    if (!code) {
+      if (note) note.textContent = 'أدخل كود التفعيل أولًا، أو اضغط «إلغاء».';
+      return; // Requirement §7/Test B — empty code: no register() call at all.
+    }
+
+    if (!window.LicenseCore || !window.MachineFingerprint || !window.InstallationRegistrar) {
+      if (note) note.textContent = 'تعذّر إتمام التسجيل — وحدة الترخيص غير متاحة في هذا الإصدار.';
+      return; // Fail-Open, same convention as ActivationWizard.js.
+    }
+
+    // In-flight/double-submission guard (Test G): disabled synchronously,
+    // before any async work — same convention used throughout this
+    // project's other license/activation-code flows.
+    submitBtn.disabled = true;
+    cancelBtn.disabled = true;
+
+    // Security requirement (mirrors ActivationWizard.js's onRegisterClick()
+    // exactly): capture the code into a local var and clear the input
+    // BEFORE the network call — never persisted, never re-read from the
+    // DOM afterwards.
+    input.value = '';
+
+    var meta = window.LicenseCore.getStoredRecordMeta();
+    var machineId = await window.MachineFingerprint.getMachineId();
+
+    // register() is Fail-Open by design and returns no status (see
+    // InstallationRegistrar.js) — its public contract exposes exactly one
+    // observable success signal, hasLocalCredential(). This does not
+    // distinguish *why* a failed attempt failed (invalid code, revoked
+    // license, network error, etc.) without modifying that module, which
+    // is out of scope for this phase — see this phase's report §H.
+    var hadCredentialBefore = window.InstallationRegistrar.hasLocalCredential();
+
+    try {
+      await window.InstallationRegistrar.register({
+        licenseId: meta && meta.licenseId,
+        activationCode: code,
+        machineId: machineId
+      });
+    } catch (e) {
+      // register() is designed to never throw — final Fail-Open safety
+      // net regardless, identical to ActivationWizard.js's own catch.
+    }
+
+    var succeeded = !hadCredentialBefore && window.InstallationRegistrar.hasLocalCredential();
+    if (succeeded) {
+      if (window.toast) window.toast('تم تسجيل هذا التثبيت بنجاح.', 'success');
+      renderPanel(); // re-render: hasLocalCredential() is now true, so the affordance disappears (Test E/§13).
+      return;
+    }
+
+    submitBtn.disabled = false;
+    cancelBtn.disabled = false;
+    if (note) note.textContent = 'تعذّر تسجيل هذا التثبيت. تأكد من صحة كود التفعيل ومن وجود اتصال بالإنترنت، ثم حاول مرة أخرى.';
+    if (window.toast) window.toast('تعذّر تسجيل هذا التثبيت.', 'error');
   }
 
   /** Maps a LicenseOnlineValidator.checkNow() result to an Arabic
