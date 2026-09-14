@@ -102,35 +102,36 @@
  *   only) and never read any filter dropdown.
  *
  * ================================================================
- * SPECIAL REQUIREMENT — LEGACY SYNC BEHAVIOR (syncToSheets) — NOT
- * TOUCHED, NOT MIGRATED, NOT FIXED
+ * PHASE S.1.1 — Migrated to established ApiService/OfflineQueue sync
  * ================================================================
- *   Unlike every other already-migrated module (Documents, Sessions,
- *   Tasks, Library, Templates — all of which now call
- *   `ApiService.syncRow()`/`ApiService.deleteData()`), this module
- *   deliberately keeps calling the legacy global `syncToSheets()`
- *   function (defined in js/modules/settings.js), exactly as the
- *   pre-migration file did:
- *     if(API_URL)syncToSheets('الأطفال',obj,idx);
- *   Two facts, both already confirmed by prior audits and repeated here
- *   per this phase's explicit instruction, make this the CORRECT
- *   behavior to preserve rather than "fix":
- *     1. The server-side Apps Script (Code_v4.gs SHEET_DEFS) has NO
- *        'الأطفال' sheet defined at all.
- *     2. js/modules/settings.js's loadFromSheets() nonetheless still
- *        lists the ['الأطفال','children'] pair among the sheets it
- *        tries to pull on refresh.
- *   Both are pre-existing, already-known gaps, not introduced or
- *   resolved by this phase. This module's mandate is Repository
- *   integration only — the sync target and sync mechanism for Children
- *   are explicitly out of scope and are left byte-for-byte as they
- *   were. See docs/Children_Repository_Integration_Report.md, section
- *   "Legacy Behavior Preserved", for the full explanation.
+ *   Previously (up to and including PHASE 9.8/10.4) this module kept
+ *   calling the legacy global `syncToSheets()` (js/modules/
+ *   settings.js) for Push, and had NO server-sync call at all for
+ *   Delete, based on a comment claiming the server had no 'الأطفال'
+ *   sheet. PHASE S.1 (Read-Only Forensic Audit) found that claim
+ *   stale/false: `Config/00_Config.gs`'s SHEET_DEFS has defined a full
+ *   'الأطفال' sheet (with incremental-sync `آخر_تحديث`/`محذوف_في`
+ *   columns) for some time, already included in `loadFromSheets()`'s
+ *   pull list — only the Push/Delete side of this module never caught
+ *   up. This phase migrates Create/Update (`saveChild()`) to
+ *   `ApiService.syncRow()` and Delete (`deleteChild()`) to
+ *   `ApiService.deleteData()` — the exact same established
+ *   pattern/call shape already used by every other Repository-backed
+ *   module (Sessions, Expenses, Fees, Documents, Tasks, Opponents,
+ *   etc.), which is what gives this module the same OfflineQueue-
+ *   backed retry-on-failure behavior those modules already have,
+ *   instead of the old silent `console.warn`-and-forget failure mode.
  *
- * `deleteChild()` — like the pre-migration file — does NOT call
- *   `syncToSheets()`/`syncDeleteToSheets()` at all (there never was a
- *   delete-sync call for Children). This module makes no functional
- *   change to that pre-existing gap either.
+ *   The legacy `syncToSheets()`/`syncDeleteToSheets()` functions
+ *   themselves (js/modules/settings.js) are NOT modified or removed —
+ *   they are shared globals, out of this phase's scope (see that
+ *   file's own comment referencing this line, itself now stale after
+ *   this migration — flagged separately, not touched here).
+ *
+ *   `restoreChild(id)` still does NOT call ApiService (unchanged by
+ *   this phase — explicitly out of scope; see that function's own doc
+ *   comment for why this may deserve a follow-up, separate from this
+ *   patch).
  *
  * Depends on (globals expected from index.html / prior scripts):
  *   - data                  : shared app data object { children, cases, … }
