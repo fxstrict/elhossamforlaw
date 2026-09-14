@@ -41,6 +41,13 @@ function note(label) { log.push('NOTE: ' + label); }
 
 const AUTH_GS_PATH = path.join(__dirname, '..', '..', 'Config', '11_Auth.gs');
 const authSource = fs.readFileSync(AUTH_GS_PATH, 'utf8');
+// PHASE F.5 — Config/11_Auth.gs now references LICENSES_SHEET_NAME/
+// LICENSES_HEADERS, which live in Config/09_License.gs. In real Apps
+// Script both files share one global project scope, so this sandbox
+// must load both too (additive to this harness only — no existing
+// mock/assertion below is changed by this).
+const LICENSE_GS_PATH = path.join(__dirname, '..', '..', 'Config', '09_License.gs');
+const licenseSource = fs.readFileSync(LICENSE_GS_PATH, 'utf8');
 
 // --------------------------------------------------------------------
 // Fake Sheets backend — faithful enough for Config/11_Auth.gs's actual
@@ -170,6 +177,7 @@ function makeSandbox(fakeSs) {
     Date: Date
   };
   vm.createContext(sandbox);
+  vm.runInContext(licenseSource, sandbox, { filename: '09_License.gs' });
   vm.runInContext(authSource, sandbox, { filename: '11_Auth.gs' });
   return sandbox;
 }
