@@ -158,8 +158,19 @@
    * Registers this device for Phase C. Fail-Open in every branch: never
    * throws, never blocks the caller beyond the awaited promise.
    *
+   * PHASE F.5 — returns the server's terminal `status` string (or
+   * undefined on a network error / no server verdict at all) so a
+   * caller CAN distinguish why a registration failed when it needs to
+   * (e.g. INSTALLATION_LIMIT_REACHED vs. everything else — see
+   * js/license/LicenseManagerPanel.js's onRegisterInstallSubmit()).
+   * This is purely additive: every existing caller
+   * (js/license/ActivationWizard.js) calls `await register(...)`
+   * without capturing a return value, so ignoring the new resolved
+   * value is unaffected — Fail-Open success/failure signaling via
+   * hasLocalCredential() remains the primary, unchanged contract.
+   *
    * @param {{licenseId:string, activationCode:string, machineId:string}} fields
-   * @returns {Promise<void>}
+   * @returns {Promise<string|undefined>}
    */
   async function register(fields) {
     if (!window.ApiService || !fields || !fields.licenseId || !fields.activationCode || !fields.machineId) {
@@ -183,21 +194,23 @@
         _writeLocal(data.installationId, data.credential, new Date().toISOString());
       }
       _clearPending(fields);
-      return;
+      return data.status;
     }
 
     if (data.status === 'ALREADY_REGISTERED') {
       await _handleAlreadyRegistered_(fields, requestId, data.installationId);
       _clearPending(fields);
-      return;
+      return data.status;
     }
 
     // Any other terminal, valid server verdict — INVALID_ACTIVATION,
     // EXPIRED, REVOKED, ALREADY_USED, REQUEST_ID_MISMATCH,
-    // INSTALLATION_REVOKED, LOCK_TIMEOUT, MALFORMED_REQUEST,
-    // UNKNOWN_ERROR — is a real, final answer from the server (not a
-    // network failure): clear pending, do not retry automatically.
+    // INSTALLATION_REVOKED, LOCK_TIMEOUT, INSTALLATION_LIMIT_REACHED
+    // (PHASE F.5), MALFORMED_REQUEST, UNKNOWN_ERROR — is a real, final
+    // answer from the server (not a network failure): clear pending, do
+    // not retry automatically.
     _clearPending(fields);
+    return data.status;
   }
 
   /** Used by ActivationWizard.js to decide whether to even show the
@@ -218,9 +231,16 @@
    * @returns {?{installationId:string, credential:string}} null if no
    *   credential has been issued/stored yet (e.g. legacy install that
    *   never registered, or local storage was cleared) — ApiService
-   *   simply omits these fields in that case, which the server's Stage 1
-   *   policy already treats as a graced "missing_credential" request
-   *   (see Config/11_Auth.gs), not an error.
+   *   simply omits these fields in that case. Under Stage 1 the server
+   *   treated that as a graced "missing_credential" request; as of
+   *   PHASE F.4 (Stage 2 Fail-Closed) the server now REJECTS it
+   *   (authCode AUTH_MISSING_CREDENTIAL — see Config/11_Auth.gs). This
+   *   module itself needs no change for that flip (it already reports
+   *   accurately whether a credential exists via hasLocalCredential()),
+   *   but nothing in the client currently listens for
+   *   AUTH_MISSING_CREDENTIAL to redirect the user into the existing
+   *   registration ("تسجيل هذا التثبيت", IMPL-B) or recovery
+   *   (IMPL-C/C.1) flows — see this phase's DISCOVERED DEBT.
    */
   function getCredential() {
     var local = _readLocal();

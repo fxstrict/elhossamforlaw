@@ -208,16 +208,17 @@
     var meta = window.LicenseCore.getStoredRecordMeta();
     var machineId = await window.MachineFingerprint.getMachineId();
 
-    // register() is Fail-Open by design and returns no status (see
-    // InstallationRegistrar.js) — its public contract exposes exactly one
-    // observable success signal, hasLocalCredential(). This does not
-    // distinguish *why* a failed attempt failed (invalid code, revoked
-    // license, network error, etc.) without modifying that module, which
-    // is out of scope for this phase — see this phase's report §H.
+    // register() is Fail-Open by design; as of PHASE F.5 it now also
+    // resolves with the server's terminal status string when available
+    // (undefined on a network error), so this handler CAN show a
+    // distinct message for INSTALLATION_LIMIT_REACHED specifically —
+    // everything else keeps the exact same generic message as before
+    // (deliberately not expanding scope beyond that one new status).
     var hadCredentialBefore = window.InstallationRegistrar.hasLocalCredential();
 
+    var registerStatus;
     try {
-      await window.InstallationRegistrar.register({
+      registerStatus = await window.InstallationRegistrar.register({
         licenseId: meta && meta.licenseId,
         activationCode: code,
         machineId: machineId
@@ -236,6 +237,14 @@
 
     submitBtn.disabled = false;
     cancelBtn.disabled = false;
+    if (registerStatus === 'INSTALLATION_LIMIT_REACHED') {
+      // PHASE F.5 — distinct, accurate message: the code IS valid, the
+      // license simply has no free installation slot left. The generic
+      // "تأكد من صحة كود التفعيل" message below would be misleading here.
+      if (note) note.textContent = 'تم بلوغ الحد الأقصى لعدد الأجهزة المسموح بها لهذا الترخيص. تواصل مع المكتب لتحرير جهاز قديم أو زيادة العدد المسموح به.';
+      if (window.toast) window.toast('تم بلوغ الحد الأقصى لعدد التثبيتات المسموح بها.', 'error');
+      return;
+    }
     if (note) note.textContent = 'تعذّر تسجيل هذا التثبيت. تأكد من صحة كود التفعيل ومن وجود اتصال بالإنترنت، ثم حاول مرة أخرى.';
     if (window.toast) window.toast('تعذّر تسجيل هذا التثبيت.', 'error');
   }
