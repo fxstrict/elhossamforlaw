@@ -560,6 +560,7 @@ var PRECACHE_URLS = [
   'js/license/ActivationWizard.js?v=42',
   'js/license/LicenseOnlineValidator.js?v=42',
   'js/license/LicenseManagerPanel.js?v=42',
+  'js/license/CredentialAlertBanner.js?v=1',
   'js/api/api.js?v=42',
   'js/core/OfflineQueue.js?v=42',
   'js/core/SyncCheckpoint.js?v=42', // PHASE A7
