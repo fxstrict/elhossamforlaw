@@ -29,6 +29,27 @@ const ApiService = {
   // ----------------------------------------------------------------
 
   /**
+   * PHASE F.4.1 — DISCOVERED DEBT closure (Master Report §42, item
+   * "لا يوجد أي كود فى الواجهة الأمامية يتفاعل مع AUTH_MISSING_CREDENTIAL").
+   * Fires a DOM CustomEvent so any UI listener (see
+   * js/license/CredentialAlertBanner.js) can surface this to the user.
+   * Scoped ONLY to authCode === 'AUTH_MISSING_CREDENTIAL' — the exact
+   * gap the debt item named — NOT to AUTH_INVALID/AUTH_UNKNOWN_
+   * INSTALLATION/AUTH_REVOKED, which are different, already-terminal
+   * states outside this phase's scope (no scope creep).
+   * Pure no-op outside a browser (no `window`/`CustomEvent`), so this
+   * is safe to call from any environment, including the existing
+   * Node test harnesses for this file.
+   * @param {string} authCode
+   */
+  _notifyMissingCredential(authCode) {
+    if (authCode !== 'AUTH_MISSING_CREDENTIAL') return;
+    if (typeof window === 'undefined' || typeof window.dispatchEvent !== 'function') return;
+    if (typeof CustomEvent === 'undefined') return;
+    window.dispatchEvent(new CustomEvent('credential:missing', { detail: { authCode: authCode } }));
+  },
+
+  /**
    * Returns the currently configured Apps Script URL.
    * Reads from the global API_URL variable set by the host page.
    * @returns {string}
@@ -325,6 +346,7 @@ const ApiService = {
       // brief §20). Network/HTTP failures fall through unchanged.
       if (e && e.isAuthError) {
         console.warn('[ApiService.saveData] AUTH_FAILED (' + e.authCode + ') — not queued for retry:', sheetName);
+        this._notifyMissingCredential(e.authCode);
       } else if (typeof OfflineQueue !== 'undefined') {
         OfflineQueue.enqueue(body); // Phase 29
       }
@@ -359,6 +381,7 @@ const ApiService = {
       // PHASE D — see saveData() above for the reasoning.
       if (e && e.isAuthError) {
         console.warn('[ApiService.updateData] AUTH_FAILED (' + e.authCode + ') — not queued for retry:', sheetName);
+        this._notifyMissingCredential(e.authCode);
       } else if (typeof OfflineQueue !== 'undefined') {
         OfflineQueue.enqueue(body); // Phase 29
       }
@@ -422,6 +445,7 @@ const ApiService = {
       // PHASE D — see saveData() above for the reasoning.
       if (e && e.isAuthError) {
         console.warn('[ApiService.deleteData] AUTH_FAILED (' + e.authCode + ') — not queued for retry:', sheetName);
+        this._notifyMissingCredential(e.authCode);
       } else if (typeof OfflineQueue !== 'undefined') {
         OfflineQueue.enqueue(body); // Phase 29
       }
