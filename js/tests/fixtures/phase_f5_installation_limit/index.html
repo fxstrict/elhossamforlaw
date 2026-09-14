@@ -1,0 +1,76 @@
+<!doctype html>
+<html><head><meta charset="utf-8"></head>
+<body>
+<div id="licenseManagerPanelMount"></div>
+<script>
+  // ---- Controlled test doubles (boundary stubs) — recorded for assertions ----
+  window.__spy = { calls: {}, record: function (name, args) { (this.calls[name] = this.calls[name] || []).push(args); } };
+  window.__toasts = [];
+  window.toast = function (msg, type) { window.__toasts.push({ msg: msg, type: type }); };
+
+  // window.__hasCredential controls InstallationRegistrar.hasLocalCredential()
+  // BEFORE register() is called.
+  // window.__registerBehavior:
+  //   'success'       — flips __hasCredential to true, resolves 'REGISTERED'
+  //                      (mirrors the real register()'s PHASE F.5 return value
+  //                      on the success path).
+  //   'other_failure' — leaves __hasCredential untouched, resolves
+  //                      'INVALID_ACTIVATION' (stand-in for "any AUTH/other
+  //                      failure status" — must NOT trigger the new F.5
+  //                      distinct message).
+  //   'limit_reached' — leaves __hasCredential untouched, resolves
+  //                      'INSTALLATION_LIMIT_REACHED' (PHASE F.5's new
+  //                      status) — must trigger the new distinct message.
+  window.__hasCredential = false;
+  window.__registerBehavior = 'success';
+  window.InstallationRegistrar = {
+    hasLocalCredential: function () { return window.__hasCredential; },
+    register: async function (fields) {
+      window.__spy.record('register', [fields]);
+      if (window.__registerBehavior === 'success') {
+        window.__hasCredential = true;
+        return 'REGISTERED';
+      }
+      if (window.__registerBehavior === 'limit_reached') return 'INSTALLATION_LIMIT_REACHED';
+      return 'INVALID_ACTIVATION'; // 'other_failure'
+    }
+  };
+
+  window.LicenseCore = {
+    getStatus: function () { return { state: 'ACTIVE', info: { licenseId: 'HSM-LIC-EXISTING-1', edition: 'Professional', customer: { name: 'مكتب تجريبي' } } }; },
+    getStoredRecordMeta: function () {
+      window.__spy.record('getStoredRecordMeta', []);
+      return { licenseId: 'HSM-LIC-EXISTING-1', activatedAt: '2026-01-01T00:00:00.000Z' };
+    }
+  };
+  window.MachineFingerprint = {
+    getMachineId: async function () {
+      window.__spy.record('getMachineId', []);
+      return 'HSM-AAAA-BBBB-CCCC';
+    }
+  };
+</script>
+<script src="/js/LicenseManagerPanel.js"></script>
+<script>
+  window.__resetSpies = function () { window.__spy.calls = {}; window.__toasts = []; };
+  window.__renderPanel = async function () { await window.LicenseManagerPanel.renderPanel(); };
+  window.__isRegisterButtonVisible = function () {
+    var btn = document.getElementById('licRegisterInstallBtn');
+    return !!btn && !btn.hasAttribute('hidden');
+  };
+  window.__isStepVisible = function () {
+    var step = document.getElementById('licRegisterInstallStep');
+    return !!step && !step.hasAttribute('hidden');
+  };
+  window.__clickRegisterButton = function () { document.getElementById('licRegisterInstallBtn').click(); };
+  window.__setCode = function (code) { document.getElementById('licRegisterInstallCodeInput').value = code; };
+  window.__clickSubmitAndWait = async function () {
+    document.getElementById('licRegisterInstallSubmitBtn').click();
+    await new Promise(r => setTimeout(r, 30));
+  };
+  window.__noteText = function () {
+    var el = document.getElementById('licRegisterInstallNote');
+    return el ? el.textContent : null;
+  };
+</script>
+</body></html>
