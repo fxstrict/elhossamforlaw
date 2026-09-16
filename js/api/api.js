@@ -389,6 +389,61 @@ const ApiService = {
   },
 
   /**
+   * PHASE S.1.2 — Explicit Undelete/Restore. Unlike syncRow()/saveData()/
+   * updateData()/deleteData() (all fire-and-forget, @returns void), this
+   * is deliberately AWAITED by every restore*() caller and returns a
+   * distinguishable result, per the approved S.1.2 design: a restore's
+   * local success must never be silently conflated with "the server has
+   * confirmed it" (see js/modules/*.js's restore*() functions for the
+   * exact 3-way toast this drives). This does NOT change the Local-First
+   * philosophy of saveData()/updateData()/deleteData()/syncRow() — those
+   * remain untouched, fire-and-forget, unconditional-success-toast, by
+   * deliberate design (see phase report).
+   *
+   * @param {string} sheetName
+   * @param {Object} rowData   - the full current local (already-restored)
+   *                             record
+   * @param {number} rowIndex  - unused server-side (row is always found
+   *                             by id — see apiRestoreRow()); kept only
+   *                             for call-shape symmetry with syncRow().
+   * @returns {Promise<'SERVER_CONFIRMED'|'QUEUED_LOCAL'|'SERVER_REJECTED'>}
+   *   SERVER_CONFIRMED — the server actually cleared the tombstone now.
+   *   QUEUED_LOCAL     — no API_URL configured, or a transient failure
+   *                      (network/timeout) — OfflineQueue.replay() will
+   *                      retry this exact request later (OfflineQueue.js
+   *                      itself is unmodified; its replay() already
+   *                      re-posts any queued body verbatim regardless of
+   *                      `action`, so 'restore' needs no change there).
+   *   SERVER_REJECTED  — a definitive, non-retryable answer: an auth
+   *                      rejection (not queued, same convention as
+   *                      saveData()/updateData()/deleteData() above), or
+   *                      the server explicitly said NOT_FOUND/
+   *                      MALFORMED_REQUEST. Retrying the identical
+   *                      request would fail identically every time.
+   */
+  async restoreRow(sheetName, rowData, rowIndex) {
+    if (!this._url()) return 'QUEUED_LOCAL';
+    const body = { action: 'restore', sheet: sheetName, data: rowData, rowIndex: rowIndex + 1 };
+    try {
+      const response = await this._post(body);
+      const parsed = await response.json();
+      return (parsed && parsed.success) ? 'SERVER_CONFIRMED' : 'SERVER_REJECTED';
+    } catch (e) {
+      console.warn('[ApiService.restoreRow] Sheet:', sheetName, e);
+      if (e && e.isAuthError) {
+        console.warn('[ApiService.restoreRow] AUTH_FAILED (' + e.authCode + ') — not queued for retry:', sheetName);
+        this._notifyMissingCredential(e.authCode);
+        return 'SERVER_REJECTED';
+      }
+      if (typeof OfflineQueue !== 'undefined') {
+        OfflineQueue.enqueue(body); // same queue, same replay() — Phase 29
+        return 'QUEUED_LOCAL';
+      }
+      return 'SERVER_REJECTED';
+    }
+  },
+
+  /**
    * Convenience wrapper: calls saveData() for new records (idx === -1)
    * or updateData() for existing records (idx >= 0).
    *
