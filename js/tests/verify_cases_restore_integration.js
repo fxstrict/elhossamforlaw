@@ -139,6 +139,7 @@ function makeSandbox(seedStorage) {
   const badgeCalls = { count: 0 };
   const closeModalLog = [];
   const syncRowLog = [];
+  const restoreRowLog = [];
   const deleteDataLog = [];
   const saveLocalCalls = { count: 0 };
   const genClientQRLog = [];
@@ -173,6 +174,15 @@ function makeSandbox(seedStorage) {
     resetForm: function (type) { sandboxGlobals.__lastResetType = type; },
     ApiService: {
       syncRow: function (sheet, obj, idx) { syncRowLog.push({ sheet: sheet, obj: obj, idx: idx }); },
+      // PHASE S.1.2 — restoreCase() now calls this instead of syncRow().
+      // Default result is settable per-test via
+      // sandboxGlobals.__restoreRowResult (defaults to SERVER_CONFIRMED
+      // so every pre-existing "success" assertion keeps meaning exactly
+      // what it always did: the common/happy path).
+      restoreRow: async function (sheet, obj, idx) {
+        restoreRowLog.push({ sheet: sheet, obj: obj, idx: idx });
+        return sandboxGlobals.__restoreRowResult || 'SERVER_CONFIRMED';
+      },
       deleteData: function (sheet, idx) { deleteDataLog.push({ sheet: sheet, idx: idx }); }
     },
     saveLocal: function () { saveLocalCalls.count++; },
@@ -188,6 +198,7 @@ function makeSandbox(seedStorage) {
     badgeCalls: badgeCalls,
     closeModalLog: closeModalLog,
     syncRowLog: syncRowLog,
+    restoreRowLog: restoreRowLog,
     deleteDataLog: deleteDataLog,
     saveLocalCalls: saveLocalCalls,
     genClientQRLog: genClientQRLog,
@@ -302,10 +313,10 @@ async function main() {
       assert.ok(saveLocalCalls.count > saveLocalCountBeforeRestore, 'saveLocal() must have been invoked at least once during restoreCase()');
     });
 
-    check('restoreCase(id): a success toast was shown', () => {
+    check('restoreCase(id): a success toast was shown (PHASE S.1.2 unified wording)', () => {
       assert.ok(toastLog.length > toastCountBeforeRestore, 'a new toast must have been pushed');
       const last = toastLog[toastLog.length - 1];
-      assert.strictEqual(last.msg, 'تم استرجاع القضية');
+      assert.strictEqual(last.msg, 'تم الاسترجاع بنجاح');
       assert.strictEqual(last.type, 'success');
     });
 
@@ -550,11 +561,13 @@ async function main() {
   }
 
   // ================================================================
-  // 9. restoreCase() DOES call ApiService.syncRow() to sync the restore
-  //    to Google Sheets — FIX C4 (DATABASE_FORENSIC_REPORT.md §C4).
-  //    Previously restoreCase() left Sheets untouched, which meant a
-  //    restored case could be lost again on the next Sheets read. This
-  //    test now asserts the corrected behavior.
+  // 9. restoreCase() calls ApiService.restoreRow() (PHASE S.1.2 — a real
+  //    Undelete endpoint) to sync the restore to Google Sheets.
+  //    Supersedes the old FIX C4 assertion: syncRow() could never
+  //    actually clear a real server-side tombstone (apiUpdateRow()'s
+  //    deliberate STEP 3B/§19 guard preserves it) — restoreRow() is the
+  //    endpoint that actually does. See Config/06_Api.gs's
+  //    apiRestoreRow() and js/api/api.js's ApiService.restoreRow().
   // ================================================================
 
   {
@@ -568,14 +581,51 @@ async function main() {
     const idx = cm.resolveCaseIndex(sandbox.sandboxGlobals.data.cases, sandbox.sandboxGlobals.data.cases[0]);
     await cm.deleteCase(idx);
 
-    const syncRowCountBefore = sandbox.syncRowLog.length;
+    const restoreRowCountBefore = sandbox.restoreRowLog.length;
 
-    await checkAsync('restoreCase(id) calls ApiService.syncRow() to sync the restore to Google Sheets (FIX C4)', async () => {
+    await checkAsync('restoreCase(id) calls ApiService.restoreRow() (PHASE S.1.2) to sync the restore to Google Sheets', async () => {
       await cm.restoreCase('2026/B001');
-      assert.strictEqual(sandbox.syncRowLog.length, syncRowCountBefore + 1, 'ApiService.syncRow() must be called exactly once by restoreCase()');
-      const call = sandbox.syncRowLog[sandbox.syncRowLog.length - 1];
+      assert.strictEqual(sandbox.restoreRowLog.length, restoreRowCountBefore + 1, 'ApiService.restoreRow() must be called exactly once by restoreCase()');
+      assert.strictEqual(sandbox.syncRowLog.length, 0, 'restoreCase() must NOT call the old ApiService.syncRow() at all');
+      const call = sandbox.restoreRowLog[sandbox.restoreRowLog.length - 1];
       assert.strictEqual(call.sheet, 'القضايا');
       assert.strictEqual(call.obj['رقم_القضية'], '2026/B001');
+    });
+  }
+
+  // ================================================================
+  // 9b. PHASE S.1.2 — the 3-way toast contract, representatively
+  //     verified here on Cases (identical restoreRow()-branching code
+  //     is used verbatim by all 12 restore*() modules — see phase
+  //     report "Diff Scope" for the full file list).
+  // ================================================================
+
+  {
+    const sandbox = makeSandbox({});
+    setGlobals(sandbox.sandboxGlobals);
+    const cm = loadModule(casesJsPath);
+    await cm.ensureCasesRepositoryReady();
+    await cm.casesRepository.create({ 'رقم_القضية': '2026/S12', 'عنوان_القضية': 'اختبار التوست الثلاثي', 'اسم_الموكل': 'موكل' });
+    cm.syncCasesMirror();
+    const idx = cm.resolveCaseIndex(sandbox.sandboxGlobals.data.cases, sandbox.sandboxGlobals.data.cases[0]);
+    await cm.deleteCase(idx);
+
+    sandbox.sandboxGlobals.__restoreRowResult = 'QUEUED_LOCAL';
+    await checkAsync('restoreCase(): restoreRow() -> QUEUED_LOCAL shows "تم الاسترجاع محليًا، جارِ المزامنة" (info)', async () => {
+      await cm.restoreCase('2026/S12');
+      const last = sandbox.toastLog[sandbox.toastLog.length - 1];
+      assert.strictEqual(last.msg, 'تم الاسترجاع محليًا، جارِ المزامنة');
+      assert.strictEqual(last.type, 'info');
+      assert.ok(sandbox.sandboxGlobals.data.cases.some(c => c['رقم_القضية'] === '2026/S12'), 'record stays restored locally regardless (rule 5)');
+    });
+
+    sandbox.sandboxGlobals.__restoreRowResult = 'SERVER_REJECTED';
+    await checkAsync('restoreCase(): restoreRow() -> SERVER_REJECTED shows "تم الاسترجاع محليًا، لكن تعذّرت مزامنته مع السيرفر" (info), record still restored locally', async () => {
+      await cm.restoreCase('2026/S12'); // idempotent re-restore, exercises the branch again
+      const last = sandbox.toastLog[sandbox.toastLog.length - 1];
+      assert.strictEqual(last.msg, 'تم الاسترجاع محليًا، لكن تعذّرت مزامنته مع السيرفر');
+      assert.strictEqual(last.type, 'info');
+      assert.ok(sandbox.sandboxGlobals.data.cases.some(c => c['رقم_القضية'] === '2026/S12'), 'record still visible locally — rule 4/5: never implies the server confirmed it, but local restore is never rolled back either');
     });
   }
 

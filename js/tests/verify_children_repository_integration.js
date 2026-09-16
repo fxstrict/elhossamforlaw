@@ -169,6 +169,10 @@ async function main() {
   let syncToSheetsLog;
   let saveLocalCalls;
   let populateCaseDropdownLog;
+  // PHASE S.1.1 — children.js now calls ApiService.syncRow()/
+  // deleteData() instead of the legacy syncToSheets() (syncToSheetsLog
+  // above is kept only to prove the legacy path is no longer reached).
+  let apiCallsLog;
 
   {
     const fakeStorage = makeFakeStorage({});
@@ -180,6 +184,7 @@ async function main() {
     syncToSheetsLog = [];
     saveLocalCalls = { count: 0 };
     populateCaseDropdownLog = [];
+    apiCallsLog = [];
 
     sandboxGlobals = {
       localStorage: fakeStorage,
@@ -207,6 +212,11 @@ async function main() {
       fillForm: function (type, obj) { sandboxGlobals.__lastFilled = obj; },
       resetForm: function () { sandboxGlobals.__resetFormCalled = true; },
       syncToSheets: function (sheet, rowData, rowIndex) { syncToSheetsLog.push({ sheet: sheet, rowData: rowData, rowIndex: rowIndex }); },
+      // PHASE S.1.1 — the module now calls these instead of syncToSheets().
+      ApiService: {
+        syncRow: function (sheet, record, idx) { apiCallsLog.push({ fn: 'syncRow', sheet: sheet, record: record, idx: idx }); },
+        deleteData: function (sheet, idx, id) { apiCallsLog.push({ fn: 'deleteData', sheet: sheet, idx: idx, id: id }); }
+      },
       saveLocal: function () { saveLocalCalls.count++; },
       confirm: function () { return true; },
       confirmDialog: __confirmDialogStub,
@@ -405,16 +415,10 @@ async function main() {
       assert.strictEqual(toastLog[toastLog.length - 1].msg, 'تم التحديث');
     });
 
-    // ---- syncToSheets() called (legacy call, NOT ApiService) when API_URL is set ----
-    await checkAsync('saveChild(): calls legacy syncToSheets() (NOT ApiService) when API_URL is set, with the full saved record', async () => {
-      // children.js reads the bare `API_URL` identifier fresh on every
-      // call (resolved via the scope chain to the real Node `global`
-      // object — see setGlobals()'s doc comment), so the actual
-      // `global.API_URL` must be updated directly, not just the
-      // bookkeeping `sandboxGlobals` object.
-      sandboxGlobals.API_URL = 'https://example-apps-script.test/exec';
-      global.API_URL = sandboxGlobals.API_URL;
-      const syncCountBefore = syncToSheetsLog.length;
+    // ---- PHASE S.1.1: ApiService.syncRow() called (NOT legacy syncToSheets()) ----
+    await checkAsync('saveChild(): calls ApiService.syncRow() (PHASE S.1.1 — NOT legacy syncToSheets()) with the full saved record, unconditionally (matches the established syncRow/saveData/updateData internal API_URL guard, no outer if(API_URL) needed)', async () => {
+      const apiCountBefore = apiCallsLog.length;
+      const syncToSheetsCountBefore = syncToSheetsLog.length;
 
       fakeElements['fChildCaseNum'].value = '2026-12';
       fakeElements['fChildName'].value = 'ياسين خالد';
@@ -433,20 +437,19 @@ async function main() {
 
       await childrenModule.saveChild();
 
-      assert.strictEqual(syncToSheetsLog.length, syncCountBefore + 1);
-      const call = syncToSheetsLog[syncToSheetsLog.length - 1];
+      assert.strictEqual(syncToSheetsLog.length, syncToSheetsCountBefore,
+        'PHASE S.1.1 — the legacy syncToSheets() path must no longer be reached at all');
+      assert.strictEqual(apiCallsLog.length, apiCountBefore + 1);
+      const call = apiCallsLog[apiCallsLog.length - 1];
+      assert.strictEqual(call.fn, 'syncRow');
       assert.strictEqual(call.sheet, 'الأطفال');
-      assert.strictEqual(call.rowData['الاسم'], 'ياسين خالد');
-      assert.ok(call.rowData[childrenModule.CHILDREN_ID_FIELD], 'the synced record must include its generated رقم_الطفل id');
-
-      // Reset API_URL back to '' for the remaining tests, matching the
-      // original default (no Apps Script URL configured).
-      sandboxGlobals.API_URL = '';
-      global.API_URL = '';
+      assert.strictEqual(call.record['الاسم'], 'ياسين خالد');
+      assert.ok(call.record[childrenModule.CHILDREN_ID_FIELD], 'the synced record must include its generated رقم_الطفل id');
+      assert.strictEqual(call.idx, -1, 'create path must pass idx=-1 (matches ApiService.syncRow()\'s create/update dispatch contract)');
     });
 
-    // ---- DELETE via deleteChild(): removed from mirror, no sync call at all (pre-existing gap preserved) ----
-    await checkAsync('deleteChild(i): soft-deletes via Repository.delete(); vanishes from mirror/UI exactly like the old hard delete', async () => {
+    // ---- DELETE via deleteChild(): removed from mirror, AND now pushed via ApiService.deleteData() (PHASE S.1.1 — closes the pre-existing gap) ----
+    await checkAsync('deleteChild(i): soft-deletes via Repository.delete(); vanishes from mirror/UI; PHASE S.1.1 — now ALSO calls ApiService.deleteData()', async () => {
       // Re-resolve the index for "سارة علي (محدّثة)" since a third record
       // was inserted above (array positions may have shifted only if
       // insertion changed ordering — insertion is append-only, so this
@@ -457,15 +460,23 @@ async function main() {
       );
       const beforeCount = sandboxGlobals.data.children.length;
       const deletedId = sandboxGlobals.data.children[targetIdx][childrenModule.CHILDREN_ID_FIELD];
-      const syncCountBefore = syncToSheetsLog.length;
+      const syncToSheetsCountBefore = syncToSheetsLog.length;
+      const apiCountBefore = apiCallsLog.length;
 
       await childrenModule.deleteChild(targetIdx);
 
       assert.strictEqual(sandboxGlobals.data.children.length, beforeCount - 1);
       assert.ok(!sandboxGlobals.data.children.some(function (c) { return c[childrenModule.CHILDREN_ID_FIELD] === deletedId; }));
       assert.strictEqual(toastLog[toastLog.length - 1].msg, 'تم الحذف');
-      assert.strictEqual(syncToSheetsLog.length, syncCountBefore,
-        'deleteChild() must NOT call syncToSheets() — matches the original (no delete-sync call ever existed)');
+      assert.strictEqual(syncToSheetsLog.length, syncToSheetsCountBefore,
+        'the legacy syncToSheets() path is not used for delete (never was, still isn\'t)');
+      assert.strictEqual(apiCallsLog.length, apiCountBefore + 1,
+        'PHASE S.1.1 — deleteChild() must now call ApiService.deleteData() (previously called nothing at all)');
+      const call = apiCallsLog[apiCallsLog.length - 1];
+      assert.strictEqual(call.fn, 'deleteData');
+      assert.strictEqual(call.sheet, 'الأطفال');
+      assert.strictEqual(call.idx, targetIdx);
+      assert.strictEqual(call.id, deletedId);
 
       // Confirm this is a SOFT delete under the hood (Repository config,
       // unchanged by this phase) but that this is NOT observable through

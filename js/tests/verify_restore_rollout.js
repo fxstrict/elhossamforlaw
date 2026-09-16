@@ -122,6 +122,7 @@ function makeSandbox(seedStorage) {
   const toastLog = [];
   const badgeCalls = { count: 0 };
   const syncRowLog = [];
+  const restoreRowLog = [];
   const deleteDataLog = [];
   const saveLocalCalls = { count: 0 };
   const genClientQRLog = [];
@@ -156,6 +157,11 @@ function makeSandbox(seedStorage) {
     genClientQR: function (idx) { genClientQRLog.push(idx); },
     ApiService: {
       syncRow: function (sheet, obj, idx) { syncRowLog.push({ sheet: sheet, obj: obj, idx: idx }); },
+      // PHASE S.1.2 — every restore*() in this table now calls this
+      // instead of syncRow(). Default SERVER_CONFIRMED (settable per-test
+      // via sandboxGlobals.__restoreRowResult) so cfg.successToast keeps
+      // meaning "the happy/common path", unchanged from before.
+      restoreRow: async function (sheet, obj, idx) { restoreRowLog.push({ sheet: sheet, obj: obj, idx: idx }); return sandboxGlobals.__restoreRowResult || 'SERVER_CONFIRMED'; },
       deleteData: function (sheet, idx) { deleteDataLog.push({ sheet: sheet, idx: idx }); },
       updateData: function () {}
     },
@@ -175,6 +181,7 @@ function makeSandbox(seedStorage) {
     toastLog: toastLog,
     badgeCalls: badgeCalls,
     syncRowLog: syncRowLog,
+    restoreRowLog: restoreRowLog,
     deleteDataLog: deleteDataLog,
     saveLocalCalls: saveLocalCalls,
     fakeStorage: fakeStorage
@@ -204,7 +211,7 @@ const MODULES = [
     deleteFn: 'deleteClient',
     restoreFn: 'restoreClient',
     hasUpdateBadges: true,
-    successToast: 'تم استرجاع الموكل',
+    successToast: 'تم الاسترجاع بنجاح',
     errorToast: 'حدث خطأ أثناء استرجاع الموكل',
     deleteToast: 'تم حذف الموكل',
     sample: function (id, extra) { return Object.assign({ 'رقم_الموكل': id, 'الاسم': 'موكل تجريبي' }, extra || {}); },
@@ -226,7 +233,7 @@ const MODULES = [
     deleteFn: 'deleteSession',
     restoreFn: 'restoreSession',
     hasUpdateBadges: true,
-    successToast: 'تم الاسترجاع',
+    successToast: 'تم الاسترجاع بنجاح',
     errorToast: 'حدث خطأ أثناء الاسترجاع',
     deleteToast: 'تم الحذف',
     sample: function (id, extra) { return Object.assign({ 'رقم_الجلسة': id, 'رقم_القضية': '2026-1', 'التاريخ': '2026-08-01', 'الوقت': '10:00' }, extra || {}); },
@@ -248,7 +255,7 @@ const MODULES = [
     deleteFn: 'deleteTask',
     restoreFn: 'restoreTask',
     hasUpdateBadges: true,
-    successToast: 'تم استرجاع العمل الإداري',
+    successToast: 'تم الاسترجاع بنجاح',
     errorToast: 'حدث خطأ أثناء الاسترجاع',
     deleteToast: 'تم حذف العمل بنجاح',
     sample: function (id, extra) { return Object.assign({ 'رقم_المهمة': id, 'العنوان': 'مهمة تجريبية' }, extra || {}); },
@@ -270,7 +277,7 @@ const MODULES = [
     deleteFn: 'deleteDocument',
     restoreFn: 'restoreDocument',
     hasUpdateBadges: true,
-    successToast: 'تم الاسترجاع',
+    successToast: 'تم الاسترجاع بنجاح',
     errorToast: 'حدث خطأ أثناء الاسترجاع',
     deleteToast: 'تم الحذف',
     sample: function (id, extra) { return Object.assign({ 'رقم_المستند': id, 'رقم_القضية': '2026/1', 'اسم_المستند': 'مستند تجريبي' }, extra || {}); },
@@ -292,7 +299,7 @@ const MODULES = [
     deleteFn: 'deleteLibBook',
     restoreFn: 'restoreLibBook',
     hasUpdateBadges: false,
-    successToast: 'تم الاسترجاع',
+    successToast: 'تم الاسترجاع بنجاح',
     errorToast: 'حدث خطأ أثناء الاسترجاع',
     deleteToast: 'تم الحذف',
     sample: function (id, extra) { return Object.assign({ 'id': id, 'العنوان': 'كتاب تجريبي' }, extra || {}); },
@@ -314,7 +321,7 @@ const MODULES = [
     deleteFn: 'deleteTemplate',
     restoreFn: 'restoreTemplate',
     hasUpdateBadges: false,
-    successToast: 'تم الاسترجاع',
+    successToast: 'تم الاسترجاع بنجاح',
     errorToast: 'حدث خطأ أثناء الاسترجاع',
     deleteToast: 'تم الحذف',
     sample: function (id, extra) { return Object.assign({ 'id': id, 'العنوان': 'صيغة تجريبية', 'القسم': 'مدني' }, extra || {}); },
@@ -323,6 +330,12 @@ const MODULES = [
   },
   {
     label: 'Children',
+    // PHASE S.1.2 — restoreChild() now calls ApiService.restoreRow(),
+    // closing the F-6/§9.3 "UNVERIFIED... out of scope" gap this file's
+    // own comment (below, §8) used to document. Children is no longer
+    // the sync-exempt exception.
+    expectsSync: true,
+    syncSheet: 'الأطفال',
     modulePath: 'children.js',
     repoPath: 'ChildrenRepository.js',
     dataKey: 'children',
@@ -334,7 +347,7 @@ const MODULES = [
     deleteFn: 'deleteChild',
     restoreFn: 'restoreChild',
     hasUpdateBadges: true,
-    successToast: 'تم الاسترجاع',
+    successToast: 'تم الاسترجاع بنجاح',
     errorToast: 'حدث خطأ أثناء الاسترجاع',
     deleteToast: 'تم الحذف',
     sample: function (id, extra) { return Object.assign({ 'رقم_الطفل': id, 'رقم_القضية': '2026/1', 'الاسم': 'طفل تجريبي' }, extra || {}); },
@@ -356,7 +369,7 @@ const MODULES = [
     deleteFn: 'deleteFee',
     restoreFn: 'restoreFee',
     hasUpdateBadges: true,
-    successToast: 'تم الاسترجاع',
+    successToast: 'تم الاسترجاع بنجاح',
     errorToast: 'حدث خطأ أثناء الاسترجاع',
     deleteToast: 'تم الحذف',
     sample: function (id, extra) { return Object.assign({ 'رقم_العملية': id, 'رقم_القضية': '2026/1', 'المبلغ': 1000 }, extra || {}); },
@@ -635,23 +648,17 @@ async function runModuleSuite(cfg) {
   }
 
   // ---- 8. ApiService sync from restore ----
-  // FIX C4 (DATABASE_FORENSIC_REPORT.md §C4): restoreClient()/
-  // restoreSession()/restoreTask()/restoreDocument()/restoreFee() now
-  // call ApiService.syncRow() to sync the restore to Google Sheets —
-  // previously a local-only restore that could be silently lost again
-  // on the next Sheets read.
-  // PHASE 39 — DATABASE SURFACE ENTITIES SYNC FIX (F-1/F-2): restoreLibBook()/
-  // restoreTemplate() now ALSO call ApiService.syncRow(), closing the
-  // "Library/Templates never synced" gap
-  // (DATABASE_SURFACE_ENTITIES_PRE_IMPLEMENTATION_AUDIT.md findings
-  // F-1/F-2) — both entities are reclassified `expectsSync: true` above
-  // (TEST ENCODES OLD BUG: this table previously marked them
-  // sync-exempt, which was accurate pre-Phase-39 but encoded the bug
-  // rather than the intended contract). restoreChild() remains
-  // unchanged (children.js uses a separate legacy sync path — out of
-  // scope for this fix, see DATABASE_SYNC_FINAL_REPORT.md §D and
-  // DATABASE_SURFACE_ENTITIES_PRE_IMPLEMENTATION_AUDIT.md §9.3/§16,
-  // finding F-6, UNVERIFIED).
+  // PHASE S.1.2 — every restore*() in this table now calls
+  // ApiService.restoreRow() (Config/06_Api.gs's apiRestoreRow(), a real
+  // Undelete endpoint), not ApiService.syncRow(). Supersedes the old
+  // FIX C4 / PHASE 39 comments previously here: syncRow() could never
+  // actually clear a real server-side tombstone (apiUpdateRow()'s
+  // deliberate STEP 3B/§19 guard preserves it) — restoreRow() is the
+  // endpoint that actually does (see that function's own doc comment).
+  // restoreChild() is NO LONGER the sync-exempt exception this comment
+  // used to document (F-6/§9.3 finding — now resolved, not just
+  // verified): Children is `expectsSync: true` above like everything
+  // else in this table.
   {
     const sandbox = makeSandbox({});
     setGlobals(sandbox.sandboxGlobals);
@@ -663,20 +670,23 @@ async function runModuleSuite(cfg) {
     mod[cfg.syncMirror]();
     await mod[cfg.repoVar].delete(id);
 
+    const restoreRowBefore = sandbox.restoreRowLog.length;
     const syncRowBefore = sandbox.syncRowLog.length;
     const deleteDataBefore = sandbox.deleteDataLog.length;
 
     if (cfg.expectsSync) {
-      await checkAsync('[' + cfg.label + '] restore calls ApiService.syncRow() to sync the restore to Google Sheets (FIX C4)', async () => {
+      await checkAsync('[' + cfg.label + '] restore calls ApiService.restoreRow() (PHASE S.1.2) to sync the restore to Google Sheets', async () => {
         await mod[cfg.restoreFn](id);
-        assert.strictEqual(sandbox.syncRowLog.length, syncRowBefore + 1, 'ApiService.syncRow() must be called exactly once by ' + cfg.restoreFn + '()');
-        const call = sandbox.syncRowLog[sandbox.syncRowLog.length - 1];
+        assert.strictEqual(sandbox.restoreRowLog.length, restoreRowBefore + 1, 'ApiService.restoreRow() must be called exactly once by ' + cfg.restoreFn + '()');
+        assert.strictEqual(sandbox.syncRowLog.length, syncRowBefore, cfg.restoreFn + '() must NOT call the old ApiService.syncRow() at all');
+        const call = sandbox.restoreRowLog[sandbox.restoreRowLog.length - 1];
         assert.strictEqual(call.sheet, cfg.syncSheet);
         assert.strictEqual(call.obj[cfg.idField], id);
       });
     } else {
-      await checkAsync('[' + cfg.label + '] restore does not call ApiService.syncRow()/deleteData() (Sheets sync untouched, out of scope for this phase)', async () => {
+      await checkAsync('[' + cfg.label + '] restore does not call ApiService.restoreRow()/syncRow()/deleteData() (Sheets sync untouched, out of scope for this phase)', async () => {
         await mod[cfg.restoreFn](id);
+        assert.strictEqual(sandbox.restoreRowLog.length, restoreRowBefore);
         assert.strictEqual(sandbox.syncRowLog.length, syncRowBefore);
         assert.strictEqual(sandbox.deleteDataLog.length, deleteDataBefore);
       });

@@ -157,6 +157,8 @@ async function main() {
     toggleExpenseScopeFields: function () {},
     ApiService: {
       syncRow: function (sheet, record, idx) { apiCalls.push({ fn: 'syncRow', sheet: sheet, record: record }); },
+      // PHASE S.1.2 — restoreExpense() now calls this instead of syncRow().
+      restoreRow: async function (sheet, record, idx) { apiCalls.push({ fn: 'restoreRow', sheet: sheet, record: record }); return sandboxGlobals.__restoreRowResult || 'SERVER_CONFIRMED'; },
       deleteData: function (sheet, idx, id) { apiCalls.push({ fn: 'deleteData', sheet: sheet, id: id }); }
     }
   };
@@ -287,17 +289,20 @@ async function main() {
     confirmDialogAnswer = true;
   });
 
-  await checkAsync('restoreExpense(id): brings a soft-deleted record back, calls ApiService.syncRow', async () => {
+  await checkAsync('restoreExpense(id): brings a soft-deleted record back, calls ApiService.restoreRow (PHASE S.1.2)', async () => {
     const allIncludingDeleted = financialReports.expensesRepository.search({ includeDeleted: true }).items;
     const deletedRecord = allIncludingDeleted.filter(function (e) { return e['رقم_الموكل'] === 'CL1'; })[0];
     assert.ok(deletedRecord, 'expected to find the soft-deleted record from the earlier test');
 
     apiCalls.length = 0;
+    toastLog.length = 0;
     await expensesModule.restoreExpense(deletedRecord['id']);
 
-    assert.ok(apiCalls.some(function (c) { return c.fn === 'syncRow'; }));
+    assert.ok(apiCalls.some(function (c) { return c.fn === 'restoreRow'; }));
+    assert.ok(!apiCalls.some(function (c) { return c.fn === 'syncRow'; }), 'restoreExpense() must NOT call the old syncRow() at all');
     const visibleAgain = financialReports.expensesRepository.getAll().some(function (e) { return e['id'] === deletedRecord['id']; });
     assert.strictEqual(visibleAgain, true);
+    assert.strictEqual(toastLog[toastLog.length - 1].msg, 'تم الاسترجاع بنجاح', 'PHASE S.1.2 unified success wording (SERVER_CONFIRMED default)');
   });
 
   check('renderExpenses(): computes total/count from the real Repository data and writes them to the stat elements', () => {
