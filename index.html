@@ -27,12 +27,12 @@
 <script src="js/license/LicenseCrypto.js?v=43"></script>
 <script src="js/license/MachineFingerprint.js?v=43"></script>
 <script src="js/license/LicenseCore.js?v=43"></script>
-<script src="js/license/InstallationRegistrar.js?v=1"></script>
 <script src="js/license/ReadOnlyGuard.js?v=42"></script>
 <script src="js/license/SubscriptionManager.js?v=42"></script>
 <script src="js/license/ActivationWizard.js?v=42"></script>
 <script src="js/license/LicenseOnlineValidator.js?v=42"></script>
 <script src="js/license/LicenseManagerPanel.js?v=42"></script>
+<script src="js/license/CredentialAlertBanner.js?v=1"></script>
 <!-- PHASE PWA-INSTALL — captured as early as physically possible (right
      after the diagnostic layer, before any other tag) because the browser
      can fire "beforeinstallprompt" at any point after this document starts
@@ -2961,6 +2961,7 @@ window.addEventListener('DOMContentLoaded',function(){
       if(window.ActivationWizard)ActivationWizard.init();
       if(window.SubscriptionManager)SubscriptionManager.start();
       if(window.LicenseManagerPanel)LicenseManagerPanel.init();
+      if(window.CredentialAlertBanner)CredentialAlertBanner.init();
       if(window.LicenseOnlineValidator)LicenseOnlineValidator.scheduleAuto();
       // OFFICE PROFILE — the mandatory "بيانات المكتب" screen only ever
       // needs to appear once a valid license is confirmed (see
