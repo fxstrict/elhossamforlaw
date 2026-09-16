@@ -669,15 +669,22 @@ async function restoreSession(id) {
     return;
   }
 
-  // FIX C4 (DATABASE_FORENSIC_REPORT.md §C4): sync the restore to
-  // Sheets — same pattern as restoreCase(). apiUpdateRow()/apiAddRow()
-  // in Config/06_Api.gs already contain the الجلسات-specific calendar
-  // event handling, so no extra logic is needed here.
-  ApiService.syncRow('الجلسات', result.record, 0);
+  // PHASE S.1.2 (supersedes FIX C4 comment previously here — see
+  // Config/06_Api.gs's apiRestoreRow() doc comment). Note: apiRestoreRow()
+  // deliberately does NOT recreate a calendar_event_id (out of scope —
+  // see that function's doc comment); a restored session's calendar
+  // event is not recreated by this endpoint.
+  var syncResult = await ApiService.restoreRow('الجلسات', result.record, 0);
 
   syncSessionsMirror();
   saveLocal();
-  toast('تم الاسترجاع', 'success');
+  if (syncResult === 'SERVER_CONFIRMED') {
+    toast('تم الاسترجاع بنجاح', 'success');
+  } else if (syncResult === 'QUEUED_LOCAL') {
+    toast('تم الاسترجاع محليًا، جارِ المزامنة', 'info');
+  } else {
+    toast('تم الاسترجاع محليًا، لكن تعذّرت مزامنته مع السيرفر', 'info');
+  }
   renderSessions();
   updateBadges();
   // PHASE 16.5.1 — DIRTY PROPAGATION (additive only, see phase brief)

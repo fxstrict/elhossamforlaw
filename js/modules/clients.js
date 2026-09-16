@@ -876,13 +876,21 @@ async function restoreClient(id) {
     return;
   }
 
-  // FIX C4 (DATABASE_FORENSIC_REPORT.md §C4): sync the restore to Sheets
-  // — same pattern as restoreCase(). See that function's comment.
-  ApiService.syncRow('الموكلين', result.record, 0);
+  // PHASE S.1.2 (supersedes FIX C4 comment previously here — see
+  // Config/06_Api.gs's apiRestoreRow() doc comment for the full
+  // rationale: syncRow() could never actually clear a real server-side
+  // tombstone).
+  var syncResult = await ApiService.restoreRow('الموكلين', result.record, 0);
 
   syncClientsMirror();
   saveLocal();
-  toast('تم استرجاع الموكل', 'success');
+  if (syncResult === 'SERVER_CONFIRMED') {
+    toast('تم الاسترجاع بنجاح', 'success');
+  } else if (syncResult === 'QUEUED_LOCAL') {
+    toast('تم الاسترجاع محليًا، جارِ المزامنة', 'info');
+  } else {
+    toast('تم الاسترجاع محليًا، لكن تعذّرت مزامنته مع السيرفر', 'info');
+  }
   renderClients();
   updateBadges();
   // PHASE 16.5.1 — DIRTY PROPAGATION (additive only, see phase brief)

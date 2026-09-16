@@ -328,13 +328,18 @@ async function restoreProcessServerWork(id) {
     toast('حدث خطأ أثناء استرجاع عمل المحضرين', 'error');
     return;
   }
-  // FIX C4 (DATABASE_FORENSIC_REPORT.md §C4): sync the restore to
-  // Sheets — same pattern as restoreCase(). This module is the one
-  // behind the "بيانات أعمال المحضرين" symptom reported for this task.
-  ApiService.syncRow('أعمال_المحضرين', result.record, 0);
+  // PHASE S.1.2 (supersedes FIX C4 comment previously here — see
+  // Config/06_Api.gs's apiRestoreRow() doc comment).
+  var syncResult = await ApiService.restoreRow('أعمال_المحضرين', result.record, 0);
   syncProcessServerWorksMirror();
   saveLocal();
-  toast('تم استرجاع عمل المحضرين', 'success');
+  if (syncResult === 'SERVER_CONFIRMED') {
+    toast('تم الاسترجاع بنجاح', 'success');
+  } else if (syncResult === 'QUEUED_LOCAL') {
+    toast('تم الاسترجاع محليًا، جارِ المزامنة', 'info');
+  } else {
+    toast('تم الاسترجاع محليًا، لكن تعذّرت مزامنته مع السيرفر', 'info');
+  }
   renderProcessServerWorks();
   if (typeof updateBadges === 'function') updateBadges();
   if (window.ApplicationShell) { ApplicationShell.markDirty('processServerWorks'); }

@@ -272,11 +272,23 @@ async function restoreExpense(id) {
     return;
   }
 
-  ApiService.syncRow('المصروفات', result.record, 0);
+  // PHASE S.1.2 — migrated from ApiService.syncRow() (see
+  // Config/06_Api.gs's apiRestoreRow() doc comment). Note: المصروفات
+  // uses loadFromSheets(), not Incremental Sync, so it was never
+  // actually exposed to the "restore silently undone on next pull" bug
+  // the other 9 entities have — this migration is for consistency, not
+  // because expenses.js was broken.
+  var syncResult = await ApiService.restoreRow('المصروفات', result.record, 0);
 
   syncExpensesMirror();
   saveLocal();
-  toast('تم الاسترجاع', 'success');
+  if (syncResult === 'SERVER_CONFIRMED') {
+    toast('تم الاسترجاع بنجاح', 'success');
+  } else if (syncResult === 'QUEUED_LOCAL') {
+    toast('تم الاسترجاع محليًا، جارِ المزامنة', 'info');
+  } else {
+    toast('تم الاسترجاع محليًا، لكن تعذّرت مزامنته مع السيرفر', 'info');
+  }
   renderExpenses();
   updateBadges();
   if (window.ApplicationShell) { ApplicationShell.markDirty('expenses'); }

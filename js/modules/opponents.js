@@ -359,12 +359,18 @@ async function restoreOpponent(id) {
     toast('حدث خطأ أثناء استرجاع الخصم', 'error');
     return;
   }
-  // FIX C4 (DATABASE_FORENSIC_REPORT.md §C4): sync the restore to
-  // Sheets — same pattern as restoreCase().
-  ApiService.syncRow('الخصوم', result.record, 0);
+  // PHASE S.1.2 (supersedes FIX C4 comment previously here — see
+  // Config/06_Api.gs's apiRestoreRow() doc comment).
+  var syncResult = await ApiService.restoreRow('الخصوم', result.record, 0);
   syncOpponentsMirror();
   saveLocal();
-  toast('تم استرجاع الخصم', 'success');
+  if (syncResult === 'SERVER_CONFIRMED') {
+    toast('تم الاسترجاع بنجاح', 'success');
+  } else if (syncResult === 'QUEUED_LOCAL') {
+    toast('تم الاسترجاع محليًا، جارِ المزامنة', 'info');
+  } else {
+    toast('تم الاسترجاع محليًا، لكن تعذّرت مزامنته مع السيرفر', 'info');
+  }
   renderOpponents();
   updateBadges();
   if (window.ApplicationShell) { ApplicationShell.markDirty('opponents'); ApplicationShell.markDirty('cases'); }

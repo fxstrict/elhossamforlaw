@@ -707,11 +707,18 @@ async function restoreFee(id) {
     return;
   }
 
-  ApiService.syncRow('الأتعاب', result.record, 0);
+  // PHASE S.1.2 (see Config/06_Api.gs's apiRestoreRow() doc comment).
+  var syncResult = await ApiService.restoreRow('الأتعاب', result.record, 0);
 
   syncFeesMirror();
   saveLocal();
-  toast('تم الاسترجاع', 'success');
+  if (syncResult === 'SERVER_CONFIRMED') {
+    toast('تم الاسترجاع بنجاح', 'success');
+  } else if (syncResult === 'QUEUED_LOCAL') {
+    toast('تم الاسترجاع محليًا، جارِ المزامنة', 'info');
+  } else {
+    toast('تم الاسترجاع محليًا، لكن تعذّرت مزامنته مع السيرفر', 'info');
+  }
   renderFees();
   updateBadges();
   // PHASE 16.5.1 — DIRTY PROPAGATION (additive only, see phase brief)

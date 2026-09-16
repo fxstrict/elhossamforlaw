@@ -559,14 +559,19 @@ async function restoreTemplate(id) {
     return;
   }
 
-  // PHASE 39 — DATABASE SURFACE ENTITIES SYNC FIX (F-1): mirrors
-  // restoreFee()'s exact call shape (rowIndex 0 — same convention used
-  // by restoreFee/restoreCase/restoreDocument for a restore-by-id push).
-  ApiService.syncRow('الصيغ', result.record, 0);
+  // PHASE S.1.2 (supersedes PHASE 39 comment previously here — see
+  // Config/06_Api.gs's apiRestoreRow() doc comment).
+  var syncResult = await ApiService.restoreRow('الصيغ', result.record, 0);
 
   syncTemplatesMirror();
   saveLocal();
-  toast('تم الاسترجاع', 'success');
+  if (syncResult === 'SERVER_CONFIRMED') {
+    toast('تم الاسترجاع بنجاح', 'success');
+  } else if (syncResult === 'QUEUED_LOCAL') {
+    toast('تم الاسترجاع محليًا، جارِ المزامنة', 'info');
+  } else {
+    toast('تم الاسترجاع محليًا، لكن تعذّرت مزامنته مع السيرفر', 'info');
+  }
   renderTemplates();
   // PHASE 16.5.1 — DIRTY PROPAGATION (additive only, see phase brief)
   if (window.ApplicationShell) { ApplicationShell.markDirty('templates'); }

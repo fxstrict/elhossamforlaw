@@ -1008,20 +1008,27 @@ async function restoreCase(id) {
     return;
   }
 
-  // FIX C4 (DATABASE_FORENSIC_REPORT.md §C4, "restoreCase لا تُزامن
-  // الاسترجاع مع الشيت"): previously left uncalled entirely — a local
-  // restore never touched Google Sheets, so the record could be lost
-  // again on the next Sheets read. Now calls ApiService.syncRow() with
-  // rowIndex 0 (forces the "update" path in ApiService.syncRow()); with
-  // the FIX C1 backend change, Config/06_Api.gs's apiUpdateRow() matches
-  // by رقم_القضية (not this dummy index) and safely falls back to
-  // inserting the row (Upsert) if it was actually removed from the
-  // Sheet by a prior successful delete — correct in both cases.
-  ApiService.syncRow('القضايا', result.record, 0);
+  // PHASE S.1.2 (supersedes FIX C4 comment previously here): syncRow()
+  // could never actually clear a real server-side tombstone (see
+  // apiUpdateRow()'s deliberate STEP 3B/§19 guard) — it only helped the
+  // narrower case where the original delete never reached the server at
+  // all. restoreRow() is the real, explicit Undelete endpoint
+  // (Config/06_Api.gs's apiRestoreRow()) that actually clears محذوف_في.
+  var syncResult = await ApiService.restoreRow('القضايا', result.record, 0);
 
   syncCasesMirror();
   saveLocal();
-  toast('تم استرجاع القضية', 'success');
+  // PHASE S.1.2 — 3-way toast: local restore succeeding is not the same
+  // as the server having confirmed it (see phase report for the full
+  // rationale). renderCases()/updateBadges() below reflect the LOCAL
+  // state either way — Local-First is unchanged.
+  if (syncResult === 'SERVER_CONFIRMED') {
+    toast('تم الاسترجاع بنجاح', 'success');
+  } else if (syncResult === 'QUEUED_LOCAL') {
+    toast('تم الاسترجاع محليًا، جارِ المزامنة', 'info');
+  } else {
+    toast('تم الاسترجاع محليًا، لكن تعذّرت مزامنته مع السيرفر', 'info');
+  }
   renderCases();
   updateBadges();
   // PHASE 16.5.1 — DIRTY PROPAGATION (additive only, see phase brief)

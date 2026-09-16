@@ -962,11 +962,18 @@ async function restoreTask(id) {
     return;
   }
 
-  ApiService.syncRow('الأعمال الإدارية', result.record, 0);
+  // PHASE S.1.2 (see Config/06_Api.gs's apiRestoreRow() doc comment).
+  var syncResult = await ApiService.restoreRow('الأعمال الإدارية', result.record, 0);
 
   syncTasksMirror();
   saveLocal();
-  toast('تم استرجاع العمل الإداري', 'success');
+  if (syncResult === 'SERVER_CONFIRMED') {
+    toast('تم الاسترجاع بنجاح', 'success');
+  } else if (syncResult === 'QUEUED_LOCAL') {
+    toast('تم الاسترجاع محليًا، جارِ المزامنة', 'info');
+  } else {
+    toast('تم الاسترجاع محليًا، لكن تعذّرت مزامنته مع السيرفر', 'info');
+  }
   renderTasks();
   updateBadges();
   // PHASE 16.5.1 — DIRTY PROPAGATION (additive only, see phase brief)

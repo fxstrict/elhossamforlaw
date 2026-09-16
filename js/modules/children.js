@@ -128,10 +128,11 @@
  *   file's own comment referencing this line, itself now stale after
  *   this migration — flagged separately, not touched here).
  *
- *   `restoreChild(id)` still does NOT call ApiService (unchanged by
- *   this phase — explicitly out of scope; see that function's own doc
- *   comment for why this may deserve a follow-up, separate from this
- *   patch).
+ *   `restoreChild(id)` now calls `ApiService.restoreRow()` as of PHASE
+ *   S.1.2 (a real server-side Undelete) — see that function's own doc
+ *   comment for the full design. (At the time THIS phase, S.1.1, was
+ *   written, restoreChild() called no ApiService method at all — see
+ *   docs/MASTER_CONTROL_REPORT_UPDATE... for that history.)
  *
  * Depends on (globals expected from index.html / prior scripts):
  *   - data                  : shared app data object { children, cases, … }
@@ -379,9 +380,9 @@ function openAddChildModal(){editIdx.children=-1;resetForm('children');document.
 // ================================================================
 
 /**
- * saveChild — validates, saves through ChildrenRepository, syncs to
- * GAS via the legacy syncToSheets() call (NOT ApiService — see file
- * header "SPECIAL REQUIREMENT" note).
+ * saveChild — validates, saves through ChildrenRepository, syncs via
+ * ApiService.syncRow() (PHASE S.1.1 — see file header for the full
+ * migration rationale; previously used the legacy syncToSheets() call).
  * Replaces: inline saveChild() in index.html <script> block.
  *
  * Crosses the async boundary (Repository.create()/update() are
@@ -424,7 +425,7 @@ async function saveChild(){
   if(idx>=0){toast('تم التحديث','success');}else{toast('تمت الإضافة','success');}
 
   saveLocal();
-  if(API_URL)syncToSheets('الأطفال',result.record,idx);   // legacy call — see "SPECIAL REQUIREMENT" note
+  ApiService.syncRow('الأطفال', result.record, idx);   // PHASE S.1.1 — replaces legacy: if(API_URL)syncToSheets(...)
   closeModal('modalChild');
   renderChildren();
   updateBadges();
@@ -445,10 +446,14 @@ function editChild(i){editIdx.children=i;populateCaseDropdown('fChildCaseNum',da
  * deleteChild — confirms, removes via ChildrenRepository.
  * @param {number} i - 0-based index in the data.children mirror.
  *
- * NOTE: Preserves original behaviour exactly — the original inline
- * deleteChild() never called syncToSheets()/syncDeleteToSheets() at
- * all (there never was a delete-sync call for Children). This module
- * makes no functional change to that pre-existing gap.
+ * PHASE S.1.1 — now also pushes the deletion to the server via
+ * ApiService.deleteData(), exactly matching the established call shape
+ * used by deleteExpense()/deleteFee() (fire the API call, then await
+ * the local Repository delete — same order, same arguments shape:
+ * sheet name, mirror index, record id). Previously this function never
+ * called syncToSheets()/syncDeleteToSheets()/ApiService.deleteData() at
+ * all — a genuine gap (not a preserved design decision — see PHASE S.1
+ * audit), now closed.
  *
  * Crosses the async boundary (Repository.delete() is Promise-returning)
  * — the only reason this function is now `async`.
@@ -462,6 +467,8 @@ async function deleteChild(i){
   if(!record)return;
 
   var id=record[CHILDREN_ID_FIELD];
+  ApiService.deleteData('الأطفال', i, id);   // PHASE S.1.1 — new: was never called before
+
   var result=await childrenRepository.delete(id);
 
   if(!result||!result.success){
@@ -490,9 +497,9 @@ async function deleteChild(i){
  *
  * ID, NOT INDEX — same documented reason as `restoreCase()`.
  * NO UI WIRING — Rollout scope, matches the Pilot.
- * Does NOT call `ApiService` — same explicit, documented design
- * decision as `restoreCase()` (`deleteChild()` itself calls no
- * `ApiService` method either, so this preserves exact symmetry).
+ * restoreChild(id) — استرجاع سجل طفل محذوف (Restore). PHASE S.1.2: now
+ * calls ApiService.restoreRow() (a real server-side Undelete) — see that
+ * function's own doc comment just above restoreChild() for detail.
  *
  * @param {string} id - the ChildrenRepository id (رقم_الطفل) of the
  *   soft-deleted child record to restore.
@@ -507,9 +514,21 @@ async function restoreChild(id){
     return;
   }
 
+  // PHASE S.1.2 — restoreChild() gets a real Undelete for the first time
+  // (previously called nothing at all). See apiRestoreRow()
+  // (Config/06_Api.gs) and ApiService.restoreRow() for why this is a
+  // dedicated endpoint, not ApiService.syncRow().
+  var syncResult = await ApiService.restoreRow('الأطفال', result.record, 0);
+
   syncChildrenMirror();
   saveLocal();
-  toast('تم الاسترجاع','success');
+  if (syncResult === 'SERVER_CONFIRMED') {
+    toast('تم الاسترجاع بنجاح', 'success');
+  } else if (syncResult === 'QUEUED_LOCAL') {
+    toast('تم الاسترجاع محليًا، جارِ المزامنة', 'info');
+  } else {
+    toast('تم الاسترجاع محليًا، لكن تعذّرت مزامنته مع السيرفر', 'info');
+  }
   renderChildren();
   updateBadges();
   // PHASE 16.5.1 — DIRTY PROPAGATION (additive only, see phase brief)
