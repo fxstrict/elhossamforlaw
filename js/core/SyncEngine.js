@@ -37,17 +37,19 @@
  *                   written for the failed page (old cursor stays valid).
  *     3. Apply    — TOMBSTONE TRANSLATION (§ of the request): each item's
  *                   server field `محذوف_في` is translated into the
- *                   Repository's own `deletedAt` concept
- *                   (non-empty `محذوف_في` -> deletedAt = that value;
- *                   empty/missing -> deletedAt = null). The key is
- *                   always explicitly set (even to null) — Repository.js's
- *                   own existing import('merge') contract (see its
- *                   `oldWasDeleted && !('deletedAt' in record)` check)
- *                   treats an explicit `deletedAt` key as an authoritative
- *                   status flip, which is exactly what an A7 sync item
- *                   is (unlike a normal loadFromSheets() row, which
- *                   never carries the key at all and therefore can
- *                   never resurrect a local tombstone by accident).
+ *                   Repository's own `deletedAt` concept (non-empty
+ *                   `محذوف_في` -> deletedAt = that value). PHASE S.5.1
+ *                   FIX (BUG-2 — see PHASE_S5_PULL_MERGE_TOMBSTONE_
+ *                   FORENSIC_AUDIT.md §4/§10 and _translateTombstone()'s
+ *                   own doc comment below): for an empty/missing
+ *                   `محذوف_في` the `deletedAt` key is now OMITTED
+ *                   entirely, not set to `null`. The prior "always
+ *                   explicit, even null" design was proven to
+ *                   unconditionally defeat Repository.import('merge')'s
+ *                   own tombstone-protection guard (`oldWasDeleted &&
+ *                   !('deletedAt' in record)`) during the race window
+ *                   between a fresh local delete and the server
+ *                   catching up — resurrecting the local tombstone.
  *                   Applied via the SAME existing, tested primitive
  *                   loadFromSheets() already uses: repo.import(items,'merge').
  *     4. Commit   — ONLY if step 3's import() returned {success:true},
@@ -127,19 +129,40 @@ const SyncEngine = (function () {
 
   /**
    * Tombstone Translation: maps one raw A7 sync item (a server sheet
-   * row, possibly a tombstone) onto a shallow-cloned copy carrying an
-   * explicit `deletedAt`, per this file's header comment. All other
-   * fields (including the raw `محذوف_في` / `آخر_تحديث` columns
-   * themselves) are preserved as-is on the returned object — Repository
-   * treats unknown extra keys as ordinary record data, exactly like any
-   * other sheet column already does today via loadFromSheets().
+   * row, possibly a tombstone) onto a shallow-cloned copy carrying
+   * `deletedAt`, per this file's header comment. All other fields
+   * (including the raw `محذوف_في` / `آخر_تحديث` columns themselves)
+   * are preserved as-is on the returned object — Repository treats
+   * unknown extra keys as ordinary record data, exactly like any other
+   * sheet column already does today via loadFromSheets().
+   *
+   * PHASE S.5.1 FIX (BUG-2, PHASE_S5_PULL_MERGE_TOMBSTONE_FORENSIC_AUDIT.md
+   * §4/§10): the key is now set ONLY for an actual tombstone (non-empty
+   * محذوف_في). A live row no longer carries a `deletedAt: null` key at
+   * all. Previously the key was always present (even as `null`), which
+   * unconditionally defeated Repository.import('merge')'s own
+   * tombstone-protection guard (`oldWasDeleted && !('deletedAt' in
+   * record)`, Repository.js ~line 1783) for every incremental-sync
+   * item — including the race window where a record was JUST deleted
+   * locally and the server hasn't caught up yet (S.5 §5, Scenarios
+   * 1-2): the still-"live" server row would fully resurrect the fresh
+   * local tombstone. Once the server genuinely does carry the
+   * tombstone (محذوف_في non-empty), this function still sets
+   * `deletedAt` explicitly so the flip is honored exactly as before —
+   * only the "confidently declare this row live" case changes.
    * @param {Object} item
    * @returns {Object}
    */
   function _translateTombstone(item) {
     const out = Object.assign({}, item);
     const raw = item ? item[TOMBSTONE_FIELD] : undefined;
-    out.deletedAt = (raw != null && raw !== '') ? raw : null;
+    if (raw != null && raw !== '') {
+      out.deletedAt = raw;
+    } else {
+      delete out.deletedAt; // never assert liveness — let Repository's own
+      // oldWasDeleted-preservation guard decide, exactly like a raw
+      // loadFromSheets() row already does for this same case.
+    }
     return out;
   }
 
