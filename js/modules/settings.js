@@ -265,30 +265,6 @@ async function pingConnection(){
 // read must never blow away local soft-deletes or not-yet-synced
 // records the way 'replace' did — see Repository.js's own import()
 // 'merge' branch (FIX P2) for how a local tombstone is preserved.
-// PHASE S.5.1 FIX (BUG-1 — PHASE_S5_PULL_MERGE_TOMBSTONE_FORENSIC_AUDIT.md
-// §3/§10): loadFromSheets() previously passed raw Sheet rows straight into
-// _persistEntityViaRepository(..., 'merge') with zero translation of the
-// server's `محذوف_في` column. Because a raw row never carried a `deletedAt`
-// key at all, Repository.import('merge') could never learn a NEW
-// server-side delete for an already-live local record (it stayed live
-// forever via Full Refresh), and a record absent locally but already
-// tombstoned on the server would be added as a brand-new LIVE record
-// (Case C in the audit) instead of a tombstone. This mirrors
-// SyncEngine.js's own `_translateTombstone()` (same field, same rule,
-// deliberately NOT imported/shared across files to avoid a new coupling
-// between settings.js and SyncEngine.js — see the audit's Option C note):
-// the key is set ONLY when the server row is an actual tombstone; a live
-// row gets no `deletedAt` key at all, so Repository's own
-// oldWasDeleted-preservation guard keeps deciding local-tombstone safety
-// exactly as it already does for every other caller.
-function _translateSheetRowTombstone(row) {
-  var raw = row ? row['محذوف_في'] : undefined;
-  if (raw != null && raw !== '') {
-    row.deletedAt = raw;
-  }
-  return row;
-}
-
 async function _persistEntityViaRepository(key, mode, entities, importMode) {
   var repo = window[key + 'Repository'];
   var readyPromise = window[key + 'RepositoryReadyPromise'];
@@ -624,6 +600,33 @@ function updateTopbarSyncMeta(){
   }
 }
 
+// S.5.1 / BUG-1 fix — settings.js::loadFromSheets() pulls raw Google
+// Sheets rows, which never carry a `deletedAt` key at all (Sheets has no
+// such column; the tombstone column is 'محذوف_في'). Passed unmodified into
+// _persistEntityViaRepository(k,'import',arr,'merge'), a raw live row is
+// indistinguishable from "incoming record says nothing about deletion" —
+// which is exactly what Repository.import()'s existing protection
+// (oldWasDeleted && !('deletedAt' in record)) already relies on, so a raw
+// row was already safe there. This translator exists so a genuinely
+// TOMBSTONED sheet row (one with a real 'محذوف_في' value) is turned into an
+// explicit `deletedAt`, matching js/core/SyncEngine.js's own
+// _translateTombstone() contract exactly (kept as a small, deliberately
+// duplicated function here rather than a shared import — same reasoning
+// SyncEngine.js documents at its own SYNC_ENTITY_PAIRS: extracting a
+// shared helper would be a larger cross-file change than this fix's scope).
+//   LIVE sheet row       -> deletedAt key absent entirely
+//   TOMBSTONED sheet row -> deletedAt set to the real 'محذوف_في' value
+function _translateSheetRowTombstone(row) {
+  var out = Object.assign({}, row);
+  var raw = row ? row['محذوف_في'] : undefined;
+  if (raw != null && raw !== '') {
+    out.deletedAt = raw;
+  } else {
+    delete out.deletedAt;
+  }
+  return out;
+}
+
 // PHASE 14.1 — CONCURRENCY GUARD
 // Module-level flag preventing two or more loadFromSheets() executions from
 // running at the same time (multiple call sites exist: automatic boot calls
@@ -685,10 +688,9 @@ async function loadFromSheets(){
         var arr=await r.json();
         if(Array.isArray(arr)&&arr.length>0){
           if(sh==='الجلسات'){arr=arr.map(function(row){if(row['الوقت'])row['الوقت']=sanitizeTime(row['الوقت']);return row;});}
-          // PHASE S.5.1 FIX (BUG-1): see _translateSheetRowTombstone()'s
-          // doc comment above — must run BEFORE the merge call below, and
-          // BEFORE `data[k]` is derived from repo.getAll() a few lines down
-          // (that derivation already existed and is unaffected by this line).
+          // S.5.1 / BUG-1 fix: translate raw 'محذوف_في' into an explicit
+          // deletedAt before the merge below — see
+          // _translateSheetRowTombstone()'s header comment above.
           arr=arr.map(_translateSheetRowTombstone);
           // FIX P2 (DATABASE_FORENSIC_REPORT.md §P2): 'merge' instead of
           // 'replace' — a local soft-delete (tombstone) or a not-yet-
@@ -839,8 +841,10 @@ if (typeof module !== 'undefined' && module.exports) {
     // change how any other module/script references these functions
     // (still plain globals via the scope chain everywhere else).
     _persistEntityViaRepository: _persistEntityViaRepository,
-    // PHASE S.5.1 (BUG-1 fix coverage — see verify_settings_merge_tombstone.js)
-    _translateSheetRowTombstone: _translateSheetRowTombstone,
-    bootLoadFromSheets: (typeof bootLoadFromSheets !== 'undefined') ? bootLoadFromSheets : undefined
+    bootLoadFromSheets: (typeof bootLoadFromSheets !== 'undefined') ? bootLoadFromSheets : undefined,
+    // S.5.1 / BUG-1 — exposed so verify_settings_merge_tombstone.js can
+    // assert the translator's own contract directly, in addition to its
+    // existing integration-level coverage through _persistEntityViaRepository.
+    _translateSheetRowTombstone: _translateSheetRowTombstone
   };
 }
