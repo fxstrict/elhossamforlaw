@@ -161,7 +161,25 @@ async function testConnection(){
       res.innerHTML='<span style="color:var(--danger)">✗ خطأ: '+(d.error||'غير معروف')+'</span>';
     }
   }catch(e){
-    res.innerHTML='<span style="color:var(--danger)">✗ فشل الاتصال — تحقق من الرابط وإعدادات النشر<br><small>'+e.message+'</small></span>';
+    // PHASE G.4 — was one generic message for every failure. testConnection()
+    // does its own fetch() calls (it does not go through ApiService._post()),
+    // so the classification here is independent of the api.js diagnosticCode
+    // addition — same underlying causes, classified locally from what a raw
+    // fetch()/JSON.parse() failure actually looks like.
+    var msg;
+    if(e && (e.name==='AbortError' || e.name==='TimeoutError')){
+      msg='الرابط صحيح لكن الخادم لم يستجب في الوقت المحدد — تحقق من الاتصال بالإنترنت وحاول مجددًا.';
+    } else if(e instanceof SyntaxError){
+      // JSON.parse() throws SyntaxError — the classic signature of an Apps
+      // Script deployment returning a Google "sign in" HTML page (access not
+      // set to "Anyone") instead of the app's JSON response.
+      msg='تم الوصول إلى الرابط، لكن الاستجابة لم تكن بصيغة صحيحة — يُحتمَل أنها صفحة تسجيل دخول Google بدل استجابة البرنامج. راجع إعدادات نشر Apps Script (يجب أن تكون صلاحية الوصول: Anyone).';
+    } else if(e instanceof TypeError){
+      msg='تعذّر الوصول إلى الرابط — تحقق أنه صحيح بالكامل ومن اتصالك بالإنترنت.';
+    } else {
+      msg='فشل الاتصال — تحقق من الرابط وإعدادات النشر.';
+    }
+    res.innerHTML='<span style="color:var(--danger)">✗ '+msg+'<br><small>'+e.message+'</small></span>';
   }
 }
 
