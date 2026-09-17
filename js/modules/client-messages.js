@@ -271,6 +271,19 @@ async function saveClientMessage() {
  * deleteClientMessage — confirms, soft-deletes via
  * ClientMessagesRepository (softDelete: true, same as every other
  * entity Repository), then refreshes the panel in place.
+ *
+ * PHASE S.6.1 — now also pushes the deletion to the server via
+ * ApiService.deleteData(), exactly matching the established call shape
+ * used by deleteChild()/deleteFee() (fire the API call using the
+ * PRE-delete mirror index, then await the local Repository delete —
+ * same order, same arguments shape: sheet name, mirror index, record
+ * id). Previously this function never called ApiService.deleteData()
+ * at all — the row survived untouched in 'رسائل_الموكل' with no
+ * tombstone and no OfflineQueue fallback, worse than every other
+ * migrated entity (see PHASE S.2 audit, ROOT CAUSE E). The mirror
+ * index is found the same way saveClientMessage() already finds it
+ * (resolveClientMessageIndex()), so it is never stale/guessed.
+ *
  * @param {string} id
  * @param {string} clientId - needed to know which panel to re-render.
  */
@@ -278,6 +291,12 @@ async function deleteClientMessage(id, clientId) {
   if (!(await confirmDialog('هل تريد حذف هذه الرسالة/الملاحظة؟'))) return;
 
   await ensureClientMessagesRepositoryReady();
+
+  var idx = -1;
+  for (var mi = 0; mi < (data.clientMessages || []).length; mi++) {
+    if (data.clientMessages[mi][CLIENT_MESSAGES_ID_FIELD] === id) { idx = mi; break; }
+  }
+  ApiService.deleteData('رسائل_الموكل', idx, id);   // PHASE S.6.1 — new: was never called before
 
   var result = await clientMessagesRepository.delete(id);
   if (!result || !result.success) {

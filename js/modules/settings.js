@@ -340,12 +340,22 @@ function handleImport(evt){
 }
 async function clearAllData(){
   if(!(await confirmDialog('مسح كل البيانات المحلية؟ لا يمكن التراجع!','تأكيد المسح')))return;
-  var keys=['cases','sessions','clients','opponents','children','documents','tasks','fees','library','templates','clientMessages'];
+  // PHASE S.6.1 — CONFIRMED ROOT CAUSE FIX (ROOT CAUSE D, PHASE S.2 audit):
+  // 'expenses', 'processServerWorks' and 'caseClients' each have their own
+  // Repository (ExpensesRepository/ProcessServerWorksRepository/
+  // CaseClientsRepository — same window[key+'Repository'] /
+  // window[key+'RepositoryReadyPromise'] convention _persistEntityViaRepository()
+  // already relies on for every other entity here) but were never added to
+  // this list, so "Clear Local Database" silently left all three entities'
+  // IndexedDB data — and their localStorage legacy copies — completely
+  // untouched. Adding them closes that gap using the exact same call shape
+  // as every entity already in this list; no other behavior changes.
+  var keys=['cases','sessions','clients','opponents','children','documents','tasks','fees','library','templates','clientMessages','expenses','processServerWorks','caseClients'];
   for(var i=0;i<keys.length;i++){ await _persistEntityViaRepository(keys[i],'clear'); }
   // PHASE 13.8 — CONFIRMED ROOT CAUSE FIX (Bug B, part 1 of 2):
   // saveLocal() has been a no-op since PHASE 13.2 (see its own comment
   // above), but the ORIGINAL localStorage.setItem() writes it used to
-  // make for these same 9 keys were never removed — clearAllData() only
+  // make for these same keys were never removed — clearAllData() only
   // ever cleared each Repository (IndexedDB), never these legacy keys.
   // index.html's inline bootstrap script re-seeds the in-memory `data`
   // object directly from these exact localStorage keys on every page
@@ -356,10 +366,16 @@ async function clearAllData(){
   // other localStorage key (apiUrl/driveUrl/sheetUrl/lastSyncAt/
   // localModeChosen) is touched, and no other function is changed.
   for(var j=0;j<keys.length;j++){ localStorage.removeItem(keys[j]); }
-  data={cases:[],sessions:[],clients:[],opponents:[],children:[],documents:[],tasks:[],fees:[],library:[],templates:[]};
+  // PHASE S.6.1 — the in-memory reset was also missing 'clientMessages'
+  // (added earlier than this fix but never included here) plus the 3 keys
+  // above, so a stale in-memory copy of any of these 4 entities kept
+  // rendering until the next full page reload even though their
+  // Repository/localStorage copies were already gone. Now reset alongside
+  // every other cleared key, same empty-array shape.
+  data={cases:[],sessions:[],clients:[],opponents:[],children:[],documents:[],tasks:[],fees:[],library:[],templates:[],clientMessages:[],expenses:[],processServerWorks:[],caseClients:[]};
   updateBadges();renderDashboard();
   // PHASE 16.5.1 — DIRTY PROPAGATION (additive only, see phase brief)
-  // clearAllData() always wipes all 9 entity keys unconditionally (see
+  // clearAllData() always wipes all entity keys unconditionally (see
   // `keys` above), so every one of them, plus dashboard and calendar
   // (which read cases/sessions/clients/tasks), is marked dirty here.
   if(window.ApplicationShell){
@@ -845,6 +861,10 @@ if (typeof module !== 'undefined' && module.exports) {
     // S.5.1 / BUG-1 — exposed so verify_settings_merge_tombstone.js can
     // assert the translator's own contract directly, in addition to its
     // existing integration-level coverage through _persistEntityViaRepository.
-    _translateSheetRowTombstone: _translateSheetRowTombstone
+    _translateSheetRowTombstone: _translateSheetRowTombstone,
+    // S.6.1 — exposed so PHASE_S6_1_client_messages_delete_and_clear_all_data_tests.js
+    // can assert clearAllData() actually clears/resets expenses,
+    // processServerWorks and caseClients (ROOT CAUSE D, PHASE S.2 audit).
+    clearAllData: clearAllData
   };
 }
