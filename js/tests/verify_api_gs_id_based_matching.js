@@ -134,6 +134,23 @@ function loadGasContext(sheetsByName) {
     // dedicated coverage for isCaseNumberColumn()'s actual behavior lives
     // in verify_case_number_format_protection.js.
     isCaseNumberColumn: function () { return false; },
+    // FORENSIC RECOVERY (S.6) — Config/00_Config.gs's _getRestrictedSheetNames_()
+    // (called by 06_Api.gs's own _rejectIfRestrictedSheet_(), itself called
+    // by apiUpdateRow()/apiDeleteRow()) reads these three constants, which
+    // are really defined in Config/09_License.gs and Config/11_Auth.gs —
+    // neither loaded into this sandbox (same reasoning as isPhoneColumn/
+    // isCaseNumberColumn above: this test intentionally loads only
+    // 00_Config.gs + 06_Api.gs). Without these stubs every apiUpdateRow()/
+    // apiDeleteRow() call in this file throws
+    // "LICENSES_SHEET_NAME is not defined" before any assertion runs — a
+    // pre-existing gap (these constants did not exist when this test file
+    // was written), not caused by and not part of the S.5.1 tombstone fix.
+    // Real values copied verbatim from their source files so
+    // _rejectIfRestrictedSheet_() still correctly rejects only those three
+    // sheet names and nothing this test actually exercises (القضايا, etc.).
+    LICENSES_SHEET_NAME: 'التراخيص',
+    INSTALLATIONS_SHEET_NAME: 'التثبيتات',
+    ACTIVATION_CODES_SHEET_NAME: 'أكواد_التفعيل',
     addToCalendar: function () { calls.addToCalendar++; return 'evt-1'; },
     updateCalendarEvent: function (oldId) { calls.updateCalendarEvent++; return oldId || 'evt-1'; },
     deleteCalendarEvent: function () { calls.deleteCalendarEvent++; },

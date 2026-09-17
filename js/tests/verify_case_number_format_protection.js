@@ -134,7 +134,16 @@ function loadGasContext(sheetsByName) {
       getScriptLock: function () {
         return { waitLock: function () {}, releaseLock: function () {} };
       }
-    }
+    },
+    // FORENSIC RECOVERY (S.6) — same pre-existing gap and same fix as
+    // verify_api_gs_id_based_matching.js: Config/00_Config.gs's
+    // _getRestrictedSheetNames_() reads these three constants, really
+    // defined in Config/09_License.gs / Config/11_Auth.gs, neither loaded
+    // into this sandbox. Real values copied verbatim from their source
+    // files.
+    LICENSES_SHEET_NAME: 'التراخيص',
+    INSTALLATIONS_SHEET_NAME: 'التثبيتات',
+    ACTIVATION_CODES_SHEET_NAME: 'أكواد_التفعيل'
   };
   sandbox.global = sandbox;
   const context = vm.createContext(sandbox);

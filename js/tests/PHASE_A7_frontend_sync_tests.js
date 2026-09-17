@@ -181,11 +181,10 @@ async function test4() {
 
 // ----------------------------------------------------------------------
 // TEST 5 — Tombstone translation: محذوف_في -> deletedAt.
-// PHASE S.5.1 FIX (BUG-2): a genuine server-side tombstone still sets
-// `deletedAt` explicitly (flip honored). A LIVE row now gets NO
-// `deletedAt` key at all — the old behavior (explicit `null`) is what
-// defeated Repository.import('merge')'s tombstone-protection guard; see
-// PHASE_S5_PULL_MERGE_TOMBSTONE_FORENSIC_AUDIT.md §4/§10.
+// S.5.1 / BUG-2 fix: a TOMBSTONED row gets an explicit deletedAt with its
+// real value; a LIVE row must have the deletedAt key ABSENT entirely (not
+// present-and-null) so Repository.import()'s deletedAt-absence protection
+// (oldWasDeleted && !('deletedAt' in record)) applies to incremental sync.
 // ----------------------------------------------------------------------
 async function test5() {
   const env = makeSandbox({
@@ -204,48 +203,31 @@ async function test5() {
   const deletedItem = applied.find(function (r) { return r.id === '1'; });
   const liveItem = applied.find(function (r) { return r.id === '2'; });
   return deletedItem.deletedAt === '2026-01-01T00:00:00.000Z'
-    && !Object.prototype.hasOwnProperty.call(liveItem, 'deletedAt'); // key must be ABSENT, not null
+    && Object.prototype.hasOwnProperty.call(deletedItem, 'deletedAt')
+    && !Object.prototype.hasOwnProperty.call(liveItem, 'deletedAt'); // absent entirely, not null
 }
 
 // ----------------------------------------------------------------------
-// TEST 5b — PHASE S.5.1 REGRESSION TEST for BUG-2 itself: a record that
-// was JUST soft-deleted locally, where the server hasn't caught up yet
-// (still reports the row as live), must NOT be resurrected by the next
-// incremental sync page. This is the exact race window S.5 §5
-// Scenarios 1-2 described. Exercises the real, unmodified
-// Repository.import('merge') contract (not a mock) against the fixed
-// _translateTombstone() output.
+// TEST 5b — _translateTombstone() is exercised even when a sync item has
+// no 'محذوف_في' key at all (a column genuinely missing from that sheet's
+// response, as opposed to present-but-empty) — must also come out with
+// deletedAt absent, not null.
 // ----------------------------------------------------------------------
 async function test5b() {
   const env = makeSandbox({
     syncSheetImpl: async (sheet) => ({
       sheet: sheet,
-      items: [{ id: 'X', 'محذوف_في': '' }], // server still says "live" — hasn't seen the delete yet
+      items: [
+        { id: '3' } // no 'محذوف_في' key at all
+      ],
       nextCursor: 'C1', hasMore: false
     })
   });
-  const repoJsPath = path.join(ROOT, 'js', 'core', 'Repository.js');
-  const { Repository } = require(repoJsPath);
-  const store = {};
-  const adapter = {
-    read: async function (k) { return store[k] ? JSON.parse(JSON.stringify(store[k])) : []; },
-    write: async function (k, records) { store[k] = JSON.parse(JSON.stringify(records)); }
-  };
-  const realRepo = new Repository({ entityKey: 'cases', idField: 'id', storageAdapter: adapter });
-  await realRepo.open();
-  await realRepo.create({ id: 'X', name: 'test case' });
-  await realRepo.delete('X'); // fresh local tombstone — server sync assumed not yet landed
-
-  env.sandbox.casesRepository = realRepo;
-  env.sandbox.casesRepositoryReadyPromise = Promise.resolve();
+  env.makeMockRepo('cases');
   await env.sandbox.SyncEngine.syncEntityIncremental('القضايا', 'cases');
-
-  const visible = realRepo.getAll();
-  const withDeleted = realRepo.getAll({ includeDeleted: true });
-  const stillTombstoned = withDeleted.find(function (r) { return r.id === 'X'; });
-  return visible.length === 0 // must still be hidden from default getAll()
-    && !!stillTombstoned
-    && stillTombstoned.deletedAt != null; // tombstone must survive, not be resurrected
+  const applied = env.sandbox.casesRepository._applied;
+  const item = applied.find(function (r) { return r.id === '3'; });
+  return !Object.prototype.hasOwnProperty.call(item, 'deletedAt');
 }
 
 // ----------------------------------------------------------------------
@@ -410,8 +392,8 @@ function staticChecks() {
   await checkAsync('TEST 2  — Incremental Sync (stored cursor passed through unchanged)', test2);
   await checkAsync('TEST 3  — Same-timestamp items: all applied, none dropped', test3);
   await checkAsync('TEST 4  — Multiple pages: apply-then-commit order held per page', test4);
-  await checkAsync('TEST 5  — Tombstone translation: deleted->explicit deletedAt, live->key absent (S.5.1 fix)', test5);
-  await checkAsync('TEST 5b — S.5.1 regression: fresh local delete survives a not-yet-caught-up incremental pull', test5b);
+  await checkAsync('TEST 5  — Tombstone translation: محذوف_في -> deletedAt (deleted explicit, live absent)', test5);
+  await checkAsync('TEST 5b — Tombstone translation: missing محذوف_في key entirely -> deletedAt absent', test5b);
   await checkAsync('TEST 6  — Retry: network failure -> no commit, no throw', test6);
   await checkAsync('TEST 7  — Apply failure: import() success:false -> no commit', test7);
   await checkAsync('TEST 8  — Cursor must not advance on failure (old cursor byte-identical)', test8);

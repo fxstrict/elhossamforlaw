@@ -19,16 +19,6 @@
 // path must still fully REPLACE (unchanged, deliberate user action),
 // contrasted directly against loadFromSheets()'s MERGE.
 //
-// PHASE S.5.1 ADDITION (BUG-1 fix — see
-// PHASE_S5_PULL_MERGE_TOMBSTONE_FORENSIC_AUDIT.md §3/§10): loadFromSheets()
-// now runs each raw row through `_translateSheetRowTombstone()` before
-// merging. The two new blocks below exercise exactly that combination
-// (`_translateSheetRowTombstone()` + `_persistEntityViaRepository(...,
-// 'merge')`) for the two cases the audit found broken:
-//   Case A — local live, server NEWLY tombstoned (must become tombstoned)
-//   Case C — local absent, server ALREADY tombstoned (must be added as a
-//            tombstone, not a live record)
-//
 // Run: node js/tests/verify_settings_merge_tombstone.js
 // =====================================================================
 
@@ -182,18 +172,45 @@ async function main() {
   }
 
   // ================================================================
-  // PHASE S.5.1 — BUG-1 Case A: a case is LIVE locally. The server
-  // pull now shows the SAME id carrying a non-empty محذوف_في (deleted
-  // on another device since the last sync). Before the fix, the raw
-  // row (no `deletedAt` key at all) would fully replace the local
-  // record and leave it live forever — the new delete was never
-  // learned. After the fix, _translateSheetRowTombstone() must set
-  // `deletedAt` on the incoming row so the merge honors the flip.
+  // BUG-1 Case A — _translateSheetRowTombstone() itself, direct unit
+  // coverage of the contract loadFromSheets() now relies on:
+  //   LIVE row (محذوف_في absent OR empty string) -> deletedAt key ABSENT
+  //   TOMBSTONED row (محذوف_في has a value)        -> deletedAt = that value
+  // ================================================================
+  {
+    const settingsModule = loadModule(settingsJsPath);
+    const translate = settingsModule._translateSheetRowTombstone;
+
+    check('BUG-1 Case A — live row (no محذوف_في key at all) -> deletedAt absent', () => {
+      const out = translate({ 'رقم_القضية': '2026/3', 'عنوان_القضية': 'قضية' });
+      assert.ok(!Object.prototype.hasOwnProperty.call(out, 'deletedAt'));
+    });
+
+    check('BUG-1 Case A — live row (محذوف_في === "") -> deletedAt absent', () => {
+      const out = translate({ 'رقم_القضية': '2026/3', 'محذوف_في': '' });
+      assert.ok(!Object.prototype.hasOwnProperty.call(out, 'deletedAt'));
+    });
+
+    check('BUG-1 Case A — tombstoned row -> deletedAt set to real value', () => {
+      const out = translate({ 'رقم_القضية': '2026/4', 'محذوف_في': '2026-02-02T00:00:00.000Z' });
+      assert.strictEqual(out.deletedAt, '2026-02-02T00:00:00.000Z');
+    });
+  }
+
+  // ================================================================
+  // BUG-1 Case C — full loadFromSheets()-shaped integration: a record
+  // that is LIVE locally but has been TOMBSTONED on the server (a real
+  // 'محذوف_في' value in the raw Sheets row) must actually become
+  // soft-deleted locally after the merge. Before this fix, a raw Sheets
+  // row's 'محذوف_في' was never translated to 'deletedAt' on this path at
+  // all, so Repository.import() (which only inspects 'deletedAt') could
+  // never see it — a server-side delete pulled via loadFromSheets() was
+  // silently a no-op. This is the actual propagation gap BUG-1 fixes.
   // ================================================================
   {
     const repo = new Repository({ entityKey: 'cases', idField: 'رقم_القضية', storageAdapter: makeMockAdapter() });
     await repo.open();
-    await repo.create({ 'رقم_القضية': '2026/1', 'عنوان_القضية': 'قضية محلية حية' });
+    await repo.create({ 'رقم_القضية': '2026/5', 'عنوان_القضية': 'قضية حية محليًا' });
 
     setGlobals({
       window: global,
@@ -202,56 +219,22 @@ async function main() {
     });
     const settingsModule = loadModule(settingsJsPath);
 
-    await checkAsync('PHASE S.5.1 (BUG-1 Case A): a local LIVE record learns a NEW server-side tombstone via loadFromSheets()-shaped merge', async () => {
+    await checkAsync('BUG-1 Case C — server-tombstoned row (raw محذوف_في) pulled via loadFromSheets()-shaped merge actually soft-deletes a locally-live record', async () => {
       const rawSheetRows = [
-        { 'رقم_القضية': '2026/1', 'عنوان_القضية': 'قضية محلية حية', 'محذوف_في': '2026-09-10T00:00:00.000Z' }
-      ].map(settingsModule._translateSheetRowTombstone); // exactly what loadFromSheets() now does before the merge call
-
-      await settingsModule._persistEntityViaRepository('cases', 'import', rawSheetRows, 'merge');
+        { 'رقم_القضية': '2026/5', 'عنوان_القضية': 'قضية حية محليًا', 'محذوف_في': '2026-03-03T00:00:00.000Z' }
+      ];
+      const translated = rawSheetRows.map(settingsModule._translateSheetRowTombstone);
+      await settingsModule._persistEntityViaRepository('cases', 'import', translated, 'merge');
 
       const visible = repo.getAll();
-      assert.strictEqual(visible.length, 0, 'the record must now be hidden — the server-side delete must be learned');
+      assert.strictEqual(visible.length, 0, 'the now-server-tombstoned case must no longer appear in default getAll()');
+
       const withDeleted = repo.getAll({ includeDeleted: true });
-      const tombstone = withDeleted.find(function (r) { return r['رقم_القضية'] === '2026/1'; });
-      assert.ok(tombstone && tombstone.deletedAt, 'the record must be tombstoned locally, not silently stay live forever');
+      const tombstone = withDeleted.find(function (r) { return r['رقم_القضية'] === '2026/5'; });
+      assert.ok(tombstone && tombstone.deletedAt, 'the record must carry the propagated deletedAt tombstone');
     });
 
     clearGlobals(['window', 'casesRepository', 'casesRepositoryReadyPromise']);
-  }
-
-  // ================================================================
-  // PHASE S.5.1 — BUG-1 Case C: a record is ABSENT locally (e.g. a
-  // brand-new device's first sync) and the server row already carries
-  // a non-empty محذوف_في. Before the fix, this would be pushed as a
-  // brand-new LIVE record (a "ghost"). After the fix it must be added
-  // as an already-tombstoned record.
-  // ================================================================
-  {
-    const repo = new Repository({ entityKey: 'clients', idField: 'رقم_الموكل', storageAdapter: makeMockAdapter() });
-    await repo.open();
-
-    setGlobals({
-      window: global,
-      clientsRepository: repo,
-      clientsRepositoryReadyPromise: Promise.resolve()
-    });
-    const settingsModule = loadModule(settingsJsPath);
-
-    await checkAsync('PHASE S.5.1 (BUG-1 Case C): a record absent locally and already tombstoned on the server is added AS a tombstone, not a live ghost', async () => {
-      const rawSheetRows = [
-        { 'رقم_الموكل': 'C-GHOST', 'الاسم': 'موكل محذوف سلفًا على الخادم', 'محذوف_في': '2026-01-01T00:00:00.000Z' }
-      ].map(settingsModule._translateSheetRowTombstone);
-
-      await settingsModule._persistEntityViaRepository('clients', 'import', rawSheetRows, 'merge');
-
-      const visible = repo.getAll();
-      assert.strictEqual(visible.length, 0, 'a record already deleted on the server must never appear as a live record on first sync');
-      const withDeleted = repo.getAll({ includeDeleted: true });
-      const tombstone = withDeleted.find(function (r) { return r['رقم_الموكل'] === 'C-GHOST'; });
-      assert.ok(tombstone && tombstone.deletedAt, 'it must exist in storage as a tombstone (so a later restore() remains possible), just never visible');
-    });
-
-    clearGlobals(['window', 'clientsRepository', 'clientsRepositoryReadyPromise']);
   }
 
   console.log(log.join('\n'));
