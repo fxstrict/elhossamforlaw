@@ -119,9 +119,28 @@ const ApiService = {
       headers: { 'Content-Type': 'text/plain' }
     });
     let parsed = null;
-    try { parsed = await response.clone().json(); } catch (parseErr) { /* non-JSON body — fall through to status-only check */ }
+    let parseFailed = false;
+    try { parsed = await response.clone().json(); } catch (parseErr) { parseFailed = true; }
     if (!response.ok) {
       throw new Error('[ApiService] HTTP ' + response.status + ' من Apps Script');
+    }
+    // PHASE G.4 — was a silent fall-through here: an HTTP 200 response whose
+    // body is not valid JSON (most commonly a Google "sign in" HTML page
+    // returned when the Apps Script Web App deployment access is not set to
+    // "Anyone") used to reach `return response;` below with no exception at
+    // all, so saveData/updateData/deleteData treated it as a successful
+    // write even though nothing was actually written server-side. This is
+    // the exact class of bug the PHASE G.0-G.3 forensic audit traced as the
+    // most likely explanation for "data doesn't reach the Sheet" reports
+    // with no visible error. Turning it into a thrown error (below) routes
+    // it through the exact same catch/OfflineQueue/credential-banner paths
+    // already used for every other failure — no change to OfflineQueue.js,
+    // CredentialAlertBanner.js, or InstallationRegistrar.js was needed.
+    if (parseFailed) {
+      const err = new Error('[ApiService] استجابة غير صالحة من الخادم (ليست JSON) — يُحتمَل أن صلاحيات نشر Apps Script غير مضبوطة على "Anyone"');
+      err.diagnosticCode = 'NON_JSON_RESPONSE';
+      err.httpStatus = response.status;
+      throw err;
     }
     if (parsed && parsed.error) {
       // PHASE D — distinguish an authentication rejection (structured
