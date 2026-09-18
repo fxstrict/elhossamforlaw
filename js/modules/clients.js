@@ -328,6 +328,58 @@ var CLIENTS_MAP = {
  */
 var CLIENTS_ID_FIELD = 'رقم_الموكل';
 
+/**
+ * _generatePortalToken — PHASE S.9 CONFIRMED FIX (see PHASE S.9
+ * report §11, Portal Token Security): the client portal token
+ * (`portal_token`) is a long-lived bearer credential — anyone who has
+ * it can view a client's full case/session/document/task/message
+ * history via a public, unauthenticated URL (Config/05_Portal.gs
+ * serveClientPortal(), no expiration, no rate limiting — both
+ * confirmed-but-deliberately-NOT-fixed this phase, see the report's
+ * Deferred Issues section: expiration/rate-limiting would need new
+ * backend columns/logic, a larger change than this phase's minimal-
+ * fix mandate). Until this fix, saveClient()/revokeAndRegenQR() both
+ * generated it via `uid() + '-' + uid()` — the SAME Math.random()-based
+ * generator (js/ui-utils.js) used for plain record IDs, where
+ * uniqueness (not unguessability) is the only requirement. For a
+ * bearer credential this is the wrong tool: Math.random() is not a
+ * CSPRNG, and `uid()`'s ~4-base36-char random suffix
+ * (Date.now().toString(36) + 4 random chars) supplies only ~20 bits
+ * of real entropy per call, ~41 bits for the concatenated pair — weak
+ * for something that grants read access to sensitive legal data.
+ *
+ * This function ONLY changes how `portal_token` specifically is
+ * generated — record IDs (uid() itself, رقم_الموكل, etc.) are
+ * completely untouched, so nothing about ID uniqueness/format/
+ * collision behavior anywhere else in the app changes. The backend
+ * (Config/05_Portal.gs) does a plain string-equality lookup against
+ * whatever value this column holds — it has no format expectation —
+ * so this is a pure generation-strength upgrade with zero backend
+ * change required.
+ *
+ * Uses the Web Crypto API (`crypto.getRandomValues`, standard in
+ * every browser this PWA already targets — see StoragePersistence.js/
+ * ServiceWorkerRegistrar.js for other already-assumed-available
+ * browser APIs of similar vintage) for 256 bits of real entropy,
+ * hex-encoded. Falls back to the previous `uid()+'-'+uid()` pattern
+ * ONLY if `crypto.getRandomValues` is genuinely unavailable (defensive
+ * — old/unusual environment, or this Node test harness) so this
+ * function never throws and callers never need their own fallback.
+ * @returns {string}
+ */
+function _generatePortalToken() {
+  try {
+    if (typeof crypto !== 'undefined' && crypto && typeof crypto.getRandomValues === 'function') {
+      var bytes = new Uint8Array(32);
+      crypto.getRandomValues(bytes);
+      var hex = '';
+      for (var i = 0; i < bytes.length; i++) hex += bytes[i].toString(16).padStart(2, '0');
+      return hex;
+    }
+  } catch (e) { /* fall through to the defensive fallback below */ }
+  return uid() + '-' + uid();
+}
+
 // ================================================================
 // REPOSITORY WIRING — PHASE 9 / SUB-PHASE 9.11
 // ================================================================
@@ -736,7 +788,7 @@ async function saveClient() {
     : null;
   obj['portal_token'] = (existingClientForToken && existingClientForToken['portal_token'])
     ? existingClientForToken['portal_token']
-    : (uid() + '-' + uid());
+    : _generatePortalToken(); // PHASE S.9 — was uid() + '-' + uid()
 
   var idx = editIdx.clients;
   var result;
@@ -1460,7 +1512,7 @@ async function revokeAndRegenQR() {
   await ensureClientsRepositoryReady();
 
   var id = data.clients[idx][CLIENTS_ID_FIELD];
-  var newToken = uid() + '-' + uid();
+  var newToken = _generatePortalToken(); // PHASE S.9 — was uid() + '-' + uid()
 
   // Partial-field patch (audit R-03) — Repository.prototype.update()
   // merges this onto the existing record, so the direct
@@ -2440,6 +2492,7 @@ if (typeof module !== 'undefined' && module.exports) {
     ensureCaseClientsRepositoryReady: ensureCaseClientsRepositoryReady,
     syncCaseClientsMirror: syncCaseClientsMirror,
     _reconcileCaseClientsAfterSave: _reconcileCaseClientsAfterSave,
+    _generatePortalToken: _generatePortalToken,
     // S.8 — test-support only: lets PHASE_S8_case_clients_sync_tests.js
     // set up a picker selection without driving the real DOM-based
     // toggleCaseClient()/chip UI. Has zero effect on any browser code

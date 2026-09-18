@@ -699,7 +699,12 @@ async function loadFromSheets(){
     // support it with zero backend changes. Uses the same 'merge'
     // importMode as every other entry, so a local soft-delete or
     // not-yet-synced relationship cannot be overwritten by this pull.
-    var pairs=[['القضايا','cases'],['الجلسات','sessions'],['الموكلين','clients'],['الأطفال','children'],['المستندات','documents'],['الأعمال الإدارية','tasks'],['الأتعاب','fees'],['رسائل_الموكل','clientMessages'],['الصيغ','templates'],['المكتبة','library'],['الخصوم','opponents'],['أعمال_المحضرين','processServerWorks'],['قضية_موكلين','caseClients']];
+    // PHASE S.9 — المصروفات/expenses: same closed pull gap, same
+    // verification (SHEET_DEFS idField 'id' + آخر_تحديث/محذوف_في, not
+    // restricted — see PHASE S.9 report §5). Push already existed
+    // (expenses.js's saveExpense/deleteExpense/restoreExpense); only
+    // the pull side was missing before this line.
+    var pairs=[['القضايا','cases'],['الجلسات','sessions'],['الموكلين','clients'],['الأطفال','children'],['المستندات','documents'],['الأعمال الإدارية','tasks'],['الأتعاب','fees'],['رسائل_الموكل','clientMessages'],['الصيغ','templates'],['المكتبة','library'],['الخصوم','opponents'],['أعمال_المحضرين','processServerWorks'],['قضية_موكلين','caseClients'],['المصروفات','expenses']];
     var results=await Promise.all(pairs.map(async function(pair){
       var sh=pair[0],k=pair[1];
       try{
