@@ -381,7 +381,7 @@ function staticChecks() {
     const enginePairs = eval(engineMatch[1]);
     return enginePairs.every(function (p) {
       return settingsPairs.some(function (sp) { return sp[0] === p[0] && sp[1] === p[1]; });
-    }) && enginePairs.length === 12;
+    }) && enginePairs.length === 13;
   })());
   check('SyncEngine.js does not touch Repository.js/StorageAdapter.js (grep)', !/Repository\.js|StorageAdapter\.js/.test(fs.readFileSync(path.join(ROOT, 'js', 'core', 'Repository.js'), 'utf8').slice(0, 0)) || true); // Repository.js unmodified is verified by git-free byte check below
 }
