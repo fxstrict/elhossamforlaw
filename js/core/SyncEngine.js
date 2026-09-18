@@ -10,10 +10,21 @@
  *   grep of `ApiService.loadData`. A fuller forensic pass (this
  *   session) found the REAL, live, already-working central loader:
  *   `loadFromSheets()` in js/modules/settings.js. It already does, for
- *   13 of the 15 SHEET_DEFS sheets as of PHASE S.8 (the same 13 the
- *   A7 backend put in sync scope, plus قضية_موكلين added in S.8 — see
- *   that phase's report; only المصروفات still has no pull path today,
- *   a separate pre-existing gap, NOT addressed here):
+ *   14 of the 18 SHEET_DEFS sheets as of PHASE S.9 (the same 12 the A7
+ *   backend originally put in sync scope, plus قضية_موكلين added in
+ *   S.8 and المصروفات added in S.9 — see those phases' reports). The
+ *   remaining 4 are each excluded for a distinct, verified reason, not
+ *   a gap (see PHASE S.9 report §5/§15 for the full audit):
+ *     - بيانات_المكتب: single fixed record, no محذوف_في/آخر_تحديث
+ *       columns at all — outside this sync model's shape entirely.
+ *     - أجهزة_FCM: per-device FCM push token registration — inherently
+ *       device-local data, not a shared business entity to merge
+ *       across devices; also uses 'updated_at' (not 'آخر_تحديث') and
+ *       has no tombstone column, so apiSyncSheet() would reject it
+ *       even if added.
+ *     - التثبيتات / أكواد_التفعيل: license/installation infrastructure,
+ *       already in _getRestrictedSheetNames_() (Config/00_Config.gs) —
+ *       protected, out of scope per this project's licensing rules.
  *     fetch(sheet) → _persistEntityViaRepository(key,'import',arr,'merge')
  *   `_persistEntityViaRepository()` already resolves each entity's
  *   Repository the same way for every one of these 12 keys:
@@ -120,6 +131,9 @@ const SyncEngine = (function () {
   // updated in the same phase — see that file's PHASE S.8 comment for
   // the full verification trail. No longer "no pull path at all" as
   // this file's header previously documented.
+  //
+  // PHASE S.9 — 'المصروفات'/'expenses' added on the same basis (see
+  // PHASE S.9 report §5): push already existed, only pull was missing.
   const SYNC_ENTITY_PAIRS = [
     ['القضايا', 'cases'],
     ['الجلسات', 'sessions'],
@@ -133,7 +147,8 @@ const SyncEngine = (function () {
     ['المكتبة', 'library'],
     ['الخصوم', 'opponents'],
     ['أعمال_المحضرين', 'processServerWorks'],
-    ['قضية_موكلين', 'caseClients']
+    ['قضية_موكلين', 'caseClients'],
+    ['المصروفات', 'expenses']
   ];
 
   const TOMBSTONE_FIELD = 'محذوف_في';

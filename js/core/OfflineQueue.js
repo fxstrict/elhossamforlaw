@@ -42,7 +42,11 @@
  *   leave the remainder queued for the next trigger; console logging
  *   only (devtools), consistent with this project's existing "fails
  *   silently to console, non-fatal" convention (ServiceWorkerRegistrar.js,
- *   service-worker.js install handler).
+ *   service-worker.js install handler). PHASE S.9 EXCEPTION: an
+ *   authentication-rejection failure during replay is dropped (not left
+ *   stuck) and does NOT stop the loop — see replay()'s own doc comment
+ *   below for the full evidence trail; every other failure type keeps
+ *   the original stop-the-loop behavior unchanged.
  *
  * WHAT THIS FILE DOES NOT DO (documented, not silently glossed over)
  *   - Does not resolve the pre-existing ApiService positional-index
@@ -133,7 +137,34 @@ const OfflineQueue = (function () {
    * triggers — 'online' event, boot check, background-sync tick — can
    * fire close together). Stops at the first failure and leaves the
    * remainder queued for the next trigger, rather than reordering or
-   * dropping anything.
+   * dropping anything — WITH ONE EXCEPTION (PHASE S.9):
+   *
+   * PHASE S.9 — CONFIRMED FIX: an authentication rejection
+   * (`e.isAuthError`, set by ApiService._post() — see js/api/api.js)
+   * is a deterministic, non-network failure: retrying the identical
+   * request will fail identically forever until the installation
+   * credential itself is fixed, exactly as js/api/api.js's own
+   * saveData()/updateData()/deleteData()/restoreRow() already document
+   * and handle on the ORIGINAL (first) attempt — none of those four
+   * ever call OfflineQueue.enqueue() for an isAuthError failure; they
+   * drop it and call ApiService._notifyMissingCredential() instead.
+   * Before this fix, replay() had no such check: if an item already
+   * IN the queue hit an isAuthError on replay (e.g. the credential was
+   * revoked AFTER the item was queued, or replay is simply the first
+   * time this body is ever sent), replay() unconditionally treated it
+   * the same as a transient network failure — `break`, leaving that
+   * item AND every different, unrelated, perfectly valid item queued
+   * behind it stuck forever, silently retried on every future trigger,
+   * failing identically every time. This is CONFIRMED, evidence-proven
+   * (js/tests/PHASE_S9_offline_queue_auth_skip_tests.js) via the exact
+   * same isAuthError signal the four call sites above already trust —
+   * no new failure classification was invented.
+   * All OTHER error types (network failures, non-auth application
+   * errors) keep the pre-existing, deliberately conservative `break`
+   * behavior UNCHANGED — this project has no existing, reliable way to
+   * distinguish "permanent, safe-to-drop" from "transient, must-retry"
+   * for those, and inventing one is explicitly out of this phase's
+   * scope (see PHASE S.9 report §6, Question C/D).
    */
   async function replay() {
     if (replaying) return;
@@ -148,6 +179,18 @@ const OfflineQueue = (function () {
         try {
           await ApiService._post(entry.payload);
         } catch (e) {
+          if (e && e.isAuthError) {
+            // Same drop-and-notify contract as the original-attempt call
+            // sites — see doc comment above. Removed from the queue (not
+            // left stuck), loop continues to the next, unrelated item.
+            try { console.warn('[OfflineQueue] AUTH_FAILED during replay — dropping (will not block remaining queue):', entry.payload && entry.payload.sheet); } catch (e2) {}
+            if (typeof ApiService._notifyMissingCredential === 'function') {
+              try { ApiService._notifyMissingCredential(e.authCode); } catch (e3) {}
+            }
+            list.shift();
+            _writeAll(list);
+            continue;
+          }
           break; // still offline / failing — keep it and everything after it queued
         }
         list.shift();
