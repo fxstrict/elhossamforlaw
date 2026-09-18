@@ -688,7 +688,18 @@ async function loadFromSheets(){
     // needed) and the same 'merge' importMode ("FIX P2") used by every
     // other entry, so a local soft-delete or not-yet-synced record
     // cannot be overwritten by this pull.
-    var pairs=[['القضايا','cases'],['الجلسات','sessions'],['الموكلين','clients'],['الأطفال','children'],['المستندات','documents'],['الأعمال الإدارية','tasks'],['الأتعاب','fees'],['رسائل_الموكل','clientMessages'],['الصيغ','templates'],['المكتبة','library'],['الخصوم','opponents'],['أعمال_المحضرين','processServerWorks']];
+    // PHASE S.8 — CASE-CLIENT RELATIONSHIP SYNC (قضية_موكلين): closes the
+    // pull gap SyncEngine.js's own header previously documented as
+    // "pre-existing... out of scope". Verified before adding: SHEET_DEFS
+    // (Config/00_Config.gs) already defines 'قضية_موكلين' with idField
+    // 'id' and both 'آخر_تحديث'/'محذوف_في' columns — the exact same shape
+    // every other entry in this list already has — and it is NOT in
+    // _getRestrictedSheetNames_() (Config/00_Config.gs), so the generic
+    // apiAddRow/apiUpdateRow/apiDeleteRow/apiSyncSheet endpoints already
+    // support it with zero backend changes. Uses the same 'merge'
+    // importMode as every other entry, so a local soft-delete or
+    // not-yet-synced relationship cannot be overwritten by this pull.
+    var pairs=[['القضايا','cases'],['الجلسات','sessions'],['الموكلين','clients'],['الأطفال','children'],['المستندات','documents'],['الأعمال الإدارية','tasks'],['الأتعاب','fees'],['رسائل_الموكل','clientMessages'],['الصيغ','templates'],['المكتبة','library'],['الخصوم','opponents'],['أعمال_المحضرين','processServerWorks'],['قضية_موكلين','caseClients']];
     var results=await Promise.all(pairs.map(async function(pair){
       var sh=pair[0],k=pair[1];
       try{
