@@ -10,10 +10,10 @@
  *   grep of `ApiService.loadData`. A fuller forensic pass (this
  *   session) found the REAL, live, already-working central loader:
  *   `loadFromSheets()` in js/modules/settings.js. It already does, for
- *   exactly 12 of the 15 sheets (the same 12 SHEET_DEFS the A7 backend
- *   put in sync scope minus قضية_موكلين/المصروفات, which have no pull
- *   path at all today — a pre-existing gap, NOT introduced or widened
- *   here, and out of scope per §10/"لا تخترع integration points"):
+ *   13 of the 15 SHEET_DEFS sheets as of PHASE S.8 (the same 13 the
+ *   A7 backend put in sync scope, plus قضية_موكلين added in S.8 — see
+ *   that phase's report; only المصروفات still has no pull path today,
+ *   a separate pre-existing gap, NOT addressed here):
  *     fetch(sheet) → _persistEntityViaRepository(key,'import',arr,'merge')
  *   `_persistEntityViaRepository()` already resolves each entity's
  *   Repository the same way for every one of these 12 keys:
@@ -86,10 +86,14 @@
  *     other).
  *   - Does NOT touch Repository.js, StorageAdapter.js, or any of the
  *     12 js/repositories/*.js files.
- *   - Does NOT invent a 13th/14th/15th integration point for
- *     قضية_موكلين or المصروفات — those have no existing pull path in
- *     loadFromSheets() today, and adding one would be a new,
- *     unreviewed integration point, forbidden by §10 of the request.
+ *   - Does NOT invent a 14th/15th integration point for المصروفات —
+ *     that sheet still has no existing pull path in loadFromSheets()
+ *     today, and adding one would be a new, unreviewed integration
+ *     point. (قضية_موكلين WAS added as a reviewed, authorized
+ *     integration point in PHASE S.8 — see that phase's forensic
+ *     audit report for the full verification trail: SHEET_DEFS shape,
+ *     restricted-sheet check, and generic API route behavior were all
+ *     confirmed compatible before this list was changed.)
  *   - Does NOT add authentication (pre-existing, unrelated blocker,
  *     unchanged by this session).
  * ================================================================
@@ -99,7 +103,7 @@ const SyncEngine = (function () {
   'use strict';
 
   // Mirrors settings.js's loadFromSheets() pairs list EXACTLY for the
-  // 12 sheets that already have a confirmed, live, working Repository +
+  // 13 sheets that already have a confirmed, live, working Repository +
   // ready-promise + pull path (see file header). This list is
   // intentionally duplicated rather than imported from settings.js
   // (which exposes no such constant today) — extracting a shared
@@ -108,6 +112,14 @@ const SyncEngine = (function () {
   // If the two lists ever diverge, the tests in
   // tests/PHASE_A7_frontend_sync_tests.js catch it (they assert this
   // list is a subset of settings.js's own literal pairs array).
+  //
+  // PHASE S.8 — 'قضية_موكلين'/'caseClients' added: SHEET_DEFS already
+  // defines this sheet with idField 'id' plus 'آخر_تحديث'/'محذوف_في'
+  // columns (same shape as every other pair here), it is not in
+  // _getRestrictedSheetNames_(), and settings.js's own pairs array was
+  // updated in the same phase — see that file's PHASE S.8 comment for
+  // the full verification trail. No longer "no pull path at all" as
+  // this file's header previously documented.
   const SYNC_ENTITY_PAIRS = [
     ['القضايا', 'cases'],
     ['الجلسات', 'sessions'],
@@ -120,7 +132,8 @@ const SyncEngine = (function () {
     ['الصيغ', 'templates'],
     ['المكتبة', 'library'],
     ['الخصوم', 'opponents'],
-    ['أعمال_المحضرين', 'processServerWorks']
+    ['أعمال_المحضرين', 'processServerWorks'],
+    ['قضية_موكلين', 'caseClients']
   ];
 
   const TOMBSTONE_FIELD = 'محذوف_في';
