@@ -876,13 +876,21 @@ async function restoreClient(id) {
     return;
   }
 
-  // FIX C4 (DATABASE_FORENSIC_REPORT.md §C4): sync the restore to Sheets
-  // — same pattern as restoreCase(). See that function's comment.
-  ApiService.syncRow('الموكلين', result.record, 0);
+  // PHASE S.1.2 (supersedes FIX C4 comment previously here — see
+  // Config/06_Api.gs's apiRestoreRow() doc comment for the full
+  // rationale: syncRow() could never actually clear a real server-side
+  // tombstone).
+  var syncResult = await ApiService.restoreRow('الموكلين', result.record, 0);
 
   syncClientsMirror();
   saveLocal();
-  toast('تم استرجاع الموكل', 'success');
+  if (syncResult === 'SERVER_CONFIRMED') {
+    toast('تم الاسترجاع بنجاح', 'success');
+  } else if (syncResult === 'QUEUED_LOCAL') {
+    toast('تم الاسترجاع محليًا، جارِ المزامنة', 'info');
+  } else {
+    toast('تم الاسترجاع محليًا، لكن تعذّرت مزامنته مع السيرفر', 'info');
+  }
   renderClients();
   updateBadges();
   // PHASE 16.5.1 — DIRTY PROPAGATION (additive only, see phase brief)
@@ -1937,12 +1945,38 @@ if (typeof saveCase === 'function') {
  * alter the case-save outcome if it fails (logged only, matching the
  * non-fatal error-handling style already used by the Repository
  * ready-promises above).
+ *
+ * PHASE S.8 — CASE-CLIENT RELATIONSHIP SYNC: previously this function
+ * only ever touched caseClientsRepository (local IndexedDB) — the
+ * relationship never left the device it was created/changed/removed
+ * on. Confirmed via forensic audit (see PHASE S.8 report) that the
+ * backend already fully supports this entity generically: SHEET_DEFS
+ * (Config/00_Config.gs) already defines 'قضية_موكلين' with idField
+ * 'id' plus 'آخر_تحديث'/'محذوف_في' columns — the exact same shape as
+ * every other synced entity — and it is NOT in
+ * _getRestrictedSheetNames_(). No new backend route was invented;
+ * this uses the exact same ApiService.syncRow()/deleteData() calls
+ * (and therefore the exact same OfflineQueue-on-failure behavior)
+ * every other migrated entity already relies on. Index resolution
+ * mirrors resolveClientMessageIndex()'s established convention
+ * (js/modules/client-messages.js): looked up in `data.caseClients` —
+ * the pre-reconciliation mirror snapshot, not yet refreshed by this
+ * function's own syncCaseClientsMirror() call below, so it still
+ * reflects each existing row's real last-synced position.
  * @returns {Promise<void>}
  */
 function _reconcileCaseClientsAfterSave() {
   var caseNumEl = document.getElementById('fCaseNum');
   var caseNum   = caseNumEl ? caseNumEl.value.trim() : '';
   if (!caseNum) return Promise.resolve();
+
+  function _findCaseClientMirrorIndex(id) {
+    var list = data.caseClients || [];
+    for (var mi = 0; mi < list.length; mi++) {
+      if (list[mi][CASE_CLIENTS_ID_FIELD_LOCAL] === id) return mi;
+    }
+    return -1;
+  }
 
   return ensureCaseClientsRepositoryReady().then(function () {
     var existing   = caseClientsRepository.getByCase(caseNum);
@@ -1958,14 +1992,30 @@ function _reconcileCaseClientsAfterSave() {
     var toUpdate   = existing.filter(function (r) { return selected.indexOf(r['رقم_الموكل']) >= 0; });
 
     var ops = [];
-    toRemove.forEach(function (r) { ops.push(caseClientsRepository.delete(r[CASE_CLIENTS_ID_FIELD_LOCAL])); });
+    toRemove.forEach(function (r) {
+      var id = r[CASE_CLIENTS_ID_FIELD_LOCAL];
+      // PHASE S.8 — fire the API delete using the PRE-delete mirror
+      // index, same order/shape as deleteChild()/deleteClient() (API
+      // call before awaiting the local Repository delete). The server
+      // resolves the target row by `id` (stable-ID contract, see
+      // Config/06_Api.gs apiDeleteRow()), so a stale/-1 index here
+      // cannot delete the wrong row.
+      ApiService.deleteData('قضية_موكلين', _findCaseClientMirrorIndex(id), id);
+      ops.push(caseClientsRepository.delete(id));
+    });
     toUpdate.forEach(function (r) {
       var roleInput = getCaseClientRole(r['رقم_الموكل']);
       if (!roleInput.role && !roleInput.fee) return; // nothing typed for this one — leave the stored row untouched
       var patch = {};
       if (roleInput.role) patch['الصفة'] = roleInput.role;
       patch['أتعاب_العلاقة'] = roleInput.fee || '';
-      ops.push(caseClientsRepository.update(r[CASE_CLIENTS_ID_FIELD_LOCAL], patch));
+      var id = r[CASE_CLIENTS_ID_FIELD_LOCAL];
+      ops.push(caseClientsRepository.update(id, patch).then(function (result) {
+        if (result && result.success) {
+          ApiService.syncRow('قضية_موكلين', result.record, _findCaseClientMirrorIndex(id));
+        }
+        return result;
+      }));
     });
     toAddIds.forEach(function (id) {
       var roleInput = getCaseClientRole(id);
@@ -1979,6 +2029,13 @@ function _reconcileCaseClientsAfterSave() {
         // بصمت أسوأ من قيمة افتراضية معقولة).
         'الصفة': roleInput.role || 'موكل بالقضية',
         'أتعاب_العلاقة': roleInput.fee || ''
+      }).then(function (result) {
+        // PHASE S.8 — new row: rowIndex -1 (append), same convention
+        // saveClientMessage()/every other create() call already uses.
+        if (result && result.success) {
+          ApiService.syncRow('قضية_موكلين', result.record, -1);
+        }
+        return result;
       }));
     });
 
@@ -2382,6 +2439,12 @@ if (typeof module !== 'undefined' && module.exports) {
     caseClientsRepository: caseClientsRepository,
     ensureCaseClientsRepositoryReady: ensureCaseClientsRepositoryReady,
     syncCaseClientsMirror: syncCaseClientsMirror,
+    _reconcileCaseClientsAfterSave: _reconcileCaseClientsAfterSave,
+    // S.8 — test-support only: lets PHASE_S8_case_clients_sync_tests.js
+    // set up a picker selection without driving the real DOM-based
+    // toggleCaseClient()/chip UI. Has zero effect on any browser code
+    // path (only ever called from a Node test harness).
+    _setCaseSelectedClientIdsForTest: function (ids) { _caseSelectedClientIds = ids.slice(); },
     saveCase: (typeof saveCase === 'function') ? saveCase : undefined
   };
 }

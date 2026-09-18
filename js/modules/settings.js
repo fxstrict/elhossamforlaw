@@ -152,12 +152,34 @@ async function testConnection(){
       }catch(pe){
         res.innerHTML='<span style="color:var(--success)">✅ الاتصال ناجح! جارٍ تحميل البيانات...</span>';
       }
-      setTimeout(loadFromSheets,800);
+      // PHASE A7.5 — SyncCoordinator: was setTimeout(loadFromSheets,800).
+      // No artificial timeout needed — 'manual' bypasses TTL/cooldown on
+      // its own, and single-flight already prevents overlap with any
+      // sync already in progress.
+      if(typeof SyncCoordinator!=='undefined'){SyncCoordinator.requestSync('manual');}else{setTimeout(loadFromSheets,800);}
     } else {
       res.innerHTML='<span style="color:var(--danger)">✗ خطأ: '+(d.error||'غير معروف')+'</span>';
     }
   }catch(e){
-    res.innerHTML='<span style="color:var(--danger)">✗ فشل الاتصال — تحقق من الرابط وإعدادات النشر<br><small>'+e.message+'</small></span>';
+    // PHASE G.4 — was one generic message for every failure. testConnection()
+    // does its own fetch() calls (it does not go through ApiService._post()),
+    // so the classification here is independent of the api.js diagnosticCode
+    // addition — same underlying causes, classified locally from what a raw
+    // fetch()/JSON.parse() failure actually looks like.
+    var msg;
+    if(e && (e.name==='AbortError' || e.name==='TimeoutError')){
+      msg='الرابط صحيح لكن الخادم لم يستجب في الوقت المحدد — تحقق من الاتصال بالإنترنت وحاول مجددًا.';
+    } else if(e instanceof SyntaxError){
+      // JSON.parse() throws SyntaxError — the classic signature of an Apps
+      // Script deployment returning a Google "sign in" HTML page (access not
+      // set to "Anyone") instead of the app's JSON response.
+      msg='تم الوصول إلى الرابط، لكن الاستجابة لم تكن بصيغة صحيحة — يُحتمَل أنها صفحة تسجيل دخول Google بدل استجابة البرنامج. راجع إعدادات نشر Apps Script (يجب أن تكون صلاحية الوصول: Anyone).';
+    } else if(e instanceof TypeError){
+      msg='تعذّر الوصول إلى الرابط — تحقق أنه صحيح بالكامل ومن اتصالك بالإنترنت.';
+    } else {
+      msg='فشل الاتصال — تحقق من الرابط وإعدادات النشر.';
+    }
+    res.innerHTML='<span style="color:var(--danger)">✗ '+msg+'<br><small>'+e.message+'</small></span>';
   }
 }
 
@@ -200,6 +222,17 @@ async function pingConnection(){
       dot.classList.add('connected');dot.classList.remove('error');
       tx.textContent='متصل ✓ v'+(d.version||'');
       if(d.spreadsheet_url) displaySheetUrl(d.spreadsheet_url);
+      // PHASE A8 — §17 Project Isolation: يُحفَظ project_id هذه النسخة
+      // محليًا (لا شيء جديد يُرسَل للخادم) ليقارَن به أي إشعار FCM وارد
+      // قبل تشغيل SyncCoordinator.requestSync('notification') — راجع
+      // js/core/pwa/NotificationManager.js. إضافة بحتة، لا تغيير على
+      // أي سلوك pingConnection() الحالي.
+      if(d.project_id) try{localStorage.setItem('ahp_project_id', d.project_id);}catch(e){}
+      // PHASE A8 — يُخزَّن Public Firebase Web config محليًا فقط ليقرأه
+      // js/core/pwa/FcmClient.js عند الحاجة الفعلية (بعد منح إذن
+      // الإشعارات) — لا تحميل SDK هنا، فقط تخزين نص. إذا كانت d.firebase
+      // فارغة (null)، تُحذف أي قيمة قديمة بأمان (يعطّل FCM تلقائيًا).
+      try{ if(d.firebase) localStorage.setItem('ahp_firebase_config', JSON.stringify(d.firebase)); else localStorage.removeItem('ahp_firebase_config'); }catch(e){}
     } else {
       dot.classList.remove('connected');dot.classList.add('error');tx.textContent='خطأ في الاتصال';
     }
@@ -307,12 +340,22 @@ function handleImport(evt){
 }
 async function clearAllData(){
   if(!(await confirmDialog('مسح كل البيانات المحلية؟ لا يمكن التراجع!','تأكيد المسح')))return;
-  var keys=['cases','sessions','clients','opponents','children','documents','tasks','fees','library','templates','clientMessages'];
+  // PHASE S.6.1 — CONFIRMED ROOT CAUSE FIX (ROOT CAUSE D, PHASE S.2 audit):
+  // 'expenses', 'processServerWorks' and 'caseClients' each have their own
+  // Repository (ExpensesRepository/ProcessServerWorksRepository/
+  // CaseClientsRepository — same window[key+'Repository'] /
+  // window[key+'RepositoryReadyPromise'] convention _persistEntityViaRepository()
+  // already relies on for every other entity here) but were never added to
+  // this list, so "Clear Local Database" silently left all three entities'
+  // IndexedDB data — and their localStorage legacy copies — completely
+  // untouched. Adding them closes that gap using the exact same call shape
+  // as every entity already in this list; no other behavior changes.
+  var keys=['cases','sessions','clients','opponents','children','documents','tasks','fees','library','templates','clientMessages','expenses','processServerWorks','caseClients'];
   for(var i=0;i<keys.length;i++){ await _persistEntityViaRepository(keys[i],'clear'); }
   // PHASE 13.8 — CONFIRMED ROOT CAUSE FIX (Bug B, part 1 of 2):
   // saveLocal() has been a no-op since PHASE 13.2 (see its own comment
   // above), but the ORIGINAL localStorage.setItem() writes it used to
-  // make for these same 9 keys were never removed — clearAllData() only
+  // make for these same keys were never removed — clearAllData() only
   // ever cleared each Repository (IndexedDB), never these legacy keys.
   // index.html's inline bootstrap script re-seeds the in-memory `data`
   // object directly from these exact localStorage keys on every page
@@ -323,10 +366,16 @@ async function clearAllData(){
   // other localStorage key (apiUrl/driveUrl/sheetUrl/lastSyncAt/
   // localModeChosen) is touched, and no other function is changed.
   for(var j=0;j<keys.length;j++){ localStorage.removeItem(keys[j]); }
-  data={cases:[],sessions:[],clients:[],opponents:[],children:[],documents:[],tasks:[],fees:[],library:[],templates:[]};
+  // PHASE S.6.1 — the in-memory reset was also missing 'clientMessages'
+  // (added earlier than this fix but never included here) plus the 3 keys
+  // above, so a stale in-memory copy of any of these 4 entities kept
+  // rendering until the next full page reload even though their
+  // Repository/localStorage copies were already gone. Now reset alongside
+  // every other cleared key, same empty-array shape.
+  data={cases:[],sessions:[],clients:[],opponents:[],children:[],documents:[],tasks:[],fees:[],library:[],templates:[],clientMessages:[],expenses:[],processServerWorks:[],caseClients:[]};
   updateBadges();renderDashboard();
   // PHASE 16.5.1 — DIRTY PROPAGATION (additive only, see phase brief)
-  // clearAllData() always wipes all 9 entity keys unconditionally (see
+  // clearAllData() always wipes all entity keys unconditionally (see
   // `keys` above), so every one of them, plus dashboard and calendar
   // (which read cases/sessions/clients/tasks), is marked dirty here.
   if(window.ApplicationShell){
@@ -345,13 +394,27 @@ async function clearAllData(){
 function saveDriveFromModal(){DRIVE_URL=document.getElementById('fDriveUrl').value.trim();_persistSetting('driveUrl',DRIVE_URL);closeModal('modalDrive');toast('تم ربط Google Drive','success');}
 
 // SYNC — إصلاح CORS: نرسل text/plain
+// PHASE D — these two functions used to build their own request and
+// call fetch() directly, bypassing ApiService entirely (confirmed LIVE,
+// not dead code — js/modules/children.js:426 still calls syncToSheets()
+// directly; see the Phase D Read-Only Forensic Audit §3d). Switched to
+// ApiService._post(), the exact same chokepoint saveData()/updateData()/
+// deleteData() already use, so this one change gives both functions
+// (and therefore children.js) the installation credential for free. No
+// other behavior here changes: same body shape, same action values,
+// same silent-catch-and-warn error handling as before — this is
+// intentionally NOT the fuller OfflineQueue-integrated retry behavior
+// ApiService.saveData()/deleteData() have, because that would be a
+// larger behavioral change to children.js's save/delete flow than
+// Phase D's scope calls for (see brief §15: "Only change the exact
+// calls necessary for Phase D").
 async function syncToSheets(sheet,rowData,rowIndex){
   if(!API_URL)return;
-  try{var action=rowIndex>=0?'update':'add';var body={action:action,sheet:sheet,data:rowData};if(action==='update')body.rowIndex=rowIndex+1;await fetch(API_URL,{method:'POST',body:JSON.stringify(body),headers:{'Content-Type':'text/plain'}});}catch(e){console.warn('Sync:',e);}
+  try{var action=rowIndex>=0?'update':'add';var body={action:action,sheet:sheet,data:rowData};if(action==='update')body.rowIndex=rowIndex+1;await ApiService._post(body);}catch(e){console.warn('Sync:',e);}
 }
 async function syncDeleteToSheets(sheet,rowIndex){
   if(!API_URL)return;
-  try{await fetch(API_URL,{method:'POST',body:JSON.stringify({action:'delete',sheet:sheet,rowIndex:rowIndex+1}),headers:{'Content-Type':'text/plain'}});}catch(e){console.warn('Delete:',e);}
+  try{await ApiService._post({action:'delete',sheet:sheet,rowIndex:rowIndex+1});}catch(e){console.warn('Delete:',e);}
 }
 
 // Non-blocking background sync indicator — never covers the UI (unlike showLoading/#loadingOverlay).
@@ -374,7 +437,7 @@ function showSyncIndicator(v){
   var textEl=el?document.getElementById('syncIndicatorText'):null;
   if(_syncIndicatorHideTimer){clearTimeout(_syncIndicatorHideTimer);_syncIndicatorHideTimer=null;}
   if(_topbarSyncSuccessTimer){clearTimeout(_topbarSyncSuccessTimer);_topbarSyncSuccessTimer=null;}
-  if(el)el.classList.remove('success','error');
+  if(el)el.classList.remove('success','error','partial');
   if(v===true){
     if(textEl)textEl.textContent='جارٍ المزامنة…';
     if(el)el.classList.add('show');
@@ -401,6 +464,19 @@ function showSyncIndicator(v){
     // does not get overwritten by the 60s interval) until the next sync
     // attempt calls showSyncIndicator(true) or ('success') again.
     _topbarSyncState='error';
+    if(typeof updateTopbarSyncMeta==='function')updateTopbarSyncMeta();
+  }else if(v==='partial'){
+    // PHASE SYNC-FIX-01 — §15/§21: some sheets synced, some failed. Must
+    // NOT look identical to a full 'success' (that would misrepresent a
+    // partial result as complete), and must NOT look identical to 'error'
+    // either (real data DID update — hiding that under "محلي فقط" would be
+    // equally misleading). Reuses the same pill/topbar widgets, minimal
+    // new CSS (.sync-indicator.partial / .is-partial / .tls-dot-partial —
+    // all keyed off the existing --warning token, see css/components.css).
+    if(textEl)textEl.textContent='مزامنة جزئية';
+    if(el)el.classList.add('show','partial');
+    _syncIndicatorHideTimer=setTimeout(function(){if(el)el.classList.remove('show','partial');},4000);
+    _topbarSyncState='partial';
     if(typeof updateTopbarSyncMeta==='function')updateTopbarSyncMeta();
   }else{
     if(el)el.classList.remove('show');
@@ -481,13 +557,20 @@ function updateTopbarSyncMeta(){
   var chipTextEl=document.getElementById('tlsChipText');
   var lsEl=document.getElementById('topbarLastSync');
   if(lsEl&&fullEl&&compactEl&&chipDotEl&&chipTextEl){
-    lsEl.classList.remove('is-syncing','is-success','is-error','is-idle','is-neversynced');
+    lsEl.classList.remove('is-syncing','is-success','is-error','is-idle','is-neversynced','is-partial');
     var state=_topbarSyncState;
     var full,compact,chipText,chipClass,stateClass;
     if(state==='syncing'){
       full='🟡 جارٍ المزامنة...';compact='🟡 جارٍ...';chipText='جارٍ...';chipClass='tls-dot-syncing';stateClass='is-syncing';
     }else if(state==='success'){
       full='✅ تمت المزامنة';compact='✓ تمت المزامنة';chipText='الآن';chipClass='tls-dot-success';stateClass='is-success';
+    }else if(state==='partial'){
+      // PHASE SYNC-FIX-01 — §15: some sheets failed. Never render this as
+      // the same "✅ تمت المزامنة" full-success text (that would be a
+      // false impression of complete data), and lastSyncAt IS updated for
+      // this state (real, partial data did arrive) so the idle branch
+      // below is not reached right after a partial sync.
+      full='🟠 مزامنة جزئية — بعض الأوراق لم تُحدَّث';compact='🟠 جزئية';chipText='جزئية';chipClass='tls-dot-partial';stateClass='is-partial';
     }else if(state==='error'){
       full='⚠️ تعذر الاتصال — العمل بالبيانات المحلية';compact='🔴 محلي';chipText='محلي';chipClass='tls-dot-error';stateClass='is-error';
     }else{
@@ -533,6 +616,33 @@ function updateTopbarSyncMeta(){
   }
 }
 
+// S.5.1 / BUG-1 fix — settings.js::loadFromSheets() pulls raw Google
+// Sheets rows, which never carry a `deletedAt` key at all (Sheets has no
+// such column; the tombstone column is 'محذوف_في'). Passed unmodified into
+// _persistEntityViaRepository(k,'import',arr,'merge'), a raw live row is
+// indistinguishable from "incoming record says nothing about deletion" —
+// which is exactly what Repository.import()'s existing protection
+// (oldWasDeleted && !('deletedAt' in record)) already relies on, so a raw
+// row was already safe there. This translator exists so a genuinely
+// TOMBSTONED sheet row (one with a real 'محذوف_في' value) is turned into an
+// explicit `deletedAt`, matching js/core/SyncEngine.js's own
+// _translateTombstone() contract exactly (kept as a small, deliberately
+// duplicated function here rather than a shared import — same reasoning
+// SyncEngine.js documents at its own SYNC_ENTITY_PAIRS: extracting a
+// shared helper would be a larger cross-file change than this fix's scope).
+//   LIVE sheet row       -> deletedAt key absent entirely
+//   TOMBSTONED sheet row -> deletedAt set to the real 'محذوف_في' value
+function _translateSheetRowTombstone(row) {
+  var out = Object.assign({}, row);
+  var raw = row ? row['محذوف_في'] : undefined;
+  if (raw != null && raw !== '') {
+    out.deletedAt = raw;
+  } else {
+    delete out.deletedAt;
+  }
+  return out;
+}
+
 // PHASE 14.1 — CONCURRENCY GUARD
 // Module-level flag preventing two or more loadFromSheets() executions from
 // running at the same time (multiple call sites exist: automatic boot calls
@@ -545,9 +655,18 @@ var _loadFromSheetsInProgress=false;
 // Local data is already rendered before this runs (see DOMContentLoaded in index.html).
 // This function must NEVER block the UI: no full-screen overlay, requests run in parallel
 // (not sequentially), each with a timeout, and failures never clear local data or freeze startup.
+// PHASE SYNC-FIX-01 — this function now returns a small status object
+// ({status:'success'|'partial'|'failed'|'skipped', loaded, failed, total})
+// instead of implicitly returning undefined in every branch. No existing
+// caller (index.html boot, testConnection(), refreshAll(),
+// bootLoadFromSheets(), firstrun.js) reads this return value today, so
+// this is additive/backward-compatible; SyncCoordinator.js (added this
+// phase) is the first real consumer, using it to decide retry/backoff
+// instead of the previous "never throws => always looks like success"
+// behavior.
 async function loadFromSheets(){
-  if(!API_URL)return;
-  if(_loadFromSheetsInProgress)return;
+  if(!API_URL)return{status:'skipped',reason:'no-api-url'};
+  if(_loadFromSheetsInProgress)return{status:'skipped',reason:'already-in-progress'};
   _loadFromSheetsInProgress=true;
   try{
     showSyncIndicator(true);
@@ -569,14 +688,37 @@ async function loadFromSheets(){
     // needed) and the same 'merge' importMode ("FIX P2") used by every
     // other entry, so a local soft-delete or not-yet-synced record
     // cannot be overwritten by this pull.
-    var pairs=[['القضايا','cases'],['الجلسات','sessions'],['الموكلين','clients'],['الأطفال','children'],['المستندات','documents'],['الأعمال الإدارية','tasks'],['الأتعاب','fees'],['رسائل_الموكل','clientMessages'],['الصيغ','templates'],['المكتبة','library'],['الخصوم','opponents'],['أعمال_المحضرين','processServerWorks']];
+    // PHASE S.8 — CASE-CLIENT RELATIONSHIP SYNC (قضية_موكلين): closes the
+    // pull gap SyncEngine.js's own header previously documented as
+    // "pre-existing... out of scope". Verified before adding: SHEET_DEFS
+    // (Config/00_Config.gs) already defines 'قضية_موكلين' with idField
+    // 'id' and both 'آخر_تحديث'/'محذوف_في' columns — the exact same shape
+    // every other entry in this list already has — and it is NOT in
+    // _getRestrictedSheetNames_() (Config/00_Config.gs), so the generic
+    // apiAddRow/apiUpdateRow/apiDeleteRow/apiSyncSheet endpoints already
+    // support it with zero backend changes. Uses the same 'merge'
+    // importMode as every other entry, so a local soft-delete or
+    // not-yet-synced relationship cannot be overwritten by this pull.
+    var pairs=[['القضايا','cases'],['الجلسات','sessions'],['الموكلين','clients'],['الأطفال','children'],['المستندات','documents'],['الأعمال الإدارية','tasks'],['الأتعاب','fees'],['رسائل_الموكل','clientMessages'],['الصيغ','templates'],['المكتبة','library'],['الخصوم','opponents'],['أعمال_المحضرين','processServerWorks'],['قضية_موكلين','caseClients']];
     var results=await Promise.all(pairs.map(async function(pair){
       var sh=pair[0],k=pair[1];
       try{
-        var r=await fetch(API_URL+'?sheet='+encodeURIComponent(sh),{signal:AbortSignal.timeout(8000)});
+        // PHASE D — this was a direct fetch(), bypassing ApiService and
+        // therefore never carrying the installation credential (see the
+        // Phase D Read-Only Forensic Audit §3c: this function is the
+        // app's LIVE boot-time data pull, not dead code). Switched to
+        // ApiService._get(), the same chokepoint loadData()/syncSheet()
+        // already use — no other line in this function changes, and the
+        // 8s timeout behavior is preserved exactly (_get()'s own
+        // timeoutMs param).
+        var r=await ApiService._get('?sheet='+encodeURIComponent(sh),8000);
         var arr=await r.json();
         if(Array.isArray(arr)&&arr.length>0){
           if(sh==='الجلسات'){arr=arr.map(function(row){if(row['الوقت'])row['الوقت']=sanitizeTime(row['الوقت']);return row;});}
+          // S.5.1 / BUG-1 fix: translate raw 'محذوف_في' into an explicit
+          // deletedAt before the merge below — see
+          // _translateSheetRowTombstone()'s header comment above.
+          arr=arr.map(_translateSheetRowTombstone);
           // FIX P2 (DATABASE_FORENSIC_REPORT.md §P2): 'merge' instead of
           // 'replace' — a local soft-delete (tombstone) or a not-yet-
           // synced local record must survive a periodic Sheets read.
@@ -607,34 +749,60 @@ async function loadFromSheets(){
     showSyncIndicator(false);
     var loaded=results.filter(function(r){return r==='loaded';}).length;
     var failed=results.filter(function(r){return r==='failed';}).length;
-    if(loaded>0){
-      updateBadges();renderDashboard();
-      // PHASE 16.5.1 — DIRTY PROPAGATION (additive only, see phase brief)
-      // Same reasoning as handleImport(): any subset of the 7 synced
-      // keys above may have loaded, so dashboard+calendar (which read
-      // cases/sessions/clients/tasks) are marked dirty unconditionally
-      // whenever at least one sheet loaded successfully.
-      if(window.ApplicationShell){ApplicationShell.markDirty('dashboard');ApplicationShell.markDirty('calendar');}
-      _persistSetting('lastSyncAt',new Date().toISOString());
-      if(typeof updateTopbarSyncMeta==='function')updateTopbarSyncMeta();
-      showSyncIndicator('success');
-      toast('تم تحديث البيانات من Sheets ('+loaded+' أوراق)','success');
-    }else if(failed===pairs.length){
+    var total=pairs.length;
+    // PHASE SYNC-FIX-01 — §15/§16/§21: three distinct outcomes, and the
+    // UI must never present a PARTIAL result as a full SUCCESS.
+    //   failed === total  -> FAILED  (nothing reached the server: do NOT
+    //                         touch lastSyncAt, preserve the previous
+    //                         real value — §2/§16/§23 "لا تزوّر lastSyncAt")
+    //   failed === 0      -> SUCCESS (every sheet either loaded or was
+    //                         confirmed empty — a real, complete pull)
+    //   otherwise         -> PARTIAL (some sheets updated, some did not —
+    //                         still a REAL partial success, so lastSyncAt
+    //                         legitimately advances, but the user is told
+    //                         it was partial, not full)
+    var status = (failed===total) ? 'failed' : (failed===0 ? 'success' : 'partial');
+    if(status==='failed'){
       // Total sync failure (offline / Apps Script unreachable): keep working on local data.
       showSyncIndicator('error');
       toast('تعذرت المزامنة مع Sheets — العمل بالبيانات المحلية','error');
     }else{
+      if(loaded>0){
+        updateBadges();renderDashboard();
+        // PHASE 16.5.1 — DIRTY PROPAGATION (additive only, see phase brief)
+        // Same reasoning as handleImport(): any subset of the 7 synced
+        // keys above may have loaded, so dashboard+calendar (which read
+        // cases/sessions/clients/tasks) are marked dirty unconditionally
+        // whenever at least one sheet loaded successfully.
+        if(window.ApplicationShell){ApplicationShell.markDirty('dashboard');ApplicationShell.markDirty('calendar');}
+      }
+      // SUCCESS and PARTIAL both represent a real, non-fabricated
+      // successful contact with the server that applied at least one
+      // sheet's response (loaded or confirmed-empty) — lastSyncAt is
+      // legitimately advanced in both cases, never in FAILED.
       _persistSetting('lastSyncAt',new Date().toISOString());
       if(typeof updateTopbarSyncMeta==='function')updateTopbarSyncMeta();
-      showSyncIndicator('success');
-      toast('الاتصال نجح — لا توجد بيانات جديدة في الأوراق','info');
+      if(status==='partial'){
+        showSyncIndicator('partial');
+        toast('مزامنة جزئية — نجحت '+(total-failed)+' من '+total+' وفشلت '+failed+' — سيُعاد المحاولة تلقائيًا','error');
+      }else if(loaded>0){
+        showSyncIndicator('success');
+        toast('تم تحديث البيانات من Sheets ('+loaded+' أوراق)','success');
+      }else{
+        showSyncIndicator('success');
+        toast('الاتصال نجح — لا توجد بيانات جديدة في الأوراق','info');
+      }
     }
+    return {status:status,loaded:loaded,failed:failed,total:total};
   }finally{
     _loadFromSheetsInProgress=false;
   }
 }
 
-async function refreshAll(){if(API_URL)await loadFromSheets();else toast('أضف رابط Apps Script في الإعدادات للمزامنة السحابية','info');renderDashboard();}
+// PHASE A7.5 — SyncCoordinator: was `await loadFromSheets()` directly.
+// 'manual' bypasses TTL/cooldown (single-flight still respected), which
+// is the correct behavior for an explicit user-pressed refresh button.
+async function refreshAll(){if(API_URL){if(typeof SyncCoordinator!=='undefined'){await SyncCoordinator.requestSync('manual');}else{await loadFromSheets();}}else toast('أضف رابط Apps Script في الإعدادات للمزامنة السحابية','info');renderDashboard();}
 
 // FIX (DATABASE_FORENSIC_REPORT.md §P2 boot-order cause, §6 item 4):
 // "ضمان اكتمال OfflineQueue.replay() قبل أول loadFromSheets() عند
@@ -654,11 +822,33 @@ async function refreshAll(){if(API_URL)await loadFromSheets();else toast('أضف
 // calls the exact same loadFromSheets() as before. Remains
 // fire-and-forget from the caller's perspective (index.html), matching
 // the original call's own "never block the interface" contract.
+// PHASE A7 — STEP 4 (Full Frontend Sync Wiring). loadFromSheets() itself
+// is NOT modified (§"لا تكسر القراءة الكاملة الحالية" — do not break the
+// existing full read). This function's own two branches now each
+// `return` loadFromSheets()'s promise (previously discarded — the
+// `.then(function(){loadFromSheets();})` callback did not return it, so
+// the chain never actually waited for it) and, once it resolves, chain
+// exactly one additional call: SyncEngine.bootIncrementalSync(). This
+// guarantees the new incremental (cursor-based) pull never runs
+// concurrently with the existing full pull against the same
+// Repositories (see js/core/SyncEngine.js file header for why that
+// matters) — it always runs strictly after. SyncEngine.js guards itself
+// (API_URL / ApiService / SyncCheckpoint presence, re-entrancy) and
+// never throws, so this addition cannot introduce a new failure mode:
+// if SyncEngine.js failed to load for any reason, `typeof SyncEngine`
+// stays 'undefined' and this is a silent no-op, exactly like every
+// other optional-subsystem guard already in this file (e.g.
+// `if(window.ApplicationShell)`).
 function bootLoadFromSheets(){
+  function _thenIncrementalSync(){
+    if(typeof SyncEngine!=='undefined'&&typeof SyncEngine.bootIncrementalSync==='function'){
+      return SyncEngine.bootIncrementalSync();
+    }
+  }
   if(typeof OfflineQueue!=='undefined'&&typeof OfflineQueue.replay==='function'){
-    OfflineQueue.replay().catch(function(e){console.warn('[bootLoadFromSheets] OfflineQueue.replay failed, proceeding anyway:',e);}).then(function(){loadFromSheets();});
+    return OfflineQueue.replay().catch(function(e){console.warn('[bootLoadFromSheets] OfflineQueue.replay failed, proceeding anyway:',e);}).then(function(){return loadFromSheets();}).then(_thenIncrementalSync).catch(function(e){console.warn('[bootLoadFromSheets] incremental sync stage failed, proceeding anyway:',e);});
   } else {
-    loadFromSheets();
+    return loadFromSheets().then(_thenIncrementalSync).catch(function(e){console.warn('[bootLoadFromSheets] incremental sync stage failed, proceeding anyway:',e);});
   }
 }
 
@@ -678,6 +868,14 @@ if (typeof module !== 'undefined' && module.exports) {
     // change how any other module/script references these functions
     // (still plain globals via the scope chain everywhere else).
     _persistEntityViaRepository: _persistEntityViaRepository,
-    bootLoadFromSheets: (typeof bootLoadFromSheets !== 'undefined') ? bootLoadFromSheets : undefined
+    bootLoadFromSheets: (typeof bootLoadFromSheets !== 'undefined') ? bootLoadFromSheets : undefined,
+    // S.5.1 / BUG-1 — exposed so verify_settings_merge_tombstone.js can
+    // assert the translator's own contract directly, in addition to its
+    // existing integration-level coverage through _persistEntityViaRepository.
+    _translateSheetRowTombstone: _translateSheetRowTombstone,
+    // S.6.1 — exposed so PHASE_S6_1_client_messages_delete_and_clear_all_data_tests.js
+    // can assert clearAllData() actually clears/resets expenses,
+    // processServerWorks and caseClients (ROOT CAUSE D, PHASE S.2 audit).
+    clearAllData: clearAllData
   };
 }
