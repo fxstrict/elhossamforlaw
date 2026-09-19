@@ -211,6 +211,7 @@ async function main() {
       updateBadges: function () { badgeCalls.count++; },
       closeModal: function (id) { closeModalLog.push(id); },
       formatDate: function (d) { return d || '—'; },
+      formatTime: function (t) { return t || '—'; },
       urgencyBadge: function () { return ''; },
       statusBadge: function () { return ''; },
       val: function (id) {
@@ -420,8 +421,8 @@ async function main() {
       assert.strictEqual(toastLog[toastLog.length - 1].msg, 'تم حفظ العمل بنجاح');
     });
 
-    // ---- toggleTask(): flips الحالة, no ApiService sync, same array position ----
-    await checkAsync('toggleTask(i): flips الحالة pending<->done via Repository.update(id, {الحالة}); no ApiService sync (matches original)', async () => {
+    // ---- toggleTask(): flips الحالة, now server-synced (PHASE N.4), same array position ----
+    await checkAsync('toggleTask(i): flips الحالة pending<->done via Repository.update(id, {...}); PHASE N.4 — now ALSO stamps the same تاريخ_الإنجاز/وقت_الإنجاز metadata saveTask() stamps and calls ApiService.syncRow() (closes the pre-N.4 "no ApiService sync" gap)', async () => {
       const before = sandboxGlobals.data.tasks[secondTaskIndex]['الحالة'];
       assert.strictEqual(before, 'pending');
       const syncCountBefore = syncRowLog.length;
@@ -429,14 +430,28 @@ async function main() {
 
       await taskModule.toggleTask(secondTaskIndex);
 
-      assert.strictEqual(sandboxGlobals.data.tasks[secondTaskIndex]['الحالة'], 'done');
+      const afterRec = sandboxGlobals.data.tasks[secondTaskIndex];
+      assert.strictEqual(afterRec['الحالة'], 'done');
       assert.strictEqual(sandboxGlobals.data.tasks.length, 2, 'toggleTask() must not add/remove records');
-      assert.strictEqual(syncRowLog.length, syncCountBefore, 'toggleTask() must NOT call ApiService.syncRow (matches original gap)');
+      assert.ok(afterRec['تاريخ_الإنجاز'], 'pending->done must stamp تاريخ_الإنجاز, same convention as saveTask()');
+      assert.ok(afterRec['وقت_الإنجاز'], 'pending->done must stamp وقت_الإنجاز');
+      assert.strictEqual(afterRec['سبب_الإنجاز'], '', 'quick-toggle has no reason-entry UI — must stay empty, not undefined/omitted');
+      assert.strictEqual(syncRowLog.length, syncCountBefore + 1, 'PHASE N.4: toggleTask() must now call ApiService.syncRow() exactly once');
+      const syncCall = syncRowLog[syncRowLog.length - 1];
+      assert.strictEqual(syncCall.sheet, 'الأعمال الإدارية');
+      assert.strictEqual(syncCall.idx, secondTaskIndex, 'must pass the existing mirror index so ApiService.syncRow() routes to an update, not a new row');
+      assert.strictEqual(syncCall.obj['تاريخ_الإنجاز'], afterRec['تاريخ_الإنجاز'], 'the pushed record must carry the same stamped completion metadata (this is what lets the existing, UNMODIFIED FCM classifier recognize it)');
       assert.strictEqual(saveLocalCalls.count, saveLocalBefore + 1);
 
-      // Flip back to pending to confirm the toggle is reversible.
+      // Flip back to pending to confirm the toggle is reversible, and
+      // that the reopen metadata is stamped the same way.
       await taskModule.toggleTask(secondTaskIndex);
-      assert.strictEqual(sandboxGlobals.data.tasks[secondTaskIndex]['الحالة'], 'pending');
+      const reopenedRec = sandboxGlobals.data.tasks[secondTaskIndex];
+      assert.strictEqual(reopenedRec['الحالة'], 'pending');
+      assert.ok(reopenedRec['تاريخ_إعادة_الفتح'], 'done->pending must stamp تاريخ_إعادة_الفتح');
+      assert.ok(reopenedRec['وقت_إعادة_الفتح'], 'done->pending must stamp وقت_إعادة_الفتح');
+      assert.strictEqual(reopenedRec['سبب_إعادة_الفتح'], '');
+      assert.strictEqual(syncRowLog.length, syncCountBefore + 2, 'the reopen toggle must also call ApiService.syncRow()');
     });
 
     // ---- toggleTask(): does not disturb other fields (partial update semantics) ----
@@ -523,6 +538,7 @@ async function main() {
       updateBadges: function () {},
       closeModal: function () {},
       formatDate: function (d) { return d || '—'; },
+      formatTime: function (t) { return t || '—'; },
       urgencyBadge: function () { return ''; },
       statusBadge: function () { return ''; },
       val: function (id) { const el = legacyFakeElements[id]; return el ? el.value : ''; },

@@ -95,8 +95,10 @@ check('FcmClient.js: no eager Firebase init at file load — only inside a funct
 check('FcmClient.js: reuses navigator.serviceWorker.ready (the SAME existing registration), no second SW registration', /navigator\.serviceWorker\.ready/.test(fcmClient) && !/\.register\(/.test(fcmClient));
 check('NotificationManager.js: permissionState()/isEnabled()/setEnabled()/requestPermission() still exported (no second permission system)',
   /permissionState:\s*permissionState/.test(notifMgr) && /isEnabled:\s*isEnabled/.test(notifMgr) && /setEnabled:\s*setEnabled/.test(notifMgr) && /requestPermission:\s*requestPermission/.test(notifMgr));
-check('NotificationManager.js: token registration is triggered from the SAME explicit user click as before (handleEnableNotificationsClick), not automatically at boot',
+check('NotificationManager.js: token registration still available from the SAME explicit user click as before (handleEnableNotificationsClick)',
   /registerFcmTokenIfAvailable\(\);/.test(notifMgr) && /global\.handleEnableNotificationsClick = function/.test(notifMgr));
+check('PHASE N.4: NotificationManager.js ALSO now registers the token automatically on boot via onAppReady()/BootManager.onReady(), gated on permissionState()===\'granted\' (never prompts) — closes the pre-N.4 "no automatic refresh" gap',
+  /onAppReady\(function \(\) \{[\s\S]*permissionState\(\) === 'granted'[\s\S]*registerFcmTokenIfAvailable\(\);/.test(notifMgr));
 check('NotificationManager.js: token registration reuses ApiService.saveData (apiAddRow) — no new endpoint invented', /ApiService\.saveData\('أجهزة_FCM'/.test(notifMgr));
 check('NotificationManager.js: token row id === token (idempotent update-in-place, no duplicate-row risk)', /id:\s*token,/.test(notifMgr) && /token:\s*token,/.test(notifMgr));
 check('NotificationManager.js: message listener calls SyncCoordinator.requestSync(\'notification\')', /SyncCoordinator\.requestSync\('notification'\)/.test(notifMgr));
