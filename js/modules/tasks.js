@@ -984,21 +984,34 @@ async function restoreTask(id) {
  * toggleTask — flips a task's status between 'pending' and 'done'.
  * @param {number} i - 0-based index in the data.tasks mirror.
  *
- * NOTE: Preserves original behaviour exactly — the original inline
- * toggleTask() does NOT sync the status change to GAS (no
- * syncToSheets()/ApiService.syncRow() call). This module makes no
- * functional change to that behaviour.
+ * PHASE N.4 — now server-synchronized (see PHASE N.1/N.2/N.3 reports).
+ * Previously this function only ever performed a local
+ * TasksRepository.update() and never called the server at all — that
+ * was the ORIGINAL, pre-FCM behaviour, and is the reason the everyday
+ * quick-toggle checkbox never produced a "task completed" push
+ * notification while the full edit-form save (saveTask(), below)
+ * already did.
  *
- * Implemented as a partial `TasksRepository.update(id, {الحالة: ...})`
- * call rather than a full-record update — TasksRepository does not
- * expose a specialized `toggleStatus()` operation (see
- * TasksRepository.js file header "TOGGLE" note), so `update()` with
- * only the changed field is the correct, already-available substitute;
- * Repository.update() merges the patch onto the existing stored record
- * (Repository Contract), so no other field is disturbed.
+ * The fix is intentionally NOT a new sync mechanism: it stamps the
+ * EXACT SAME completion/reopen metadata fields saveTask() already
+ * stamps for the identical pending<->done transition (تاريخ_الإنجاز/
+ * وقت_الإنجاز/سبب_الإنجاز for pending->done, تاريخ_إعادة_الفتح/
+ * وقت_إعادة_الفتح/سبب_إعادة_الفتح for done->pending — see saveTask()'s
+ * own "PHASE 13.13 PART 2" comment for the original convention this
+ * mirrors), with an intentionally empty reason string (quick-toggle
+ * has no reason-entry UI — do not add one here). Sending the same
+ * fields means Config/10_Fcm.gs's existing, UNMODIFIED
+ * computeUpdateChangeContext_() (which watches تاريخ_الإنجاز/
+ * تاريخ_إعادة_الفتح, not الحالة itself) classifies a quick-toggle
+ * completion exactly like a full-form one — no backend change of any
+ * kind was needed or made.
  *
- * Crosses the async boundary (Repository.update() is Promise-returning)
- * — the only reason this function is now `async`.
+ * Order preserved exactly as saveTask() already uses: the local
+ * Repository write happens first (awaited), then ApiService.syncRow()
+ * fires fire-and-forget — the same 3-argument call shape saveTask()
+ * already uses for this entity, so a network failure enters the same
+ * existing, unmodified OfflineQueue path any other task edit already
+ * would.
  */
 async function toggleTask(i) {
   await ensureTasksRepositoryReady();
@@ -1008,7 +1021,30 @@ async function toggleTask(i) {
 
   var id = record[TASKS_ID_FIELD];
   var newStatus = record['الحالة'] === 'done' ? 'pending' : 'done';
-  var result = await tasksRepository.update(id, { 'الحالة': newStatus });
+
+  // Same date/time stamping convention as saveTask()'s "PHASE 13.13
+  // PART 2" completion/reopen block — duplicated in miniature here
+  // rather than extracted into a shared helper, per PHASE N.4's own
+  // "smallest possible implementation, do not refactor saveTask()"
+  // scope (the two zero-pad + ISO-date/HH:MM lines are the entire
+  // duplication; not worth a shared-helper extraction for 4 lines).
+  function zeroPad2(n) { return (n < 10 ? '0' : '') + n; }
+  var now = new Date();
+  var nowDateStr = now.getFullYear() + '-' + zeroPad2(now.getMonth() + 1) + '-' + zeroPad2(now.getDate());
+  var nowTimeStr = zeroPad2(now.getHours()) + ':' + zeroPad2(now.getMinutes());
+
+  var patch = { 'الحالة': newStatus };
+  if (newStatus === 'done') {
+    patch['سبب_الإنجاز'] = '';
+    patch['تاريخ_الإنجاز'] = nowDateStr;
+    patch['وقت_الإنجاز'] = nowTimeStr;
+  } else {
+    patch['سبب_إعادة_الفتح'] = '';
+    patch['تاريخ_إعادة_الفتح'] = nowDateStr;
+    patch['وقت_إعادة_الفتح'] = nowTimeStr;
+  }
+
+  var result = await tasksRepository.update(id, patch);
 
   if (!result || !result.success) return;
 
@@ -1016,6 +1052,12 @@ async function toggleTask(i) {
   saveLocal();
   renderTasks();
   updateBadges();
+  // PHASE N.4 — existing generic sync path (same call shape saveTask()
+  // already uses: sheet name, the Repository's own post-update record,
+  // and the pre-existing mirror index i so ApiService.syncRow() routes
+  // to updateData() rather than treating this as a new row). Fires
+  // AFTER the local write, fire-and-forget, exactly like saveTask().
+  ApiService.syncRow('الأعمال الإدارية', result.record, i);
   // PHASE 16.5.1 — DIRTY PROPAGATION (additive only, see phase brief)
   if (window.ApplicationShell) { ApplicationShell.markDirty('tasks'); ApplicationShell.markDirty('dashboard'); }
 }
