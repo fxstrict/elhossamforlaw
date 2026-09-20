@@ -44,6 +44,7 @@ function makeSandbox(opts) {
   opts = opts || {};
   const checkpoints = {};
   const applyCalls = [];
+  const markDirtyCalls = []; // PHASE N.13
   const sandbox = {
     console: console,
     Object: Object,
@@ -54,6 +55,14 @@ function makeSandbox(opts) {
     setTimeout: setTimeout
   };
   sandbox.window = sandbox;
+
+  // PHASE N.13 — real stub (not just "undefined", which every pre-N.13
+  // test already implicitly exercised as the "ApplicationShell absent"
+  // defensive path). Lets new tests assert exactly which pages get
+  // marked dirty and when.
+  sandbox.ApplicationShell = {
+    markDirty(pageId) { markDirtyCalls.push(pageId); }
+  };
 
   sandbox.SyncCheckpoint = {
     get(sheetName) {
@@ -90,7 +99,7 @@ function makeSandbox(opts) {
   vm.createContext(sandbox);
   vm.runInContext(engineSrc, sandbox, { filename: SYNC_ENGINE_PATH });
 
-  return { sandbox: sandbox, checkpoints: checkpoints, applyCalls: applyCalls, makeMockRepo: makeMockRepo };
+  return { sandbox: sandbox, checkpoints: checkpoints, applyCalls: applyCalls, markDirtyCalls: markDirtyCalls, makeMockRepo: makeMockRepo };
 }
 
 // ----------------------------------------------------------------------
@@ -361,6 +370,80 @@ async function test13() {
 }
 
 // ----------------------------------------------------------------------
+// PHASE N.13 — "update from another device appears late" root-cause fix:
+// incremental sync must mark the entity's page dirty (via
+// ApplicationShell.markDirty) whenever it actually applies real items,
+// so navigate(page) knows to re-render (and thereby re-sync the
+// data.<entity> mirror) next time, instead of waiting for a future full
+// pull to set the flag.
+// ----------------------------------------------------------------------
+async function test14() {
+  const env = makeSandbox({
+    syncSheetImpl: async (sheet) => ({ sheet: sheet, items: [{ id: '1', name: 'a', 'محذوف_في': '' }], nextCursor: 'C1', hasMore: false })
+  });
+  env.makeMockRepo('cases');
+  await env.sandbox.SyncEngine.syncEntityIncremental('القضايا', 'cases');
+  return env.markDirtyCalls.indexOf('cases') !== -1;
+}
+
+async function test15() {
+  // Empty page (nothing new) must NOT mark the page dirty — no pointless
+  // re-render when there is genuinely nothing to show.
+  const env = makeSandbox({
+    syncSheetImpl: async (sheet, cursor) => ({ sheet: sheet, items: [], nextCursor: cursor, hasMore: false })
+  });
+  env.makeMockRepo('cases');
+  await env.sandbox.SyncEngine.syncEntityIncremental('القضايا', 'cases');
+  return env.markDirtyCalls.length === 0;
+}
+
+async function test16() {
+  // A FAILED apply must NOT mark the page dirty (nothing new actually
+  // landed in the Repository, so there is nothing to show).
+  const env = makeSandbox({
+    syncSheetImpl: async (sheet) => ({ sheet: sheet, items: [{ id: '1', 'محذوف_في': '' }], nextCursor: 'C', hasMore: false })
+  });
+  env.makeMockRepo('cases', async () => ({ success: false, imported: 0, mode: 'merge', error: 'simulated' }));
+  await env.sandbox.SyncEngine.syncEntityIncremental('القضايا', 'cases');
+  return env.markDirtyCalls.length === 0;
+}
+
+async function test17() {
+  // runIncrementalSync(): dashboard/calendar get marked dirty exactly
+  // once when at least one entity had real items — and NOT at all when
+  // every entity's page was empty (the common, frequent-polling case).
+  const envChanged = makeSandbox({
+    syncSheetImpl: async (sheet) => ({ sheet: sheet, items: sheet === 'القضايا' ? [{ id: '1', 'محذوف_في': '' }] : [], nextCursor: 'C', hasMore: false })
+  });
+  envChanged.makeMockRepo('cases');
+  envChanged.makeMockRepo('sessions');
+  envChanged.makeMockRepo('clients');
+  envChanged.makeMockRepo('children');
+  envChanged.makeMockRepo('documents');
+  envChanged.makeMockRepo('tasks');
+  envChanged.makeMockRepo('fees');
+  envChanged.makeMockRepo('clientMessages');
+  envChanged.makeMockRepo('templates');
+  envChanged.makeMockRepo('library');
+  envChanged.makeMockRepo('opponents');
+  envChanged.makeMockRepo('processServerWorks');
+  envChanged.makeMockRepo('caseClients');
+  envChanged.makeMockRepo('expenses');
+  await envChanged.sandbox.SyncEngine.runIncrementalSync();
+  const changedOk = envChanged.markDirtyCalls.filter(function (p) { return p === 'dashboard'; }).length === 1 &&
+                     envChanged.markDirtyCalls.filter(function (p) { return p === 'calendar'; }).length === 1;
+
+  const envEmpty = makeSandbox({
+    syncSheetImpl: async (sheet, cursor) => ({ sheet: sheet, items: [], nextCursor: cursor, hasMore: false })
+  });
+  ['cases', 'sessions', 'clients', 'children', 'documents', 'tasks', 'fees', 'clientMessages', 'templates', 'library', 'opponents', 'processServerWorks', 'caseClients', 'expenses'].forEach(function (k) { envEmpty.makeMockRepo(k); });
+  await envEmpty.sandbox.SyncEngine.runIncrementalSync();
+  const emptyOk = envEmpty.markDirtyCalls.indexOf('dashboard') === -1 && envEmpty.markDirtyCalls.indexOf('calendar') === -1;
+
+  return changedOk && emptyOk;
+}
+
+// ----------------------------------------------------------------------
 // STATIC WIRING CHECKS (source inspection, not execution)
 // ----------------------------------------------------------------------
 function staticChecks() {
@@ -402,6 +485,10 @@ function staticChecks() {
   await checkAsync('TEST 11 — Per-sheet isolation in runIncrementalSync()', test11);
   await checkAsync('TEST 12 — Missing repository is a defensive failure, not a throw', test12);
   await checkAsync('TEST 13 — Checkpoint write failure is a stop condition', test13);
+  await checkAsync('TEST 14 — PHASE N.13: a successful apply with real items marks the entity page dirty', test14);
+  await checkAsync('TEST 15 — PHASE N.13: an empty page (nothing new) does NOT mark the page dirty', test15);
+  await checkAsync('TEST 16 — PHASE N.13: a FAILED apply does NOT mark the page dirty', test16);
+  await checkAsync('TEST 17 — PHASE N.13: runIncrementalSync() marks dashboard/calendar dirty once iff something changed, not at all otherwise', test17);
   staticChecks();
   console.log('\n=== RESULT:', pass, 'PASS /', fail, 'FAIL ===');
   process.exit(fail === 0 ? 0 : 1);
