@@ -187,6 +187,32 @@ const SyncEngine = (function () {
    * into the given entity's Repository, via the exact same
    * `window[key+'Repository']` / `window[key+'RepositoryReadyPromise']`
    * resolution `_persistEntityViaRepository()` already uses.
+   *
+   * PHASE N.13 — CONFIRMED ROOT CAUSE FIX ("update from another device
+   * appears late" — investigated and confirmed this session, not
+   * inferred): incremental sync has always correctly merged new/changed
+   * rows into the Repository (IndexedDB) here, but never told the UI
+   * layer anything changed. `navigate(page)` (index.html) only re-runs
+   * a page's render function — which is what actually refreshes the
+   * in-memory `data.<entity>` mirror via that page's own
+   * `sync<Entity>Mirror()` call, e.g. `renderCases()` calls
+   * `syncCasesMirror()` — when `ApplicationShell.isDirty(page)` is
+   * true. `loadFromSheets()` (settings.js, the FULL pull) already calls
+   * `ApplicationShell.markDirty(key)` after importing; this incremental
+   * path (the fast, frequent one that runs on every normal sync after
+   * the very first) never did. Result: a background incremental sync
+   * updated local storage correctly and silently, but an already-open
+   * or already-visited page kept showing its last-rendered snapshot
+   * until some LATER full pull happened to also touch the same entity
+   * and finally set the flag — exactly the "appears after a delay,
+   * once something else eventually refreshes it" symptom reported.
+   * Only marks dirty when this page actually contained items (an
+   * empty page is already a no-op two lines above) — no functional
+   * change to the merge/commit/checkpoint logic at all, and this
+   * cannot mark a page dirty on a FAILED apply, since this line is
+   * only reached after `result.success === true` returns true, above.
+   * Zero additional Apps Script/network calls — this is a purely
+   * client-side (this device's own memory) signal.
    * @param {string} repoKey
    * @param {Array} items
    * @returns {Promise<boolean>} true iff the apply step fully succeeded
@@ -200,7 +226,16 @@ const SyncEngine = (function () {
       if (!items.length) return true; // nothing to apply is a trivially-successful apply
       const mapped = items.map(_translateTombstone);
       const result = await repo.import(mapped, 'merge');
-      return !!(result && result.success === true);
+      const ok = !!(result && result.success === true);
+      if (ok) {
+        // PHASE N.13 — see this function's own doc comment above.
+        try {
+          if (typeof ApplicationShell !== 'undefined' && ApplicationShell && typeof ApplicationShell.markDirty === 'function') {
+            ApplicationShell.markDirty(repoKey);
+          }
+        } catch (e) { /* best-effort UI hint only — never affects sync success/failure */ }
+      }
+      return ok;
     } catch (e) {
       try { console.warn('[SyncEngine] apply failed for "' + repoKey + '":', e); } catch (e2) {}
       return false;
@@ -217,6 +252,7 @@ const SyncEngine = (function () {
    */
   async function syncEntityIncremental(sheetName, repoKey) {
     let pagesApplied = 0;
+    let anyItemsApplied = false; // PHASE N.13 — see runIncrementalSync()'s use of this below
     let cursor = null;
     try {
       cursor = SyncCheckpoint.get(sheetName);
@@ -229,7 +265,7 @@ const SyncEngine = (function () {
       try {
         response = await ApiService.syncSheet(sheetName, cursor);
       } catch (e) {
-        return { sheet: sheetName, ok: pagesApplied > 0, pagesApplied: pagesApplied, error: 'network: ' + (e && e.message) };
+        return { sheet: sheetName, ok: pagesApplied > 0, pagesApplied: pagesApplied, error: 'network: ' + (e && e.message), anyItemsApplied: anyItemsApplied };
       }
 
       // VALIDATE — a malformed/missing response is a failed page. Note:
@@ -241,15 +277,16 @@ const SyncEngine = (function () {
       // zero items — see the `hasMore` handling below, which correctly
       // treats that shape as "nothing new, stop").
       if (!response || !Array.isArray(response.items)) {
-        return { sheet: sheetName, ok: pagesApplied > 0, pagesApplied: pagesApplied, error: 'invalid sync response' };
+        return { sheet: sheetName, ok: pagesApplied > 0, pagesApplied: pagesApplied, error: 'invalid sync response', anyItemsApplied: anyItemsApplied };
       }
 
       const applied = await _applyPage(repoKey, response.items);
       if (!applied) {
         // APPLY FAILED — Checkpoint Safety: do NOT commit. Old cursor
         // (whatever it was at loop entry) remains the durable checkpoint.
-        return { sheet: sheetName, ok: pagesApplied > 0, pagesApplied: pagesApplied, error: 'apply failed' };
+        return { sheet: sheetName, ok: pagesApplied > 0, pagesApplied: pagesApplied, error: 'apply failed', anyItemsApplied: anyItemsApplied };
       }
+      if (response.items.length > 0) anyItemsApplied = true;
 
       // COMMIT — only reached after a fully successful apply.
       try {
@@ -258,13 +295,13 @@ const SyncEngine = (function () {
         // Checkpoint write itself failing is treated like an apply
         // failure for safety: stop here rather than silently looping
         // forever without ever being able to persist progress.
-        return { sheet: sheetName, ok: pagesApplied > 0, pagesApplied: pagesApplied, error: 'checkpoint commit failed' };
+        return { sheet: sheetName, ok: pagesApplied > 0, pagesApplied: pagesApplied, error: 'checkpoint commit failed', anyItemsApplied: anyItemsApplied };
       }
       cursor = response.nextCursor != null ? response.nextCursor : null;
       pagesApplied++;
 
       if (!response.hasMore) {
-        return { sheet: sheetName, ok: true, pagesApplied: pagesApplied, error: null };
+        return { sheet: sheetName, ok: true, pagesApplied: pagesApplied, error: null, anyItemsApplied: anyItemsApplied };
       }
       // else: loop again immediately with the newly committed cursor —
       // multi-page incremental sync, per §"Composite Cursor" / multiple
@@ -288,6 +325,18 @@ const SyncEngine = (function () {
     );
     const succeeded = results.filter(function (r) { return r.ok; }).length;
     const failed = results.length - succeeded;
+    // PHASE N.13 — companion dirty-marking for the two aggregator pages
+    // that summarize data across entities, mirroring loadFromSheets()'s
+    // own 'dashboard'/'calendar' markDirty calls — but gated on real
+    // change (see doc comment above) rather than unconditional, since
+    // this function runs far more frequently than the full pull.
+    try {
+      const anyChanged = results.some(function (r) { return r.anyItemsApplied; });
+      if (anyChanged && typeof ApplicationShell !== 'undefined' && ApplicationShell && typeof ApplicationShell.markDirty === 'function') {
+        ApplicationShell.markDirty('dashboard');
+        ApplicationShell.markDirty('calendar');
+      }
+    } catch (e) { /* best-effort UI hint only */ }
     return { results: results, succeeded: succeeded, failed: failed };
   }
 
