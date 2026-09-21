@@ -232,7 +232,19 @@ async function pingConnection(){
       // js/core/pwa/FcmClient.js عند الحاجة الفعلية (بعد منح إذن
       // الإشعارات) — لا تحميل SDK هنا، فقط تخزين نص. إذا كانت d.firebase
       // فارغة (null)، تُحذف أي قيمة قديمة بأمان (يعطّل FCM تلقائيًا).
-      try{ if(d.firebase) localStorage.setItem('ahp_firebase_config', JSON.stringify(d.firebase)); else localStorage.removeItem('ahp_firebase_config'); }catch(e){}
+      try{
+        if(d.firebase){
+          var fbNew=JSON.stringify(d.firebase);
+          var fbOld=localStorage.getItem('ahp_firebase_config');
+          localStorage.setItem('ahp_firebase_config', fbNew);
+          // PHASE N.13.2 — announce ONLY a first/changed config so
+          // NotificationManager.js can register this device now instead of
+          // waiting for the next reload (boot registration may have run
+          // before this ping stored the config). Unchanged config => silent,
+          // so normal boots never register twice.
+          if(fbOld!==fbNew) try{ window.dispatchEvent(new CustomEvent('ahp:firebase-config-ready')); }catch(e2){}
+        } else localStorage.removeItem('ahp_firebase_config');
+      }catch(e){}
     } else {
       dot.classList.remove('connected');dot.classList.add('error');tx.textContent='خطأ في الاتصال';
     }
