@@ -113,6 +113,55 @@
     safely(function () { global.localStorage.setItem(ENABLED_KEY, flag ? 'true' : 'false'); }, undefined);
   }
 
+  // ------------------------------------------------------------------
+  // PHASE N.13.2 — per-category on/off (the three checkboxes that have
+  // shipped in index.html's #notificationsCard since PHASE_B, whose
+  // onchange handler never existed and whose state was never restored,
+  // so a tick was lost on every reload). Same device-local convention as
+  // ENABLED_KEY above: 'true' | 'false' | absent (= ON, index.html's own
+  // "defaults ON" comment). Each category maps to the exact alert keys
+  // computeAlertSnapshot() emits; it gates ONLY the on-open local
+  // reminders (checkAndNotify) — never the manual test notification and
+  // never server-sent FCM pushes (the Service Worker has no access to
+  // localStorage, and PHASE N.12 requires every add/update/delete push).
+  // ------------------------------------------------------------------
+  var CATEGORY_KEY_PREFIX = 'ahpNotifCategory_';
+  var CATEGORY_ALERT_KEYS = {
+    sessions: ['sessions-today', 'sessions-soon', 'sessions-week'],
+    tasks: ['tasks-overdue'],
+    cases: ['cases-no-opponent', 'cases-no-documents']
+  };
+  var CATEGORY_CHECKBOX_IDS = {
+    sessions: 'notifCatSessions',
+    tasks: 'notifCatTasks',
+    cases: 'notifCatCases'
+  };
+
+  function isKnownCategory(category) {
+    return Object.prototype.hasOwnProperty.call(CATEGORY_ALERT_KEYS, category);
+  }
+
+  function isCategoryEnabled(category) {
+    if (!isKnownCategory(category)) return true;
+    return safely(function () {
+      var v = global.localStorage.getItem(CATEGORY_KEY_PREFIX + category);
+      return v === null ? true : v === 'true';
+    }, true);
+  }
+
+  function setCategoryEnabled(category, flag) {
+    if (!isKnownCategory(category)) return;
+    safely(function () { global.localStorage.setItem(CATEGORY_KEY_PREFIX + category, flag ? 'true' : 'false'); }, undefined);
+  }
+
+  function categoryOfAlertKey(alertKey) {
+    var cats = Object.keys(CATEGORY_ALERT_KEYS);
+    for (var i = 0; i < cats.length; i++) {
+      if (CATEGORY_ALERT_KEYS[cats[i]].indexOf(alertKey) !== -1) return cats[i];
+    }
+    return null; // an alert outside the three switchable categories is never suppressed
+  }
+
   function pad2(n) { return String(n).padStart(2, '0'); }
 
   // ------------------------------------------------------------------
@@ -322,6 +371,8 @@
     if (permissionState() !== 'granted') return;
     var alerts = safely(computeAlertSnapshot, []) || [];
     alerts.forEach(function (alert) {
+      var category = categoryOfAlertKey(alert.key);
+      if (category && !isCategoryEnabled(category)) return; // PHASE N.13.2 — switched off by the person
       deliver(alert);
     });
   }
@@ -385,6 +436,12 @@
     if (enableBtn) enableBtn.style.display = (state === 'default') ? 'inline-block' : 'none';
     if (testBtn) testBtn.disabled = (state !== 'granted');
     if (toggle) toggle.checked = isEnabled();
+    // PHASE N.13.2 — restore the per-category ticks from device storage so
+    // they survive a reload (previously nothing ever restored them).
+    Object.keys(CATEGORY_CHECKBOX_IDS).forEach(function (category) {
+      var box = global.document.getElementById(CATEGORY_CHECKBOX_IDS[category]);
+      if (box) box.checked = isCategoryEnabled(category);
+    });
   }
 
   global.handleEnableNotificationsClick = function handleEnableNotificationsClick() {
@@ -466,11 +523,29 @@
     }, undefined);
   }
 
+  // PHASE N.13.2 — Firebase config arrived AFTER boot (first-ever session /
+  // cleared storage / rotated config): settings.js pingConnection() announces
+  // it. Register now, exactly like the boot path: only when permission is
+  // already 'granted' (never prompts), through the same idempotent
+  // registerFcmTokenIfAvailable().
+  global.addEventListener('ahp:firebase-config-ready', function () {
+    safely(function () {
+      if (permissionState() === 'granted') registerFcmTokenIfAvailable();
+    }, undefined);
+  });
+
   global.handleNotifToggleChange = function handleNotifToggleChange(checkbox) {
     setEnabled(!!(checkbox && checkbox.checked));
     if (checkbox && checkbox.checked && permissionState() === 'default') {
       global.handleEnableNotificationsClick();
     }
+  };
+
+  // PHASE N.13.2 — the handler index.html's three category checkboxes have
+  // always referenced (onchange="handleNotifCategoryToggleChange(this,'sessions')").
+  global.handleNotifCategoryToggleChange = function handleNotifCategoryToggleChange(checkbox, category) {
+    if (!checkbox || !isKnownCategory(category)) return;
+    setCategoryEnabled(category, !!checkbox.checked);
   };
 
   global.handleSendTestNotificationClick = function handleSendTestNotificationClick() {
@@ -566,8 +641,8 @@
 
   // ------------------------------------------------------------------
   // EXTENSION POINTS (documented, not implemented — future phases only):
-  //   - Per-category on/off toggles: iterate computeAlertSnapshot()'s
-  //     `key`s into individual checkboxes, gate deliver() on each.
+  //   - Per-category on/off toggles: IMPLEMENTED in PHASE N.13.2 (see
+  //     CATEGORY_ALERT_KEYS / handleNotifCategoryToggleChange above).
   //   - Quiet hours: check a stored "from"/"to" pair before deliver().
   //   - Scheduled/recurring reminders independent of app-open: would
   //     require the Push API + a real push server (explicitly out of
@@ -580,6 +655,8 @@
     requestPermission: requestPermission,
     isEnabled: isEnabled,
     setEnabled: setEnabled,
+    isCategoryEnabled: isCategoryEnabled,
+    setCategoryEnabled: setCategoryEnabled,
     permissionState: permissionState
   };
 })(window);

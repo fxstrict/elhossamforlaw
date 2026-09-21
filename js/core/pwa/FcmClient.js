@@ -71,7 +71,14 @@
     if (_appPromise) return _appPromise;
 
     var cfg = getCachedFirebaseConfig();
-    if (!cfg) { _appPromise = Promise.resolve(null); return _appPromise; }
+    // PHASE N.13.2 — "no config yet" is a TEMPORARY state, not a verdict: on a
+    // device that has never cached the config, this can run before the first
+    // pingConnection() (index.html fires it 2000 ms after boot) has stored it.
+    // Memoizing null here froze FCM as unavailable for the whole page session
+    // even after the config arrived. Deliberately NOT assigned to _appPromise,
+    // so the next call re-reads localStorage. Permanent verdicts below
+    // (unsupported browser) and a real SDK load (success/failure) stay memoized.
+    if (!cfg) return Promise.resolve(null);
     if (!('serviceWorker' in navigator) || typeof global.Notification === 'undefined') {
       _appPromise = Promise.resolve(null);
       return _appPromise;
