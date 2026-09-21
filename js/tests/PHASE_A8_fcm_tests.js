@@ -79,14 +79,14 @@ check('service-worker.js: install preserved', /self\.addEventListener\('install'
 check('service-worker.js: activate preserved', /self\.addEventListener\('activate',/.test(sw));
 check('service-worker.js: message preserved', /self\.addEventListener\('message',/.test(sw));
 check('service-worker.js: SW_VERSION is declared as a valid version tag (bumped for cache-busting)', /var SW_VERSION = 'v\d+'/.test(sw));
-check('service-worker.js: FcmClient.js added to PRECACHE_URLS (offline-boot stays in sync with index.html)', /'js\/core\/pwa\/FcmClient\.js\?v=1'/.test(sw));
+check('service-worker.js: FcmClient.js added to PRECACHE_URLS (offline-boot stays in sync with index.html)', /'js\/core\/pwa\/FcmClient\.js\?v=\d+'/.test(sw));
 check('service-worker.js: only ONE service worker file touched — no firebase-messaging-sw.js created', !fs.existsSync(path.join(ROOT, 'firebase-messaging-sw.js')));
 check('service-worker.js: no setInterval anywhere (push stays event-driven, no polling introduced)', !/setInterval/.test(sw));
 
 // =====================================================================
 // Frontend — [STATIC VERIFIED]
 // =====================================================================
-check('index.html: FcmClient.js is loaded exactly once', (indexHtml.match(/<script src="js\/core\/pwa\/FcmClient\.js\?v=1">/g) || []).length === 1);
+check('index.html: FcmClient.js is loaded exactly once', (indexHtml.match(/<script src="js\/core\/pwa\/FcmClient\.js\?v=\d+">/g) || []).length === 1);
 check('index.html: FcmClient.js\'s <script> tag loads BEFORE NotificationManager.js\'s <script> tag (token bridge ready before it is used)',
   indexHtml.indexOf('<script src="js/core/pwa/FcmClient.js') < indexHtml.indexOf('<script src="js/core/pwa/NotificationManager.js'));
 check('FcmClient.js: Firebase SDK version is pinned in exactly one place and reused for both imports (not multiple scattered CDN versions)',
