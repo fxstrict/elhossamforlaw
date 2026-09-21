@@ -255,7 +255,14 @@
 // is served networkFirstShell() (always fresh), and its only change was
 // to add three new <select> controls inside existing case-form tabs
 // (no cached-file reference changed).
-var SW_VERSION = 'v129'; // PHASE A9 — Backend-only change (Config/00_Config.gs,
+// PHASE N.13.2 — SW_VERSION v112 -> v113: (1) this file's own 'push' handler
+// now reads FCM's nested `data` map (see the push listener below); (2) the
+// versioned files changed this round (FcmClient.js ?v=2, NotificationManager.js
+// ?v=44, settings.js ?v=44) must be re-fetched: SHELL_CACHE is keyed by
+// SW_VERSION and served Cache First, so without this bump already-installed
+// devices would keep the old copies. (settings.js's precache entry was
+// ?v=42 while index.html already referenced ?v=43; aligned to ?v=44 here.)
+var SW_VERSION = 'v120'; // PHASE A9 — Backend-only change (Config/00_Config.gs,
                          // 06_Api.gs, 10_Fcm.gs): FCM notification coverage
                          // expanded to more sheets/events (add on القضايا/
                          // الموكلين/المستندات/أعمال_المحضرين/الأتعاب, critical
@@ -617,7 +624,7 @@ var PRECACHE_URLS = [
   'js/auth/SidebarSessionBadge.js?v=42',
   'js/core/RepositoryReadyTimeout.js?v=42',
   'js/modules/cases.js?v=45',
-  'js/modules/settings.js?v=42',
+  'js/modules/settings.js?v=44',
   'js/modules/firstrun.js?v=42',
   'js/modules/calendar.js?v=42',
   'js/modules/children.js?v=42',
@@ -684,8 +691,8 @@ var PRECACHE_URLS = [
   'js/core/boot/SafeModeController.js?v=42',
   'js/core/pwa/ServiceWorkerRegistrar.js?v=42',
   'js/core/pwa/InstallPromptManager.js?v=42',
-  'js/core/pwa/FcmClient.js?v=1', // PHASE A8 — added to keep offline-boot precache in sync with index.html's new <script> tag; SW_VERSION bumped to v94 (see top of file) so this list is re-fetched
-  'js/core/pwa/NotificationManager.js?v=43',
+  'js/core/pwa/FcmClient.js?v=2', // PHASE A8 — added to keep offline-boot precache in sync with index.html's new <script> tag; SW_VERSION bumped to v94 (see top of file) so this list is re-fetched
+  'js/core/pwa/NotificationManager.js?v=44',
   'js/core/VoiceInputController.js?v=42'
 ];
 
@@ -805,7 +812,19 @@ self.addEventListener('push', function (event) {
   var notif = data.notification || {};
   var title = notif.title || data.title || 'نظام الحسام للمحاماة';
   var body  = notif.body  || data.body  || '';
-  var page  = data.page  || '';
+  // BUGFIX (SW_VERSION v113, PHASE N.13.2): the SAME nesting applies to the
+  // custom keys. FCM delivers Config/10_Fcm.gs's `data` map (page,
+  // projectId, entityType, entityId, entityAction, notificationId) as a
+  // NESTED `data` object beside `notification` — verified against the
+  // Firebase JS SDK source (MessagePayloadInternal.data). Reading them from
+  // the top level (`data.page`) always yielded '' for real FCM pushes, so a
+  // tap never navigated to the page AND projectId was '' — which makes
+  // NotificationManager.js skip SyncCoordinator.requestSync('notification')
+  // entirely (its `if (incomingProjectId)` guard), i.e. no data refresh
+  // after tapping. `extra` reads the nested map first and falls back to the
+  // top level so flat/legacy payloads behave exactly as before.
+  var extra = (data.data && typeof data.data === 'object') ? data.data : {};
+  var page  = extra.page || data.page || '';
 
   event.waitUntil(
     self.registration.showNotification(title, {
@@ -814,14 +833,14 @@ self.addEventListener('push', function (event) {
       badge: './assets/icons/icon-96.png',
       data: {
         page: page,
-        projectId: data.projectId || '',
-        entityType: data.entityType || '',
-        entityId: data.entityId || '',
+        projectId: extra.projectId || data.projectId || '',
+        entityType: extra.entityType || data.entityType || '',
+        entityId: extra.entityId || data.entityId || '',
         // PHASE A9 — حقل إضافي بحت ('add'|'update'|'delete') يرسله الباك
         // إند الآن (Config/10_Fcm.gs). لا يمسّ أيًا من الحقول السابقة —
         // إن لم يُرسَل (إشعار قديم قبل هذا التحديث)، تبقى '' كما كانت.
-        entityAction: data.entityAction || '',
-        notificationId: data.notificationId || ''
+        entityAction: extra.entityAction || data.entityAction || '',
+        notificationId: extra.notificationId || data.notificationId || ''
       }
     })
   );

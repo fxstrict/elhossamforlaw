@@ -408,7 +408,7 @@
 <link rel="preload" as="script" href="js/repositories/SettingsRepositoryWiring.js?v=42" fetchpriority="high">
 <link rel="preload" as="script" href="js/core/RepositoryReadyTimeout.js?v=42" fetchpriority="high">
 <link rel="preload" as="script" href="js/modules/cases.js?v=45" fetchpriority="high">
-<link rel="preload" as="script" href="js/modules/settings.js?v=43" fetchpriority="high">
+<link rel="preload" as="script" href="js/modules/settings.js?v=44" fetchpriority="high">
 <!-- PHASE A7 — SyncEngine.js: Frontend Incremental Sync orchestration
      (Receive -> Validate -> Apply -> Commit Checkpoint). Additive only,
      loaded after settings.js (bootLoadFromSheets() calls into it) and
@@ -3169,7 +3169,7 @@ window.addEventListener('online',function(){
 });
 </script>
 
-<script src="js/modules/settings.js?v=43"></script>
+<script src="js/modules/settings.js?v=44"></script>
 <!-- PHASE A7 — SyncEngine.js (see preload comment above) -->
 <script src="js/core/SyncEngine.js?v=42"></script>
 <!-- PHASE A7.5 — SyncCoordinator.js (see preload comment above) -->
@@ -3457,14 +3457,14 @@ window.addEventListener('online',function(){
      js/core/pwa/FcmClient.js for the full contract and why the existing
      service-worker.js registration is reused instead of a second,
      separate firebase-messaging-sw.js. -->
-<script src="js/core/pwa/FcmClient.js?v=1"></script>
+<script src="js/core/pwa/FcmClient.js?v=2"></script>
 <!-- PHASE PWA-NOTIFICATIONS — local, professional system-tray notifications
      for the app's own alerts (sessions today/soon, overdue tasks, cases
      missing opponent/documents), shown only at app-open time, no external
      server. Wires the #notificationsCard markup above; see
      js/core/pwa/NotificationManager.js for the full contract. Loaded last,
      same reasoning as ServiceWorkerRegistrar.js/InstallPromptManager.js. -->
-<script src="js/core/pwa/NotificationManager.js?v=43"></script>
+<script src="js/core/pwa/NotificationManager.js?v=44"></script>
 <!-- PHASE 35 — Voice Input (Speech-to-Text): adds a microphone button to
      every input[type="text"] / textarea field (never to numeric/date/tel/
      email/url/checkbox/file fields) so users can dictate instead of type.
