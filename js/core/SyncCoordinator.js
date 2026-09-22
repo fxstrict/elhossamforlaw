@@ -126,6 +126,12 @@ const SyncCoordinator = (function () {
   // values were derived from the request's "1s / 2s / 4s" table.
   const RETRY_DELAYS_MS = [1000, 2000, 4000];
 
+  // PHASE N.13.5 STEP 1 — Design D ("Single-Flight Sync + Pending
+  // Notification"). Bounds the follow-up chain started below by
+  // _runChain(): initial attempt + at most this many follow-ups, so a
+  // burst of notification triggers can never become an unbounded loop.
+  const MAX_FOLLOW_UP_SYNCS = 2;
+
   const VALID_REASONS = ['boot', 'manual', 'online', 'resume', 'notification'];
 
   // §6 — metadata-only state. No case/client/session data is ever
@@ -144,6 +150,19 @@ const SyncCoordinator = (function () {
   // running, or null when idle. requestSync() returns THIS SAME Promise
   // to every caller that arrives while it is non-null.
   let _currentPromise = null;
+
+  // PHASE N.13.5 STEP 1 — Design D. Set the instant a reason==='notification'
+  // request arrives (requestSync(), before the single-flight/offline/TTL
+  // checks below), and consulted from two places only:
+  //   1) shouldSync() — a pending notification bypasses TTL/cooldown for
+  //      WHATEVER reason is asking (see shouldSync() below for why that is
+  //      correct and not merely a 'notification'-only bypass).
+  //   2) _runChain() — the loop that decides whether to run a follow-up
+  //      sync after the current one finishes.
+  // This is in-memory only (no persistence across reloads), matching the
+  // rest of this file's state (§6) and PHASE N.13.4 §29's explicit
+  // "in-memory state" requirement for Design D.
+  let _pendingNotification = false;
 
   function _delay(ms) {
     return new Promise(function (resolve) { setTimeout(resolve, ms); });
@@ -284,8 +303,18 @@ const SyncCoordinator = (function () {
    * @returns {boolean}
    */
   function shouldSync(reason) {
-    if (reason === 'manual') {
-      // §9/§20 — manual bypasses BOTH TTL and cooldown.
+    if (reason === 'manual' || _pendingNotification) {
+      // §9/§20 — manual bypasses BOTH TTL and cooldown, unchanged.
+      //
+      // PHASE N.13.5 STEP 1 — Design D: a pending notification ALSO
+      // bypasses both, regardless of which reason is asking. This is
+      // deliberately not "reason === 'notification'" alone, because a
+      // notification that arrived while offline (or during another
+      // sync, once the follow-up cap was hit — see _runChain()) must
+      // still be able to force a sync through the NEXT trigger that
+      // comes along, whatever its reason is ('online', 'resume', 'boot').
+      // A trigger that arrives with no pending notification is entirely
+      // unaffected and keeps today's TTL/cooldown behavior exactly.
       return true;
     }
     var now = Date.now();
@@ -332,9 +361,53 @@ const SyncCoordinator = (function () {
   }
 
   /**
+   * PHASE N.13.5 STEP 1 — Design D follow-up chain. Wraps a single
+   * _runSync(reason) call (unchanged) with the bounded follow-up loop:
+   * once the triggering sync finishes (success OR failure — _runSync()
+   * never throws, see §18), if a notification became pending — either
+   * because one arrived while this very sync was running (requestSync()
+   * joined this promise and set the flag) or one was still pending from
+   * a previous, capped-out chain — run ONE more sync to address it, up
+   * to MAX_FOLLOW_UP_SYNCS times. This is the ONLY place the flag is
+   * both read and cleared for consumption, so "pending" can never be
+   * silently dropped by a caller forgetting to re-check it (§9 of the
+   * N.13.5 spec — consumption must stay inside one chain).
+   * @param {string} reason the reason that started this chain.
+   * @returns {Promise<{reason:string, success:boolean, status:string}>}
+   *          the result of the LAST sync attempt in the chain.
+   */
+  async function _runChain(reason) {
+    // Consume whatever pending state exists at the moment THIS chain
+    // actually starts running its first sync — that sync will read
+    // current server state, so it addresses any notification that was
+    // already pending (e.g. one that arrived offline, or was left
+    // pending after a previous chain hit its follow-up cap).
+    _pendingNotification = false;
+    var result = await _runSync(reason);
+    var followUps = 0;
+    while (_pendingNotification && followUps < MAX_FOLLOW_UP_SYNCS) {
+      _pendingNotification = false;
+      followUps = followUps + 1;
+      result = await _runSync('notification');
+    }
+    // If the loop exited only because followUps reached the cap while
+    // _pendingNotification is still true, it is deliberately LEFT true
+    // here (not cleared) — per the N.13.5 spec, a later trigger
+    // (notification/online/resume/boot) must be able to consume it.
+    return result;
+  }
+
+  /**
    * §5 — main entry point. Every UI/boot/online/(future Firebase) call
    * site should call this instead of touching loadFromSheets()/
    * SyncEngine directly.
+   *
+   * PHASE N.13.5 STEP 1 — Design D: reason==='notification' now records
+   * intent (_pendingNotification = true) BEFORE the single-flight/
+   * offline/TTL checks below, so it is captured even if this call
+   * ultimately joins an in-flight sync, is rejected for being offline,
+   * or is skipped — none of those paths lose the signal, because
+   * shouldSync() and _runChain() both consult the same flag afterwards.
    * @param {string} reason one of 'boot'|'manual'|'online'|'resume'|'notification'
    * @returns {Promise<Object>} resolves with a small status summary;
    *          NEVER rejects.
@@ -342,11 +415,19 @@ const SyncCoordinator = (function () {
   function requestSync(reason) {
     if (VALID_REASONS.indexOf(reason) === -1) reason = 'manual';
 
+    if (reason === 'notification') {
+      _pendingNotification = true;
+    }
+
     // §10 — single-flight: any reason arriving while a sync is already
-    // running gets the SAME Promise back, never a second sync.
+    // running gets the SAME Promise back, never a second sync. (Design D:
+    // if that reason was 'notification', the flag set above is what makes
+    // the in-flight chain's follow-up loop address it once it finishes.)
     if (_currentPromise) return _currentPromise;
 
-    // §11 — offline guard: exits immediately, zero network calls.
+    // §11 — offline guard: exits immediately, zero network calls. (Design
+    // D: a pending notification set above is intentionally NOT cleared
+    // here — it survives until 'online' arrives, see shouldSync().)
     if (typeof navigator !== 'undefined' && navigator.onLine === false) {
       state.status = 'offline';
       return Promise.resolve({ reason: reason, success: false, status: 'offline', started: false });
@@ -356,7 +437,7 @@ const SyncCoordinator = (function () {
       return Promise.resolve({ reason: reason, success: false, status: state.status, started: false, skipped: true });
     }
 
-    var p = _runSync(reason);
+    var p = _runChain(reason);
     _currentPromise = p;
     p.finally(function () { _currentPromise = null; });
     return p;
@@ -376,7 +457,10 @@ const SyncCoordinator = (function () {
       lastSuccessAt: state.lastSuccessAt,
       lastFailureAt: state.lastFailureAt,
       lastReason: state.lastReason,
-      consecutiveFailures: state.consecutiveFailures
+      consecutiveFailures: state.consecutiveFailures,
+      // PHASE N.13.5 STEP 1 — Design D observability, additive only
+      // (existing callers that read specific keys are unaffected).
+      hasPendingNotification: _pendingNotification
     };
   }
 
