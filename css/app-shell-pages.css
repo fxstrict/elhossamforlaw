@@ -1,0 +1,180 @@
+/* ==========================================================================
+   PHASE UI-3 → UI-10 (VISUAL PASS ONLY) — shared list/card language
+   ==========================================================================
+   Source: "تقرير جنائي شامل" §6.1 (ListRow/FilterChipsRow/StatusPill) و §9.
+
+   SCOPE — everything here is CSS-only (plus one small, isolated,
+   READ-ONLY JS addition at the bottom of this comment block, see
+   js/modules/app-shell.js's appendCasesStatBar()). NOTHING in
+   cases.js / clients.js / sessions.js / tasks.js / documents.js / fees.js /
+   library.js / settings.js / global-search.js / global-search-ui.js was
+   edited. This file only repaints EXISTING classes those files already
+   write into the DOM:
+
+     .m-card family      → cases.js, clients.js, documents.js, fees.js
+     .session-item       → sessions.js
+     .task-item           → tasks.js
+     .lib-card family     → library.js
+     .btn / .btn-primary  → every module (shared button language)
+     .toolbar/.search-wrap/.page-toolbar → every list page + global search
+
+   Because .m-card is shared by FOUR modules, repainting it once here
+   restyles cases/clients/documents/fees consistently in one place — this
+   mirrors exactly what the report's §6.1 component table called for
+   (ListRow reused across screens) without having to touch four separate
+   files.
+
+   Loaded after css/app-shell.css (see index.html <link> order) so these
+   rules can safely fine-tune anything app-shell.css already set.
+   ========================================================================== */
+
+/* -------------------------------------------------------------------------
+   A. Obstacle fixes discovered while wiring the new shell (Phase UI-1
+      follow-up) — see docs/phaseUI/PHASE_UI3_UI10_REPORT.md §"العوارض
+      المعالجة" for the full writeup of each one.
+   ------------------------------------------------------------------------- */
+/* A1 — .sidebar/.sidebar-overlay share the SAME --z-sidebar token as the
+   new .bottom-nav; since the bottom-nav markup comes later in the DOM,
+   equal z-index meant it painted OVER the open drawer's lower edge.
+   Fixes itself by giving the drawer + its overlay a dedicated higher
+   layer — no existing token value is changed, only these two rules add
+   a small explicit offset on top of the existing token. */
+.sidebar{z-index:calc(var(--z-sidebar,100) + 5) !important;}
+.sidebar-overlay{z-index:calc(var(--z-sidebar-overlay,99) + 5) !important;}
+
+/* A2 — .toast-container (bottom:20px, bottom:10px on mobile per
+   responsive.css) used to land visually inside the new bottom-nav's
+   64px-tall strip. Lifted clear of it; z-index (98000) was already high
+   enough to render above the bar, this only fixes the visual overlap. */
+.toast-container{bottom:calc(var(--bottom-nav-h) + 14px + env(safe-area-inset-bottom,0px)) !important;}
+
+/* A3 — .safe-mode-banner (Phase 17.6, only ever shown in the rare
+   degraded-boot state) had the exact same bottom:16px collision. Same
+   fix, same reasoning — this is the ONLY rule in this whole file that
+   touches a class owned by a "system state" stylesheet rather than a
+   business-data module, and it only adjusts vertical offset, nothing
+   else about safe-mode.css's own rules. */
+.safe-mode-banner{bottom:calc(var(--bottom-nav-h) + 16px + env(safe-area-inset-bottom,0px)) !important;}
+
+/* -------------------------------------------------------------------------
+   B. Buttons — shared language across every page
+   ------------------------------------------------------------------------- */
+.btn{border-radius:var(--radius-input);}
+.btn-primary{background:linear-gradient(135deg,var(--color-gold-300),var(--color-gold-500));color:var(--color-navy-900);font-weight:800;}
+.btn-primary:hover{box-shadow:0 4px 16px rgba(201,168,76,0.35);}
+
+/* -------------------------------------------------------------------------
+   C. Toolbar / search / filters — shared across cases, clients, sessions,
+      tasks, documents, fees, library, settings, global search
+   ------------------------------------------------------------------------- */
+.page-toolbar,.toolbar{gap:8px;margin-bottom:14px;}
+.search-wrap{background:#fff;border-radius:var(--radius-pill);box-shadow:var(--shadow-card);}
+.search-wrap input{border-radius:var(--radius-pill);border:1px solid rgba(201,168,76,0.25);background:#fff;}
+.search-wrap input:focus{border-color:var(--color-gold-500);}
+.page-toolbar select{border-radius:var(--radius-pill);border:1px solid rgba(201,168,76,0.22);background:#fff;font-size:12px;}
+
+/* -------------------------------------------------------------------------
+   D. .m-card family — cases / clients / documents / fees mobile lists
+   ------------------------------------------------------------------------- */
+.m-card{border-radius:var(--radius-card);border-color:rgba(201,168,76,0.16);box-shadow:var(--shadow-card);padding:14px 14px;}
+.m-card:hover{box-shadow:var(--shadow-card-hover);border-color:rgba(201,168,76,0.3);}
+.m-card-num{background:rgba(201,168,76,0.14);color:var(--color-gold-700);border-radius:var(--radius-pill);font-weight:800;}
+.m-card-title{color:var(--color-navy-900);}
+.m-card-actions{border-top-color:rgba(0,0,0,0.05);}
+
+/* -------------------------------------------------------------------------
+   E. Sessions list
+   ------------------------------------------------------------------------- */
+.session-item{border-radius:var(--radius-card);box-shadow:var(--shadow-card);background:#fff;border-color:rgba(201,168,76,0.14);}
+.session-item:hover{box-shadow:var(--shadow-card-hover);}
+.session-date{border-radius:var(--radius-tile);background:rgba(201,168,76,0.14);}
+.session-date .day{color:var(--color-gold-700);}
+.session-title{color:var(--color-navy-900);}
+
+/* -------------------------------------------------------------------------
+   F. Tasks list
+   ------------------------------------------------------------------------- */
+.task-item{border-radius:var(--radius-card);background:#fff;box-shadow:var(--shadow-card);border-right-width:4px;}
+.task-item.high{border-right-color:var(--color-status-critical);}
+.task-item.medium{border-right-color:var(--color-status-overdue);}
+.task-item.low{border-right-color:var(--color-status-active);}
+.task-text{color:var(--color-navy-900);font-weight:600;}
+
+/* -------------------------------------------------------------------------
+   G. Library cards
+   ------------------------------------------------------------------------- */
+.lib-card{border-radius:var(--radius-card);box-shadow:var(--shadow-card);border-color:rgba(201,168,76,0.14);}
+.lib-card:hover{box-shadow:var(--shadow-card-hover);}
+.lib-card::before{background:linear-gradient(90deg,var(--color-gold-500),transparent);}
+
+/* -------------------------------------------------------------------------
+   H. Empty states — used on every list page
+   ------------------------------------------------------------------------- */
+.empty-state{background:#fff;border-radius:var(--radius-card);box-shadow:var(--shadow-card);padding:38px 20px;}
+.empty-state h3{color:var(--color-navy-900);}
+
+/* -------------------------------------------------------------------------
+   J. Shared pill tabs (.tab-btn/.section-tabs) — this single block covers
+      the financial-reports modal, the Settings page's 5 section tabs, the
+      client/case form tabs, and the history panel tabs, since they all
+      already share these two classes. No JS file owns this — every one
+      of those pages only toggles the existing `.active`/`aria-selected`
+      state, which is untouched here.
+   ------------------------------------------------------------------------- */
+.tab-btn{border-radius:var(--radius-pill);font-weight:700;}
+.tab-btn.active{background:linear-gradient(135deg,var(--color-gold-300),var(--color-gold-500));color:var(--color-navy-900);border-color:transparent;}
+
+/* -------------------------------------------------------------------------
+   K. Modals — already close to the target look (radius 16px, gold border,
+      becomes a bottom sheet on mobile per responsive.css) from earlier
+      work; only the header/footer surface color is aligned to the new
+      canvas token here, everything else is intentionally left as-is.
+   ------------------------------------------------------------------------- */
+.modal{border-radius:var(--radius-card);}
+.modal-header,.modal-footer{background:#fff;}
+.modal-header{border-top-right-radius:var(--radius-card);border-top-left-radius:var(--radius-card);}
+
+/* -------------------------------------------------------------------------
+   L. Settings page — already has the exact grouped-sections structure the
+      report's §7 "شاشة الحساب والإعدادات" called for (office/license/app/
+      sync/data tabs, PHASE SETTINGS-TABS). Only card chrome updated here.
+   ------------------------------------------------------------------------- */
+.settings-card{border-radius:var(--radius-card);box-shadow:var(--shadow-card);border-color:rgba(201,168,76,0.14);}
+.settings-title{color:var(--color-gold-700);}
+
+/* -------------------------------------------------------------------------
+   M. Global Search — already has scope tabs, removable "recent searches"
+      chips and grouped result sections (see that page's own header
+      comment: "functional... final visual polish expected to be adjusted
+      later once reference screenshots are available" — this is that
+      polish pass, now that the screenshots exist).
+   ------------------------------------------------------------------------- */
+.global-search-scope-tab{border-radius:var(--radius-pill);}
+.global-search-scope-tab[aria-selected="true"]{background:linear-gradient(135deg,var(--color-gold-300),var(--color-gold-500));color:var(--color-navy-900);border-color:transparent;font-weight:800;}
+.global-search-recent-chip{border-radius:var(--radius-pill);background:#fff;box-shadow:var(--shadow-card);}
+.global-search-result-item{border-radius:var(--radius-card);box-shadow:var(--shadow-card);background:#fff;}
+.global-search-result-item:hover{box-shadow:var(--shadow-card-hover);}
+.global-search-group-header{color:var(--color-navy-900);font-weight:800;}
+
+/* -------------------------------------------------------------------------
+   N. Login card (css/auth.css's .hsm-auth-card) — light touch only: this
+      screen was already close to the mockup (centered white card, RTL,
+      gold accent button) from earlier work; only radius/button gradient
+      aligned to the new tokens, structure/fields/JS untouched.
+   ------------------------------------------------------------------------- */
+.hsm-auth-card{border-radius:var(--radius-card);}
+.hsm-auth-btn-primary{background:linear-gradient(135deg,var(--color-gold-300),var(--color-gold-500));color:var(--color-navy-900);border-radius:var(--radius-input);}
+.hsm-auth-btn-primary:hover{filter:brightness(1.04);}
+.hsm-auth-field input{border-radius:var(--radius-input);}
+
+/* -------------------------------------------------------------------------
+   I. Cases page — small additive stats strip (report §4/§9 Phase UI-4).
+      Markup is injected read-only by js/modules/app-shell.js's
+      appendCasesStatBar() — see that file's own header comment. Reuses
+      the SAME .stat-card class the dashboard already uses, so it needs
+      no new visual rule beyond the grid wrapper below.
+   ------------------------------------------------------------------------- */
+.cases-stat-bar{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px;}
+.cases-stat-bar .stat-card{padding:10px 6px;text-align:center;cursor:default;}
+.cases-stat-bar .stat-num{font-size:19px;}
+.cases-stat-bar .stat-label{font-size:10px;}

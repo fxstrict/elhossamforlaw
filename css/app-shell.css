@@ -1,0 +1,301 @@
+/* ==========================================================================
+   PHASE UI-1 — APPLICATION SHELL (mobile-first bottom-nav identity)
+   PHASE UI-2 (partial) — Home dashboard visual skin
+   ==========================================================================
+   Source: "تقرير جنائي شامل — تحويل واجهات النظام" (2026-09-22), §6 و §9.
+
+   SCOPE OF THIS FILE:
+   - Adds the new fixed header (.app-header), slim status sub-header
+     (.app-subheader), bottom navigation (.bottom-nav) and floating action
+     button (.fab), all NEW markup added additively in index.html.
+   - Restyles the EXISTING #sidebar into the new drawer look (no HTML
+     structure changed — same .sidebar/.sidebar-nav/.nav-item/.sidebar-footer
+     classes from css/layout.css, only repainted).
+   - Restyles the EXISTING dashboard containers (.stat-card, .card,
+     .kpi-grid, .alerts-center, .dash-section-title) into the new card
+     language. No dashboard.js logic touched — these classes are only ever
+     written into by innerHTML from dashboard.js, unchanged.
+   - Hides the OLD .topbar's title/branding row (superseded by
+     .app-header) while KEEPING every element inside it in the DOM
+     untouched (topbarConnDot, topbarLastSync, topbarUserName,
+     topbarRbacUserName, topbarLogoutBtn, topbarAction) so no existing
+     JavaScript that reads/writes those IDs is affected — they are
+     relocated visually into the slim .app-subheader strip via layout only.
+   - Does NOT touch cases/clients/sessions/tasks/documents/library/fees
+     table or list markup — that is Phase UI-4 through UI-10 in the report
+     and is intentionally out of scope for this pass.
+
+   Loaded AFTER css/tokens.css and AFTER every existing stylesheet, so its
+   rules win without needing !important anywhere.
+   ========================================================================== */
+
+/* -------------------------------------------------------------------------
+   0. Page canvas + safe-area handling
+   ------------------------------------------------------------------------- */
+html,body{background:var(--color-bg-canvas);}
+body{
+  padding-top:calc(var(--app-header-h) + var(--app-subheader-h) + env(safe-area-inset-top,0px));
+  padding-bottom:calc(var(--bottom-nav-h) + env(safe-area-inset-bottom,0px) + 10px);
+}
+.main{margin-right:0 !important;max-width:var(--app-max-width);margin-left:auto;margin-right:auto;width:100%;}
+.page{padding:14px 14px 24px;}
+
+/* -------------------------------------------------------------------------
+   1. New fixed header (.app-header) — logo center, bell + hamburger
+   ------------------------------------------------------------------------- */
+.app-header{
+  position:fixed;top:0;right:0;left:0;height:var(--app-header-h);
+  background:var(--color-bg-canvas);
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 14px;z-index:var(--z-topbar,50);
+  box-shadow:var(--shadow-header);
+}
+.app-header-icon-btn{
+  position:relative;width:38px;height:38px;border-radius:50%;
+  border:none;background:transparent;display:flex;align-items:center;justify-content:center;
+  color:var(--color-navy-900);cursor:pointer;font-size:20px;line-height:1;
+  transition:background .2s;
+}
+.app-header-icon-btn:hover,.app-header-icon-btn:focus-visible{background:rgba(26,38,64,0.06);}
+.app-header-badge{
+  position:absolute;top:-2px;left:-2px;min-width:18px;height:18px;border-radius:999px;
+  background:var(--color-gold-500);color:var(--color-navy-900);font-size:10px;font-weight:800;
+  display:flex;align-items:center;justify-content:center;padding:0 4px;
+  box-shadow:0 0 0 2px var(--color-bg-canvas);
+}
+.app-header-brand{display:flex;flex-direction:column;align-items:center;gap:0;cursor:pointer;user-select:none;}
+.app-header-brand-title{font-size:20px;font-weight:800;color:var(--color-navy-900);letter-spacing:.5px;}
+.app-header-brand-sub{font-size:10px;color:var(--color-gold-700);font-weight:700;margin-top:-2px;}
+
+/* -------------------------------------------------------------------------
+   2. Slim status sub-header — hosts the EXISTING topbar meta elements
+   ------------------------------------------------------------------------- */
+.app-subheader{
+  position:fixed;top:var(--app-header-h);right:0;left:0;height:var(--app-subheader-h);
+  background:var(--color-navy-900);color:#fff;z-index:calc(var(--z-topbar,50) - 1);
+  display:flex;align-items:center;justify-content:center;
+  font-size:11px;
+}
+/* The OLD topbar is kept in the DOM (so its element IDs stay valid for the
+   existing JS that targets them) but repainted into this slim strip and
+   moved out of normal flow so it no longer reserves a full header's worth
+   of vertical space. */
+.topbar{
+  position:fixed;top:var(--app-header-h);right:0;left:0;height:var(--app-subheader-h);
+  background:var(--color-navy-900);border:none;box-shadow:none;
+  padding:0 14px;z-index:calc(var(--z-topbar,50) - 1);
+  min-height:0;
+}
+.topbar-title{display:none;} /* superseded by .app-header-brand */
+.topbar-actions{width:100%;justify-content:center;gap:14px;}
+.topbar-meta{color:rgba(255,255,255,0.85);gap:10px;}
+.topbar-user{color:#fff;}
+#topbarAction{display:none !important;} /* superseded by the new .fab */
+.topbar-conn .dot{background:var(--color-status-neutral);}
+.topbar-conn .dot.connected{background:var(--color-status-active);}
+.topbar-conn .dot.error{background:var(--color-status-critical);}
+#topbarLogoutBtn{color:#fff;border-color:rgba(255,255,255,0.35);}
+
+/* -------------------------------------------------------------------------
+   3. Bottom navigation + floating action button
+   ------------------------------------------------------------------------- */
+.bottom-nav{
+  position:fixed;bottom:0;right:0;left:0;height:var(--bottom-nav-h);
+  background:#fff;border-top:1px solid rgba(201,168,76,0.22);
+  display:flex;align-items:stretch;justify-content:space-around;
+  z-index:var(--z-sidebar,100);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+  box-shadow:0 -4px 16px rgba(26,38,64,0.08);
+}
+.bottom-nav-item{
+  flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+  background:none;border:none;color:var(--color-muted);font-size:11px;font-weight:600;
+  cursor:pointer;padding:6px 2px;
+}
+.bottom-nav-item .bni-icon{font-size:20px;line-height:1;}
+.bottom-nav-item.active{color:var(--color-navy-900);}
+.bottom-nav-item.active .bni-icon{color:var(--color-gold-700);}
+.bottom-nav-fab-slot{flex:1;display:flex;align-items:center;justify-content:center;position:relative;}
+.fab{
+  position:absolute;top:-26px;width:var(--fab-size);height:var(--fab-size);border-radius:50%;
+  background:linear-gradient(180deg,var(--color-gold-300),var(--color-gold-500));
+  color:var(--color-navy-900);border:4px solid var(--color-bg-canvas);
+  display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:800;
+  box-shadow:var(--shadow-fab);cursor:pointer;
+}
+.fab:active{transform:translateY(1px) scale(0.98);}
+
+/* -------------------------------------------------------------------------
+   4. Drawer (restyle of the EXISTING #sidebar — no markup change)
+   ------------------------------------------------------------------------- */
+.sidebar{background:#fff;box-shadow:2px 0 24px rgba(26,38,64,0.15);}
+.sidebar-logo{
+  background:linear-gradient(160deg,var(--color-navy-900),#101a30);
+  padding:22px 18px 18px;border-radius:0 0 18px 18px;
+}
+.sidebar-logo-badge{filter:drop-shadow(0 2px 6px rgba(0,0,0,.35));}
+.nav-item{border-radius:12px;margin:2px 8px;}
+.nav-item:hover{background:rgba(201,168,76,0.10);color:var(--color-navy-900);}
+.nav-item.active{background:rgba(201,168,76,0.16);color:var(--color-navy-900);font-weight:800;}
+.nav-item.active .nav-icon{color:var(--color-gold-700);}
+.sidebar-footer{background:var(--color-navy-900);color:#fff;border-top:none;}
+
+/* -------------------------------------------------------------------------
+   5. Quick-access grid (NEW block on the dashboard, report §4 / §6.1)
+   ------------------------------------------------------------------------- */
+.quick-access-grid{
+  display:grid;grid-template-columns:repeat(5,1fr);gap:10px;
+  background:#fff;border:1px solid rgba(201,168,76,0.18);border-radius:var(--radius-card);
+  padding:16px 10px;margin:0 0 16px;box-shadow:var(--shadow-card);
+}
+.quick-access-tile{
+  display:flex;flex-direction:column;align-items:center;gap:6px;
+  background:none;border:none;cursor:pointer;color:var(--color-navy-900);
+  font-size:11px;font-weight:700;text-align:center;
+}
+.quick-access-tile .qat-icon{
+  width:44px;height:44px;border-radius:var(--radius-tile);
+  background:var(--color-gold-500);background:rgba(201,168,76,0.14);
+  display:flex;align-items:center;justify-content:center;font-size:20px;
+  color:var(--color-gold-700);
+}
+
+/* -------------------------------------------------------------------------
+   6. Dashboard card skin — stat-card, card, kpi-grid, alerts-center
+   ------------------------------------------------------------------------- */
+.stats-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;}
+.stat-card{
+  border-radius:var(--radius-card);border-color:rgba(201,168,76,0.16);
+  box-shadow:var(--shadow-card);padding:16px 14px;
+}
+.stat-card:hover{box-shadow:var(--shadow-card-hover);}
+.stat-card::before{background:linear-gradient(90deg,var(--color-gold-500),transparent);}
+.stat-num{color:var(--color-navy-900);font-weight:800;}
+
+.card{border-radius:var(--radius-card);border-color:rgba(201,168,76,0.16);box-shadow:var(--shadow-card);}
+.card-header{background:var(--color-bg-canvas-alt);border-bottom:none;border-radius:var(--radius-card) var(--radius-card) 0 0;}
+
+.dash-section-title{
+  font-weight:800;color:var(--color-navy-900);margin:18px 2px 10px;display:flex;align-items:center;gap:6px;
+}
+.kpi-grid > *{border-radius:var(--radius-tile);box-shadow:var(--shadow-card);}
+
+.alerts-center{border-radius:var(--radius-card);box-shadow:var(--shadow-card);overflow:hidden;background:#fff;}
+.alerts-center-list > *{border-bottom:1px solid rgba(0,0,0,0.05);}
+
+/* -------------------------------------------------------------------------
+   7. Status pills (new utility class — report §5.1 / §6.1, opt-in;
+      existing status badges elsewhere are unaffected until each screen's
+      own phase migrates its markup to use this class)
+   ------------------------------------------------------------------------- */
+.status-pill{
+  display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:var(--radius-pill);
+  font-size:11px;font-weight:800;
+}
+.status-pill::before{content:'';width:7px;height:7px;border-radius:50%;background:currentColor;}
+.status-pill.is-active{background:rgba(30,158,90,0.12);color:var(--color-status-active);}
+.status-pill.is-overdue{background:rgba(224,160,32,0.14);color:var(--color-status-overdue);}
+.status-pill.is-critical{background:rgba(209,67,67,0.12);color:var(--color-status-critical);}
+.status-pill.is-done{background:rgba(59,125,219,0.12);color:var(--color-status-done);}
+.status-pill.is-neutral{background:rgba(154,163,175,0.16);color:var(--color-status-neutral);}
+
+/* -------------------------------------------------------------------------
+   8. (reserved — the earlier "scroll + flash to dashboard alerts" bell
+      behavior was superseded by a dedicated #page-alerts page in the
+      UI-10 increment; no CSS needed here anymore.)
+   ------------------------------------------------------------------------- */
+
+/* -------------------------------------------------------------------------
+   9. FAB action sheet (new, additive — used from the dashboard/other
+      non-addable pages to let the user pick what to add)
+   ------------------------------------------------------------------------- */
+.fab-sheet-overlay{
+  position:fixed;inset:0;background:rgba(15,20,30,0.45);z-index:calc(var(--z-modal,200) - 1);display:none;
+}
+.fab-sheet-overlay.open{display:block;}
+.fab-sheet{
+  position:fixed;right:0;left:0;bottom:0;background:#fff;border-radius:20px 20px 0 0;
+  padding:10px 14px calc(18px + env(safe-area-inset-bottom,0px));z-index:var(--z-modal,200);
+  box-shadow:0 -10px 30px rgba(0,0,0,0.2);
+  transform:translateY(100%);transition:transform .25s ease;
+  max-width:var(--app-max-width);margin:0 auto;left:0;right:0;
+}
+.fab-sheet.open{transform:translateY(0);}
+.fab-sheet-handle{width:38px;height:4px;background:#DCD3BE;border-radius:99px;margin:6px auto 12px;}
+.fab-sheet-title{font-weight:800;color:var(--color-navy-900);margin:0 4px 10px;}
+.fab-sheet-option{
+  display:flex;align-items:center;gap:10px;padding:12px 10px;border-radius:12px;cursor:pointer;
+  font-weight:700;color:var(--color-navy-900);
+}
+.fab-sheet-option:hover{background:var(--color-bg-canvas);}
+.fab-sheet-option .fso-icon{
+  width:36px;height:36px;border-radius:10px;background:rgba(201,168,76,0.14);color:var(--color-gold-700);
+  display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;
+}
+
+/* -------------------------------------------------------------------------
+   10. Small screens — never exceed the header/bottom-nav budget
+   ------------------------------------------------------------------------- */
+@media (max-width:360px){
+  .quick-access-grid{grid-template-columns:repeat(4,1fr);}
+}
+
+/* -------------------------------------------------------------------------
+   11. PHASE UI-12 — wide-screen adaptation (report §9: "نقاط كسر تصميمية
+       لا معمارية" — same AppShell components, a different display
+       variant, NOT a second parallel navigation system; see the EDR in
+       §8 of the report, which explicitly rejects maintaining two shells).
+       CSS-only: no new markup, no JS change. Below the breakpoint,
+       everything above this block is unchanged (identical to the
+       phone-width behavior already shipped).
+   ------------------------------------------------------------------------- */
+@media (min-width:900px){
+  /* The drawer becomes a persistent, always-visible sidebar instead of an
+     overlay — same #sidebar element, same .nav-item list, same
+     toggleSidebar()-driven .open class (now simply always matched by the
+     rule below so the transform is always translateX(0)). */
+  .sidebar{
+    transform:translateX(0) !important;
+    box-shadow:none;border-left:1px solid rgba(201,168,76,0.16);
+  }
+  .sidebar-overlay{display:none !important;}
+
+  /* Content shifts to make room for the now-persistent sidebar, and the
+     hard mobile width cap is lifted. */
+  .main{margin-right:var(--sidebar-width,268px) !important;max-width:none;}
+  .page{padding:22px clamp(20px,4vw,64px);}
+
+  /* The bottom-nav + FAB are a phone-ergonomics pattern (thumb reach);
+     on a wide screen the persistent sidebar already exposes every
+     destination, so the bar is hidden and the page's own bottom padding
+     collapses back down. The FAB's action (openAddModal()/bottom sheet)
+     remains reachable via the existing per-page "+ إضافة" affordances
+     each list page already has — nothing that bar did is otherwise lost. */
+  body{padding-bottom:0;}
+  .bottom-nav{display:none;}
+
+  /* The new app-header stays (brand/bell), but the hamburger toggling an
+     always-open drawer would be a dead control, so it's hidden; the bell
+     and brand keep working exactly as on mobile (same #appHeaderBell/
+     #appHeaderBrand elements, same app-shell.js handlers — nothing
+     duplicated for this breakpoint). */
+  .app-header{right:var(--sidebar-width,268px);}
+  .app-subheader,.topbar{right:var(--sidebar-width,268px);}
+  #appHeaderBurger{display:none;}
+
+  /* OBSTACLE CAUGHT DURING THIS PASS: with .bottom-nav hidden above, its
+     child #appFab (the only "+ إضافة" entry point on phone width) also
+     disappears — desktop users would be left with NO way to add a
+     case/session/client/task/opponent/processServerWork outside the
+     empty-state buttons. Restoring the ORIGINAL #topbarAction button
+     (already wired to the existing openAddModal(), already page-aware
+     via ADDABLE[]) fixes this with zero new code — it was only ever
+     hidden by the unconditional rule in §2 above because the FAB
+     replaced it on phone width. */
+  #topbarAction{display:inline-flex !important;}
+
+  /* Two-column-friendly grids on the extra width. */
+  .quick-access-grid{grid-template-columns:repeat(10,1fr);}
+  .stats-grid{grid-template-columns:repeat(4,1fr);}
+  .cases-stat-bar{grid-template-columns:repeat(4,1fr);}
+}

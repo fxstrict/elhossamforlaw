@@ -1,0 +1,73 @@
+/* ==========================================================================
+   PHASE UI-0 — DESIGN TOKENS (SEMANTIC RENAMING LAYER)
+   ==========================================================================
+   Source: "تقرير جنائي شامل — تحويل واجهات النظام" (2026-09-22), القسم 5.
+   Purpose: css/variables.css has correct COLOR VALUES but misleading NAMES
+   (--navy is actually ivory, --white is actually dark navy). Renaming those
+   variables in place would risk breaking any rule anywhere in the CSS/JS
+   codebase that still reads the old names. Per the project's own additive-
+   only convention (see index.html PHASE comments throughout), this file
+   introduces the CORRECT semantic names as a NEW, parallel token set with
+   the SAME literal values as css/variables.css — nothing existing is
+   edited, removed, or aliased through a var() chain (which would risk
+   circular references). New UI components (css/app-shell.css and anything
+   built in later UI-phases) MUST consume tokens from THIS file only.
+
+   Phase UI-13 (final cleanup, see report §9) is the point where
+   css/variables.css's old names are safely removed once every consumer has
+   migrated to these tokens — do not delete anything from variables.css
+   before then.
+   ========================================================================== */
+:root{
+  /* ---- Core palette (identical values to css/variables.css) ---- */
+  --color-navy-900:#1A2640;      /* was --white  — dark navy, headers/buttons/text */
+  --color-navy-700:#2C3E50;      /* was --offwhite */
+  --color-navy-steel:#1E3452;    /* was --steel */
+  --color-navy-slate:#2A4A6B;    /* was --slate */
+
+  --color-gold-500:#C9A84C;      /* was --gold — already named correctly, kept for clarity */
+  --color-gold-300:#E8C97A;      /* was --gold-lt */
+  --color-gold-700:#9B7A1E;      /* was --gold-dk */
+
+  --color-bg-canvas:#F8F5EF;     /* was --navy — the actual page background (ivory) */
+  --color-bg-canvas-alt:#EDE6D6; /* was --navy-md */
+  --color-surface:#FFFFFF;       /* was --navy-lt — card/table surface */
+
+  --color-muted:#5A6E85;         /* was --muted */
+
+  /* ---- Status colors (new — not previously centralized; report §5.1) ---- */
+  --color-status-active:#1E9E5A;
+  --color-status-overdue:#E0A020;
+  --color-status-critical:#D14343;
+  --color-status-done:#3B7DDB;
+  --color-status-neutral:#9AA3AF;
+
+  /* Kept identical to variables.css on purpose (already semantically named) */
+  --color-danger:#C0392B;
+  --color-success:#27AE60;
+  --color-warning:#E67E22;
+  --color-info:#2980B9;
+
+  /* ---- Spacing scale (4px base, report §5.2) ---- */
+  --space-1:4px;--space-2:8px;--space-3:12px;--space-4:16px;
+  --space-5:20px;--space-6:24px;--space-7:28px;--space-8:32px;
+
+  /* ---- Radii ---- */
+  --radius-card:16px;
+  --radius-tile:14px;
+  --radius-pill:999px;
+  --radius-input:12px;
+
+  /* ---- Shadows ---- */
+  --shadow-card:0 6px 20px rgba(26,38,64,0.08);
+  --shadow-card-hover:0 10px 28px rgba(26,38,64,0.13);
+  --shadow-fab:0 8px 20px rgba(201,168,76,0.45);
+  --shadow-header:0 2px 10px rgba(26,38,64,0.07);
+
+  /* ---- App shell geometry ---- */
+  --app-header-h:64px;
+  --app-subheader-h:30px;
+  --bottom-nav-h:64px;
+  --fab-size:58px;
+  --app-max-width:520px; /* keeps the mobile-first layout readable/centered on wide screens until Phase UI-12 adds real breakpoints */
+}
