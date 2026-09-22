@@ -262,7 +262,7 @@
 // SW_VERSION and served Cache First, so without this bump already-installed
 // devices would keep the old copies. (settings.js's precache entry was
 // ?v=42 while index.html already referenced ?v=43; aligned to ?v=44 here.)
-var SW_VERSION = 'v121'; // PHASE A9 — Backend-only change (Config/00_Config.gs,
+var SW_VERSION = 'v122'; // PHASE A9 — Backend-only change (Config/00_Config.gs,
                          // 06_Api.gs, 10_Fcm.gs): FCM notification coverage
                          // expanded to more sheets/events (add on القضايا/
                          // الموكلين/المستندات/أعمال_المحضرين/الأتعاب, critical
