@@ -323,6 +323,21 @@
      css/legal-directories.css's .legal-dir-card component as-is — see
      css/dashboard-legal-directories-nav.css header for details. -->
 <link href="css/dashboard-legal-directories-nav.css?v=1" rel="stylesheet">
+<!-- PHASE UI-0/UI-1 — MOBILE-FIRST APP SHELL (see "تقرير جنائي شامل — تحويل
+     واجهات النظام", 2026-09-22, §9). Both files are purely additive:
+     css/tokens.css introduces correctly-named design tokens ALONGSIDE
+     css/variables.css (no existing variable is renamed, removed, or
+     redefined via a var() chain — zero risk of altering any value already
+     in use). css/app-shell.css adds the new fixed header/bottom-nav/FAB and
+     restyles the EXISTING #sidebar and dashboard card classes in place; it
+     does not add or remove a single element from the DOM by itself. Loaded
+     last on purpose so its rules win over every stylesheet above without
+     needing !important. See both files' own header comments for full scope
+     and for what is explicitly OUT of scope in this pass (cases/clients/
+     sessions/etc. list markup — later UI-phases). -->
+<link href="css/tokens.css?v=1" rel="stylesheet">
+<link href="css/app-shell.css?v=1" rel="stylesheet">
+<link href="css/app-shell-pages.css?v=1" rel="stylesheet">
 <!-- ================================================================
      PHASE 17.1 — LOADER OPTIMIZATION (preload + priority hints, additive only)
      WHY THIS BLOCK EXISTS
@@ -703,6 +718,25 @@ style="color:var(--muted);font-size:12px;margin-top:4px;"> جارٍ تحميل
   </div>
 </aside>
 <div class="main">
+<!-- PHASE UI-1 — new fixed brand header (see css/app-shell.css §1). Purely
+     additive: does not replace <header class="topbar"> below, which stays
+     in the DOM untouched (all its element IDs remain valid for existing
+     JS) and is only repainted into a slim status strip by CSS. The
+     hamburger/bell here call the EXISTING toggleSidebar()/scroll-to-alerts
+     behavior via js/modules/app-shell.js — no navigation logic is
+     duplicated. -->
+<header class="app-header" id="appHeader">
+  <button type="button" class="app-header-icon-btn" id="appHeaderBell" title="التنبيهات" aria-label="التنبيهات">
+    <span aria-hidden="true">&#128276;</span>
+  </button>
+  <div class="app-header-brand" id="appHeaderBrand" role="link" tabindex="0" title="الرئيسية">
+    <span class="app-header-brand-title">الحسام</span>
+    <span class="app-header-brand-sub">إدارة مكاتب المحاماة</span>
+  </div>
+  <button type="button" class="app-header-icon-btn" id="appHeaderBurger" title="القائمة" aria-label="فتح القائمة">
+    <span aria-hidden="true">&#9776;</span>
+  </button>
+</header>
 <header class="topbar">
   <div style="display:flex;align-items:center;gap:11px;">
     <div class="burger" onclick="toggleSidebar()"><span></span><span></span><span></span></div>
@@ -728,6 +762,23 @@ style="color:var(--muted);font-size:12px;margin-top:4px;"> جارٍ تحميل
 
 <!-- DASHBOARD -->
 <div class="page active" id="page-dashboard">
+  <!-- PHASE UI-2 (partial) — Quick-access grid (report §4.1/§6.1). New,
+       purely additive block; every tile only calls the existing
+       navigate('<page>') function, exactly like the sidebar nav-items and
+       the stat-cards further down this same page already do. Reads no
+       data itself. -->
+  <div class="quick-access-grid" id="dashQuickAccessGrid">
+    <button type="button" class="quick-access-tile" onclick="navigate('documents')"><span class="qat-icon">&#128206;</span><span>المستندات</span></button>
+    <button type="button" class="quick-access-tile" onclick="navigate('tasks')"><span class="qat-icon">&#9989;</span><span>المهام</span></button>
+    <button type="button" class="quick-access-tile" onclick="navigate('calendar')"><span class="qat-icon">&#128197;</span><span>الجلسات</span></button>
+    <button type="button" class="quick-access-tile" onclick="navigate('clients')"><span class="qat-icon">&#128101;</span><span>الموكلين</span></button>
+    <button type="button" class="quick-access-tile" onclick="navigate('cases')"><span class="qat-icon">&#9878;</span><span>القضايا</span></button>
+    <button type="button" class="quick-access-tile" onclick="navigate('fees')"><span class="qat-icon">&#128176;</span><span>المدفوعات</span></button>
+    <button type="button" class="quick-access-tile" onclick="navigate('alerts')"><span class="qat-icon">&#128276;</span><span>التنبيهات</span></button>
+    <button type="button" class="quick-access-tile" onclick="openFinancialReports()"><span class="qat-icon">&#128202;</span><span>التقارير</span></button>
+    <button type="button" class="quick-access-tile" onclick="navigate('library')"><span class="qat-icon">&#128218;</span><span>المكتبة</span></button>
+    <button type="button" class="quick-access-tile" onclick="toggleSidebar()"><span class="qat-icon">&#8942;&#8942;</span><span>المزيد</span></button>
+  </div>
   <!-- PHASE 29 — Smart Dashboard, Priority 1 (Today Center). New,
        additive container only — renderTodayCenterWidget() in
        dashboard.js is the only thing that writes into it. No existing
@@ -935,6 +986,10 @@ style="color:var(--muted);font-size:12px;margin-top:4px;"> جارٍ تحميل
      Container, Empty State. No old class removed, no ID/attribute/
      event handler/JS selector changed. See docs Phase 14.5 report. -->
 <div class="page" id="page-cases">
+  <!-- PHASE UI-4 (partial) — stats strip container. Populated read-only
+       by js/modules/app-shell.js's renderCasesStatBar(); cases.js itself
+       is untouched. -->
+  <div class="cases-stat-bar" id="casesStatBar"></div>
   <div class="toolbar page-toolbar">
     <div class="search-wrap"><span class="icon">&#128269;</span><input type="text" id="searchCases" placeholder="بحث في القضايا..." oninput="renderCases()"></div>
     <select id="filterCaseStatus" onchange="renderCases()" style="width:auto;min-width:120px;"><option value="">كل الحالات</option><option>نشطة</option><option>معلقة</option><option>منتهية</option><option>مُحالة</option></select>
@@ -1285,6 +1340,26 @@ style="color:var(--muted);font-size:12px;margin-top:4px;"> جارٍ تحميل
   <div class="legal-dir-grid" id="legalDirGrid"></div>
   <div id="legalDirEmpty" class="legal-dir-empty" style="display:none;">لا توجد عناصر في هذا القسم حالياً.</div>
   <div id="legalDirError" class="legal-dir-error" style="display:none;"></div>
+</div>
+
+<!-- PHASE UI-10 — ALERTS & FOLLOW-UP CENTER (report §7, screen 12). New
+     page, additive. Populated read-only by js/modules/app-shell.js's
+     renderAlertsPage(), which calls the EXISTING, unmodified
+     dashboard.js:renderAlertsCenterWidget() (single source of truth for
+     what counts as an alert) and mirrors its output here — no alert
+     logic is duplicated or re-invented. There is no "mark as read"
+     control: the underlying data model has no read/unread concept (these
+     are live-computed conditions, not stored notifications), and
+     inventing one would mean adding new persisted state outside this
+     pass's read-only scope — intentionally left out rather than faked. -->
+<div class="page" id="page-alerts">
+  <div class="dash-section-title" style="margin-top:0;"><span>&#128276;</span><span>التنبيهات ومركز المتابعة</span></div>
+  <p style="color:var(--color-muted,#5A6E85);font-size:12.5px;margin:-6px 2px 14px;">كل التنبيهات الحيّة المحسوبة فعلياً من بيانات القضايا والجلسات والمهام — نفس القائمة الظاهرة في الشاشة الرئيسية.</p>
+  <div class="alerts-center" style="overflow:visible;">
+    <div class="alerts-center-list" id="alertsPageList">
+      <div class="alerts-center-empty"><span>&#9203;</span><span>جارِ التحميل…</span></div>
+    </div>
+  </div>
 </div>
 
 <!-- SETTINGS -->
@@ -2664,7 +2739,7 @@ function toast(msg,type){
 }
 function showLoading(v){document.getElementById('loadingOverlay').classList.toggle('show',v);}
 
-var PAGE_TITLES={dashboard:'لوحة التحكم',globalSearch:'البحث الشامل',cases:'القضايا',sessions:'الجلسات',clients:'الموكلون',opponents:'الخصوم',processServerWorks:'أعمال المحضرين',children:'الأطفال',documents:'المستندات',tasks:'المهام',fees:'الأتعاب',expenses:'المصروفات',calendar:'التقويم',library:'المكتبة القانونية',templates:'صيغ الدعاوى',legalDirectories:'الأجندة والمواقع الرسمية',settings:'الإعدادات'};
+var PAGE_TITLES={dashboard:'لوحة التحكم',globalSearch:'البحث الشامل',cases:'القضايا',sessions:'الجلسات',clients:'الموكلون',opponents:'الخصوم',processServerWorks:'أعمال المحضرين',children:'الأطفال',documents:'المستندات',tasks:'المهام',fees:'الأتعاب',expenses:'المصروفات',calendar:'التقويم',library:'المكتبة القانونية',templates:'صيغ الدعاوى',legalDirectories:'الأجندة والمواقع الرسمية',settings:'الإعدادات',alerts:'التنبيهات ومركز المتابعة'};
 var ADDABLE=['cases','sessions','clients','tasks','opponents','processServerWorks'];
 
 function navigate(page){
@@ -3320,6 +3395,14 @@ window.addEventListener('online',function(){
      global-search.js (loaded above) and the static #page-globalSearch
      markup already present in this document. -->
 <script src="js/modules/global-search-ui.js?v=1"></script>
+<!-- PHASE UI-1 — APPLICATION SHELL BEHAVIOR (see css/app-shell.css header
+     for full scope). Depends only on DOM elements it creates itself and on
+     the EXISTING global functions navigate()/toggleSidebar()/currentPage/
+     openAddModal() family — it does not touch Repository, DatabaseService,
+     or any data-loading code, so its position relative to
+     RepositoryReadyCoordinator.js below is not load-order sensitive. Placed
+     here (after the other UI-wiring modules) purely for readability. -->
+<script src="js/modules/app-shell.js?v=1"></script>
 <!-- PHASE 13.3D — PART 2A: RepositoryReadyCoordinator.js is deliberately
      the LAST <script> tag on the page, not grouped with the other
      js/core/*.js tags above (js/core/Repository.js etc.). It reads each
@@ -3473,5 +3556,34 @@ window.addEventListener('online',function(){
      DomRecycler-managed pages, etc.). 100% additive — see file header in
      js/core/VoiceInputController.js. -->
 <script src="js/core/VoiceInputController.js?v=42"></script>
+<!-- PHASE UI-1 — BOTTOM NAVIGATION + FLOATING ACTION BUTTON (see
+     css/app-shell.css §3 and js/modules/app-shell.js). Purely additive,
+     fixed-position markup appended at the end of <body>; does not remove
+     or relocate any existing element. The four non-FAB buttons reuse the
+     EXACT existing `.nav-item[onclick="navigate('<page>')"]` convention
+     (see navigate() above), so their active/inactive state is kept in
+     sync by the original, unmodified navigate() function — no extra JS
+     needed for that part. The center button (#appFab) is wired
+     separately in js/modules/app-shell.js and never calls navigate()
+     itself; it only calls the existing openAddModal()/openAddDocModal()/
+     openAddFeeModal()/openAddExpenseModal() functions, or opens the new
+     bottom sheet those same functions are listed in. -->
+<nav class="bottom-nav" id="bottomNav" aria-label="التنقل الرئيسي">
+  <button type="button" class="nav-item bottom-nav-item" onclick="navigate('dashboard')">
+    <span class="bni-icon" aria-hidden="true">&#127968;</span><span>الرئيسية</span>
+  </button>
+  <button type="button" class="nav-item bottom-nav-item" onclick="navigate('cases')">
+    <span class="bni-icon" aria-hidden="true">&#9878;</span><span>القضايا</span>
+  </button>
+  <div class="bottom-nav-fab-slot">
+    <button type="button" class="fab" id="appFab" title="إضافة" aria-label="إضافة جديد">&#65291;</button>
+  </div>
+  <button type="button" class="nav-item bottom-nav-item" onclick="navigate('calendar')">
+    <span class="bni-icon" aria-hidden="true">&#128197;</span><span>التقويم</span>
+  </button>
+  <button type="button" class="nav-item bottom-nav-item" onclick="toggleSidebar()">
+    <span class="bni-icon" aria-hidden="true">&#9776;</span><span>المزيد</span>
+  </button>
+</nav>
 </body>
 </html>
