@@ -182,6 +182,32 @@
   }
 
   // --------------------------------------------------------------------
+  // Bell badge — sums the per-category counts dashboard.js's
+  // renderAlertsCenterWidget() already renders into #dashAlertsCenterList
+  // (each ".alert-chip-count" span, e.g. "جلسة خلال ساعتين: 3") rather
+  // than counting ".alert-chip" elements (which are one per CATEGORY, not
+  // per individual alert — counting divs would undercount). Read-only:
+  // parses already-rendered text, computes nothing dashboard.js doesn't
+  // already know.
+  // --------------------------------------------------------------------
+  function updateBellBadge(){
+    safely(function(){
+      var badge = document.getElementById('appHeaderBellBadge');
+      if(!badge) return;
+      if(typeof renderAlertsCenterWidget === 'function') renderAlertsCenterWidget();
+      var counts = document.querySelectorAll('#dashAlertsCenterList .alert-chip-count');
+      var total = 0;
+      counts.forEach(function(el){ total += (parseInt(el.textContent, 10) || 0); });
+      if(total > 0){
+        badge.textContent = total > 99 ? '99+' : String(total);
+        badge.style.display = '';
+      } else {
+        badge.style.display = 'none';
+      }
+    });
+  }
+
+  // --------------------------------------------------------------------
   // PHASE UI-9 (partial) — Fees/Payments page stats strip (report §7,
   // screen 11). READ-ONLY: calls the existing, already-tested pure
   // functions in financial-reports.js (getMonthCollections(),
@@ -222,6 +248,7 @@
           if(payload.to === 'cases') renderCasesStatBar();
           if(payload.to === 'alerts') renderAlertsPage();
           if(payload.to === 'fees') renderFeesStatBar();
+          if(payload.to === 'dashboard' || payload.to === 'alerts') updateBellBadge();
         });
       });
     }
@@ -232,6 +259,11 @@
       if(currentPage === 'alerts') renderAlertsPage();
       if(currentPage === 'fees') renderFeesStatBar();
     }
+    // The bell badge reflects the SAME live alert data regardless of
+    // which page is currently open (it summarizes conditions across
+    // cases/sessions/tasks/documents, not "this page's" data), so it is
+    // always refreshed once at cold start rather than gated to one page.
+    updateBellBadge();
   }
 
   document.addEventListener('DOMContentLoaded', function(){
@@ -241,5 +273,5 @@
 
   // Exposed only for the (optional, non-blocking) manual smoke check in
   // js/tests — mirrors the pattern already used by ApplicationShell etc.
-  window.AppShell = { onFabClick: onFabClick, onBellClick: onBellClick, openFabSheet: openFabSheet, closeFabSheet: closeFabSheet, renderCasesStatBar: renderCasesStatBar, renderAlertsPage: renderAlertsPage, renderFeesStatBar: renderFeesStatBar };
+  window.AppShell = { onFabClick: onFabClick, onBellClick: onBellClick, openFabSheet: openFabSheet, closeFabSheet: closeFabSheet, renderCasesStatBar: renderCasesStatBar, renderAlertsPage: renderAlertsPage, renderFeesStatBar: renderFeesStatBar, updateBellBadge: updateBellBadge };
 })();
