@@ -297,5 +297,5 @@ body{
   /* Two-column-friendly grids on the extra width. */
   .quick-access-grid{grid-template-columns:repeat(10,1fr);}
   .stats-grid{grid-template-columns:repeat(4,1fr);}
-  .cases-stat-bar{grid-template-columns:repeat(4,1fr);}
+  .mini-stat-bar{grid-template-columns:repeat(4,1fr);}
 }

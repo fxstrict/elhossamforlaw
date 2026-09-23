@@ -168,13 +168,15 @@
 .hsm-auth-field input{border-radius:var(--radius-input);}
 
 /* -------------------------------------------------------------------------
-   I. Cases page — small additive stats strip (report §4/§9 Phase UI-4).
-      Markup is injected read-only by js/modules/app-shell.js's
-      appendCasesStatBar() — see that file's own header comment. Reuses
-      the SAME .stat-card class the dashboard already uses, so it needs
-      no new visual rule beyond the grid wrapper below.
+   I. Shared small stats strip (.mini-stat-bar) — used by the Cases page
+      (#casesStatBar) and the Fees/Payments page (#feesStatBarExtra).
+      Markup for both is injected read-only by js/modules/app-shell.js
+      (renderCasesStatBar()/renderFeesStatBar()) — see that file's own
+      header comment. Reuses the SAME .stat-card class the dashboard
+      already uses, so it needs no new visual rule beyond the grid
+      wrapper below.
    ------------------------------------------------------------------------- */
-.cases-stat-bar{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px;}
-.cases-stat-bar .stat-card{padding:10px 6px;text-align:center;cursor:default;}
-.cases-stat-bar .stat-num{font-size:19px;}
-.cases-stat-bar .stat-label{font-size:10px;}
+.mini-stat-bar{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px;}
+.mini-stat-bar .stat-card{padding:10px 6px;text-align:center;cursor:default;}
+.mini-stat-bar .stat-num{font-size:19px;}
+.mini-stat-bar .stat-label{font-size:10px;}
