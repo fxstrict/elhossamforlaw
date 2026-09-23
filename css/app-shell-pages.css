@@ -168,6 +168,37 @@
 .hsm-auth-field input{border-radius:var(--radius-input);}
 
 /* -------------------------------------------------------------------------
+   O. License activation screen (js/license/ActivationWizard.js's
+      .lic-* classes, and js/office/OfficeSetupWizard.js's reuse of the
+      same .lic-activation-overlay/.lic-card classes) — same light-touch
+      treatment as section N: this screen already matched the target
+      mockup closely (steps list, machine-ID box, WhatsApp button,
+      textarea, activate button — see docs/phaseUI report), so only
+      radius/button-gradient alignment is added here. Neither
+      ActivationWizard.js nor OfficeSetupWizard.js (license/security-
+      adjacent code) was opened for editing.
+   ------------------------------------------------------------------------- */
+.lic-card{border-radius:var(--radius-card);}
+.lic-btn-primary{background:linear-gradient(135deg,var(--color-gold-300),var(--color-gold-500));color:var(--color-navy-900);border-radius:var(--radius-input);}
+.lic-btn-primary:hover{filter:brightness(1.04);}
+.lic-textarea,.lic-field input{border-radius:var(--radius-input);}
+.lic-machine-id{border-radius:var(--radius-input);}
+.lic-whatsapp-btn{border-radius:var(--radius-input);}
+
+/* -------------------------------------------------------------------------
+   P. Legal directories / agenda page (css/legal-directories.css's
+      .legal-dir-card grid) — the one remaining list-style page not
+      already covered "for free" by the shared .m-card/.lib-card restyle
+      (confirmed by checking every non-mockup page's own generated
+      classes: opponents.js/process-server-works.js/children.js/
+      expenses.js already reuse .m-card, templates.js already reuses
+      .lib-card — only this page uses its own class family). Same light
+      touch, css file itself untouched.
+   ------------------------------------------------------------------------- */
+.legal-dir-card{border-radius:var(--radius-card);box-shadow:var(--shadow-card);}
+.legal-dir-card:hover,.legal-dir-card:focus-visible{box-shadow:var(--shadow-card-hover);}
+
+/* -------------------------------------------------------------------------
    I. Shared small stats strip (.mini-stat-bar) — used by the Cases page
       (#casesStatBar) and the Fees/Payments page (#feesStatBarExtra).
       Markup for both is injected read-only by js/modules/app-shell.js
