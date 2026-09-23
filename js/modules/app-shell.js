@@ -181,6 +181,33 @@
     });
   }
 
+  // --------------------------------------------------------------------
+  // PHASE UI-9 (partial) — Fees/Payments page stats strip (report §7,
+  // screen 11). READ-ONLY: calls the existing, already-tested pure
+  // functions in financial-reports.js (getMonthCollections(),
+  // getTotalOutstanding(), getCasesWithOutstandingBalance()) — none of
+  // these were previously surfaced in ANY UI (mobile or desktop) before
+  // this addition. fees.js's own two stat cards (feesTotalNum/
+  // feesCountNum) are untouched.
+  // --------------------------------------------------------------------
+  function renderFeesStatBar(){
+    safely(function(){
+      var host = document.getElementById('feesStatBarExtra');
+      if(!host) return;
+      if(typeof getMonthCollections!=='function' || typeof getTotalOutstanding!=='function' || typeof getCasesWithOutstandingBalance!=='function') return;
+      var month = getMonthCollections();
+      var today = (typeof getTodayCollections==='function') ? getTodayCollections() : null;
+      var outstanding = getTotalOutstanding();
+      var dueCases = getCasesWithOutstandingBalance().length;
+      var fmt = function(n){ return Number(n||0).toLocaleString('ar-EG') + ' ج.م'; };
+      host.innerHTML =
+        '<div class="stat-card"><div class="stat-num">'+fmt(month)+'</div><div class="stat-label">محصَّل هذا الشهر</div></div>'+
+        '<div class="stat-card"><div class="stat-num">'+fmt(outstanding)+'</div><div class="stat-label">إجمالي المتبقي</div></div>'+
+        '<div class="stat-card"><div class="stat-num">'+dueCases+'</div><div class="stat-label">قضايا بها مستحق</div></div>'+
+        '<div class="stat-card"><div class="stat-num">'+(today!==null?fmt(today):'—')+'</div><div class="stat-label">محصَّل اليوم</div></div>';
+    });
+  }
+
   function wireShellEventsBridge(){
     // window.ShellEvents is the project's own, purpose-built, already-
     // tested observation channel (js/core/shell/ShellEvents.js, "let
@@ -194,6 +221,7 @@
           if(!payload) return;
           if(payload.to === 'cases') renderCasesStatBar();
           if(payload.to === 'alerts') renderAlertsPage();
+          if(payload.to === 'fees') renderFeesStatBar();
         });
       });
     }
@@ -202,6 +230,7 @@
     if(typeof currentPage !== 'undefined'){
       if(currentPage === 'cases') renderCasesStatBar();
       if(currentPage === 'alerts') renderAlertsPage();
+      if(currentPage === 'fees') renderFeesStatBar();
     }
   }
 
@@ -212,5 +241,5 @@
 
   // Exposed only for the (optional, non-blocking) manual smoke check in
   // js/tests — mirrors the pattern already used by ApplicationShell etc.
-  window.AppShell = { onFabClick: onFabClick, onBellClick: onBellClick, openFabSheet: openFabSheet, closeFabSheet: closeFabSheet, renderCasesStatBar: renderCasesStatBar, renderAlertsPage: renderAlertsPage };
+  window.AppShell = { onFabClick: onFabClick, onBellClick: onBellClick, openFabSheet: openFabSheet, closeFabSheet: closeFabSheet, renderCasesStatBar: renderCasesStatBar, renderAlertsPage: renderAlertsPage, renderFeesStatBar: renderFeesStatBar };
 })();
