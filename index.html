@@ -989,7 +989,7 @@ style="color:var(--muted);font-size:12px;margin-top:4px;"> جارٍ تحميل
   <!-- PHASE UI-4 (partial) — stats strip container. Populated read-only
        by js/modules/app-shell.js's renderCasesStatBar(); cases.js itself
        is untouched. -->
-  <div class="cases-stat-bar" id="casesStatBar"></div>
+  <div class="mini-stat-bar" id="casesStatBar"></div>
   <div class="toolbar page-toolbar">
     <div class="search-wrap"><span class="icon">&#128269;</span><input type="text" id="searchCases" placeholder="بحث في القضايا..." oninput="renderCases()"></div>
     <select id="filterCaseStatus" onchange="renderCases()" style="width:auto;min-width:120px;"><option value="">كل الحالات</option><option>نشطة</option><option>معلقة</option><option>منتهية</option><option>مُحالة</option></select>
@@ -1234,6 +1234,14 @@ style="color:var(--muted);font-size:12px;margin-top:4px;"> جارٍ تحميل
     <div class="stat-card" style="cursor:default;"><div class="stat-icon">&#128176;</div><div class="stat-num" id="feesTotalNum">0</div><div class="stat-label">إجمالي الأتعاب (ج.م)</div></div>
     <div class="stat-card" style="cursor:default;"><div class="stat-icon">&#128203;</div><div class="stat-num" id="feesCountNum">0</div><div class="stat-label">عدد العمليات</div></div>
   </div>
+  <!-- PHASE UI-9 (جزئي) — report §7, screen 11 "المدفوعات والأتعاب".
+       Read-only, additive row: calls the EXISTING, already-tested pure
+       functions in financial-reports.js (getMonthCollections(),
+       getTotalOutstanding(), getCasesWithOutstandingBalance()) — none of
+       which were previously surfaced in any UI, mobile or desktop.
+       fees.js itself is untouched; the two cards above (feesTotalNum/
+       feesCountNum) are its own and keep working exactly as before. -->
+  <div class="mini-stat-bar" id="feesStatBarExtra" style="margin-bottom:18px;"></div>
   <div class="card card-section"><div class="card-body u-p-0">
     <div class="table-wrap table-container"><table><thead><tr><th>رقم القضية</th><th>الموكل</th><th>النوع</th><th>المبلغ</th><th>التاريخ</th><th>طريقة الدفع</th><th>ملاحظات</th><th>إجراءات</th></tr></thead><tbody id="feesTableBody"></tbody></table></div>
     <div id="feesEmpty" class="empty-state empty-container" style="display:none;"><div class="icon">&#128176;</div><h3>لا توجد أتعاب مسجلة بعد</h3><p>سجّل دفعات الأتعاب المستلمة من الموكلين لمتابعة الإجمالي وعدد العمليات.</p><button class="btn btn-primary" onclick="openAddFeeModal()">&#65291; تسجيل أتعاب</button></div>
