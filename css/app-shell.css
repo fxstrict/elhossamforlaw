@@ -131,11 +131,28 @@ body{
   padding:22px 18px 18px;border-radius:0 0 18px 18px;
 }
 .sidebar-logo-badge{filter:drop-shadow(0 2px 6px rgba(0,0,0,.35));}
+/* OBSTACLE FIXED (reported by the user from a real-device screenshot,
+   2026-09-23): .logo-title/.logo-sub were originally styled dark-navy-
+   on-light (css/layout.css's #16283F / var(--muted)) because the OLD
+   .sidebar-logo background was light. The rule above repaints that
+   background dark navy for the new drawer look, which left the office
+   name and lawyer-name/version line reading as near-invisible dark-on-
+   dark text. Fixed here with light text colors scoped to this exact
+   spot only — css/layout.css's own .logo-title/.logo-sub rules are left
+   untouched for any other context that might still expect them. */
+.sidebar-logo .logo-title{color:#fff;}
+.sidebar-logo .logo-sub{color:rgba(255,255,255,0.72);}
+.sidebar-logo .logo-sub #sidebarLawyerName{color:rgba(255,255,255,0.72);}
 .nav-item{border-radius:12px;margin:2px 8px;}
 .nav-item:hover{background:rgba(201,168,76,0.10);color:var(--color-navy-900);}
 .nav-item.active{background:rgba(201,168,76,0.16);color:var(--color-navy-900);font-weight:800;}
 .nav-item.active .nav-icon{color:var(--color-gold-700);}
 .sidebar-footer{background:var(--color-navy-900);color:#fff;border-top:none;}
+/* Same obstacle as .logo-title above: .api-status/#statusText carry their
+   own explicit color:var(--muted) from css/layout.css (correct for the
+   OLD light footer, unreadable on this new dark one) which overrides the
+   inherited white above. Scoped fix, css/layout.css untouched. */
+.sidebar-footer .api-status,.sidebar-footer #statusText{color:rgba(255,255,255,0.85);}
 
 /* -------------------------------------------------------------------------
    5. Quick-access grid (NEW block on the dashboard, report §4 / §6.1)
