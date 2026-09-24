@@ -273,7 +273,7 @@
 // bump does NOT re-state or re-verify any of the N.13.5/N.13.6/N.13.7
 // push/FCM/SyncCoordinator behavior documented in the comments below —
 // those remain exactly as N.13.7 delivered them; only the number changed.
-var SW_VERSION = 'v126'; // PHASE A9 — Backend-only change (Config/00_Config.gs,
+var SW_VERSION = 'v128'; // PHASE A9 — Backend-only change (Config/00_Config.gs,
                          // 06_Api.gs, 10_Fcm.gs): FCM notification coverage
                          // expanded to more sheets/events (add on القضايا/
                          // الموكلين/المستندات/أعمال_المحضرين/الأتعاب, critical
