@@ -111,12 +111,32 @@ const FCM_PAYLOAD = {
   });
 
   await check('S1.5 tapping the notification relays page + projectId to the app (end-to-end through the real notificationclick handler)', async () => {
+    // PHASE N.13.7 STEP 3 — UPDATED, not a functional regression: the SAME
+    // push event this test already fired above (line 89) now ALSO posts an
+    // AHP_PUSH_RECEIVED message to this mock's single open-window client
+    // (service-worker.js's new, independent event.waitUntil() bridge — see
+    // PHASE_N13_7_step3_push_bridge_tests.js T1/T2 for that behavior's own
+    // dedicated coverage). That is the CORRECT, intended new behavior, not
+    // a bug: w.posted already has exactly 1 entry (the push-bridge message)
+    // BEFORE any click happens here. This test's original assertion
+    // (`posted.length === 1`) implicitly assumed push never touches
+    // `posted` — an assumption N.13.7 intentionally changes. The fix below
+    // asserts on the LAST posted message specifically (what clicking
+    // itself produces), which is what this test actually intends to prove,
+    // while also explicitly confirming the pre-click push message is
+    // exactly what N.13.7 promises (so this interaction stays honestly
+    // documented here rather than silently tolerated).
+    assert.strictEqual(w.posted.length, 1, 'the push event itself (fired above) is expected to have already posted exactly one AHP_PUSH_RECEIVED message — see PHASE N.13.7');
+    assert.strictEqual(w.posted[0].type, 'AHP_PUSH_RECEIVED');
+    const postedBeforeClick = w.posted.length;
     let waited = null;
     w.handlers.notificationclick({ notification: { close: function () {}, data: n.opts.data }, waitUntil: function (p) { waited = p; } });
     await waited;
-    assert.strictEqual(w.posted.length, 1);
-    assert.strictEqual(w.posted[0].page, 'cases');
-    assert.strictEqual(w.posted[0].projectId, 'hossam_02');
+    assert.strictEqual(w.posted.length, postedBeforeClick + 1, 'clicking must post exactly one MORE message (its own), on top of whatever push already posted');
+    const clickMsg = w.posted[w.posted.length - 1];
+    assert.strictEqual(clickMsg.type, 'AHP_NOTIFICATION_CLICK');
+    assert.strictEqual(clickMsg.page, 'cases');
+    assert.strictEqual(clickMsg.projectId, 'hossam_02');
   });
 
   // Backward compatibility: flat (legacy / hand-crafted) payloads keep working.
