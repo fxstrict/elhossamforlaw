@@ -592,6 +592,34 @@
             }
           }, undefined);
         }
+      } else if (event.data && event.data.type === 'AHP_PUSH_RECEIVED') {
+        // PHASE N.13.7 STEP 3 — the app is ALREADY OPEN when the push
+        // arrives (service-worker.js's 'push' handler posts this to every
+        // open window right after showing the system notification — see
+        // its own header comment for why that split exists and why the SW
+        // itself never syncs). Deliberately reuses the EXACT SAME projectId
+        // validation and SyncCoordinator.requestSync('notification') call as
+        // the AHP_NOTIFICATION_CLICK branch above — the only difference is
+        // there is no navigate() here: navigation is the click branch's job
+        // only (a push arriving is not a request to change what page the
+        // person is looking at). If multiple windows/tabs are open, each
+        // has its own independent SyncCoordinator module instance (plain
+        // `window.SyncCoordinator`, no BroadcastChannel/SharedWorker in this
+        // codebase) and each already handles its own freshness this same
+        // way for every other trigger reason (resume/online/boot) — this is
+        // not a new cross-window concern introduced here.
+        var pushProjectId = event.data.projectId || '';
+        if (!pushProjectId) return; // nothing to validate identity against — ignore, same guard as the click branch
+        var pushCurrentProjectId = safely(function () { return global.localStorage.getItem('ahp_project_id') || ''; }, '');
+        if (pushCurrentProjectId && pushProjectId !== pushCurrentProjectId) {
+          console.warn('[NotificationManager] Ignored push-arrival message for a different project (projectId mismatch) — no sync triggered.');
+          return;
+        }
+        safely(function () {
+          if (global.SyncCoordinator && typeof global.SyncCoordinator.requestSync === 'function') {
+            global.SyncCoordinator.requestSync('notification');
+          }
+        }, undefined);
       }
     });
   }
