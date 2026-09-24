@@ -255,14 +255,16 @@
 // is served networkFirstShell() (always fresh), and its only change was
 // to add three new <select> controls inside existing case-form tabs
 // (no cached-file reference changed).
-// PHASE N.13.2 — SW_VERSION v112 -> v113: (1) this file's own 'push' handler
-// now reads FCM's nested `data` map (see the push listener below); (2) the
-// versioned files changed this round (FcmClient.js ?v=2, NotificationManager.js
-// ?v=44, settings.js ?v=44) must be re-fetched: SHELL_CACHE is keyed by
-// SW_VERSION and served Cache First, so without this bump already-installed
-// devices would keep the old copies. (settings.js's precache entry was
-// ?v=42 while index.html already referenced ?v=43; aligned to ?v=44 here.)
-var SW_VERSION = 'v126'; // PHASE A9 — Backend-only change (Config/00_Config.gs,
+// PHASE N.13.7 STEP 3 — SW_VERSION v120 -> v121: the 'push' handler above
+// now ALSO posts AHP_PUSH_RECEIVED to open application windows (a second,
+// independent event.waitUntil — see that handler's own comment). Bumped so
+// already-installed devices actually fetch this new SW byte content
+// (SHELL_CACHE is keyed by SW_VERSION) instead of continuing to run the
+// old push handler until some unrelated future change forces an update.
+// js/core/pwa/NotificationManager.js's own precache/index.html entries were
+// bumped to ?v=45 in the same change (see that file's own PHASE N.13.7
+// comment) — kept in sync here too.
+var SW_VERSION = 'v121'; // PHASE A9 — Backend-only change (Config/00_Config.gs,
                          // 06_Api.gs, 10_Fcm.gs): FCM notification coverage
                          // expanded to more sheets/events (add on القضايا/
                          // الموكلين/المستندات/أعمال_المحضرين/الأتعاب, critical
@@ -692,7 +694,7 @@ var PRECACHE_URLS = [
   'js/core/pwa/ServiceWorkerRegistrar.js?v=42',
   'js/core/pwa/InstallPromptManager.js?v=42',
   'js/core/pwa/FcmClient.js?v=2', // PHASE A8 — added to keep offline-boot precache in sync with index.html's new <script> tag; SW_VERSION bumped to v94 (see top of file) so this list is re-fetched
-  'js/core/pwa/NotificationManager.js?v=44',
+  'js/core/pwa/NotificationManager.js?v=45', // PHASE N.13.7 STEP 3 — AHP_PUSH_RECEIVED handler branch added
   'js/core/VoiceInputController.js?v=42'
 ];
 
@@ -843,6 +845,38 @@ self.addEventListener('push', function (event) {
         notificationId: extra.notificationId || data.notificationId || ''
       }
     })
+  );
+
+  // PHASE N.13.7 STEP 3 — التطبيق قد يكون مفتوحًا بالفعل لحظة وصول push
+  // (بخلاف notificationclick أدناه الذى يحدث فقط بعد ضغط المستخدم على
+  // إشعار — أي بعد إغلاق التطبيق أو مع عدم فتحه). هذا المعالج يُبلِّغ فقط
+  // أى نافذة تطبيق مفتوحة بأن push وصل؛ لا يزامن هنا إطلاقًا (نفس السبب
+  // المعماري الموثَّق أعلاه لـ notificationclick: لا سياق تطبيق حى موثوق
+  // هنا). المزامنة الفعلية تحدث لاحقًا داخل الصفحة نفسها عبر
+  // js/core/pwa/NotificationManager.js الذى يستدعى
+  // SyncCoordinator.requestSync('notification') — نفس البوابة الموجودة
+  // أصلًا والمُثبَتة فى PHASE N.13.5/N.13.6، بلا مسار مزامنة جديد.
+  //
+  // مستقلٌّ تمامًا عن event.waitUntil الخاص بـ showNotification أعلاه:
+  // نداء waitUntil منفصل، بحيث فشل postMessage (لا نافذة مفتوحة، أو خطأ
+  // غير متوقع) لا يمكن أبدًا أن يمنع أو يؤخر ظهور إشعار النظام. `.catch`
+  // فارغ يمتص أى استثناء بصمت — هذا المسار Best-Effort بحت.
+  // `includeUncontrolled: true` بنفس تبرير notificationclick أدناه: نافذة
+  // فُتحت للتو (قبل أن يُسيطر عليها هذا الإصدار من الـService Worker) يجب
+  // ألا تُستبعَد.
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (clientList) {
+      clientList.forEach(function (client) {
+        client.postMessage({
+          type: 'AHP_PUSH_RECEIVED',
+          projectId: extra.projectId || data.projectId || '',
+          page: page,
+          entityType: extra.entityType || data.entityType || '',
+          entityAction: extra.entityAction || data.entityAction || '',
+          notificationId: extra.notificationId || data.notificationId || ''
+        });
+      });
+    }).catch(function () { /* best-effort only — never affects showNotification above */ })
   );
 });
 
