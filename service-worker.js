@@ -264,7 +264,16 @@
 // js/core/pwa/NotificationManager.js's own precache/index.html entries were
 // bumped to ?v=45 in the same change (see that file's own PHASE N.13.7
 // comment) — kept in sync here too.
-var SW_VERSION = 'v121'; // PHASE A9 — Backend-only change (Config/00_Config.gs,
+// PHASE N.13.8 — SW_VERSION v121 -> v126, bumped per the owner's own
+// confirmation: a version-number-only change, no other Service Worker
+// logic touched here (the actual v122–v126 progression happened directly
+// on GitHub, outside any file uploaded to this session, purely to force
+// the "update available" prompt for already-installed devices — the
+// same reason every prior SW_VERSION bump in this file exists). This
+// bump does NOT re-state or re-verify any of the N.13.5/N.13.6/N.13.7
+// push/FCM/SyncCoordinator behavior documented in the comments below —
+// those remain exactly as N.13.7 delivered them; only the number changed.
+var SW_VERSION = 'v127'; // PHASE A9 — Backend-only change (Config/00_Config.gs,
                          // 06_Api.gs, 10_Fcm.gs): FCM notification coverage
                          // expanded to more sheets/events (add on القضايا/
                          // الموكلين/المستندات/أعمال_المحضرين/الأتعاب, critical
