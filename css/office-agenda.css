@@ -1,0 +1,73 @@
+/**
+ * ================================================================
+ * css/office-agenda.css — أجندة المكتب | نظام الحسام للمحاماة
+ * ================================================================
+ * AGENDA-1 — Read-Only Derived Agenda (js/modules/office-agenda.js).
+ *
+ * Purely additive: a new stylesheet, following the exact precedent of
+ * css/legal-directories.css (linked alongside variables.css/components.css
+ * without touching either). Every color/spacing value below reuses the
+ * existing design tokens declared in css/variables.css — no new palette
+ * is introduced. Does not modify, override, or redeclare any selector
+ * from any other CSS file.
+ * ================================================================
+ */
+
+/* ─── Toolbar: view switch (اليوم / الأسبوع / نطاق مخصص) ──────────── */
+
+.agenda-toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;margin-bottom:14px;}
+.agenda-view-tabs{display:flex;gap:6px;background:var(--navy);border:1px solid rgba(201,168,76,0.2);border-radius:var(--radius);padding:4px;}
+.agenda-view-tab{border:none;background:transparent;padding:7px 14px;font-size:12px;font-weight:700;border-radius:8px;cursor:pointer;color:var(--muted);transition:all var(--transition);}
+.agenda-view-tab.active{background:var(--gold);color:#1A2640;}
+
+.agenda-nav{display:flex;align-items:center;gap:10px;justify-content:space-between;margin-bottom:14px;}
+.agenda-nav-title{font-size:14px;font-weight:700;}
+.agenda-nav-today{margin-inline-start:8px;}
+
+.agenda-range-form{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;margin-bottom:14px;}
+.agenda-range-form label{display:flex;flex-direction:column;gap:4px;font-size:11px;color:var(--muted);}
+.agenda-range-form input[type="date"]{padding:7px 9px;border-radius:8px;border:1px solid rgba(201,168,76,0.3);font-size:12px;}
+
+/* ─── Sections ──────────────────────────────────────────────────── */
+
+.agenda-section{margin-bottom:16px;}
+.agenda-section-title{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:700;margin-bottom:8px;}
+.agenda-section-title .count{font-size:11px;font-weight:700;color:var(--muted);background:rgba(0,0,0,0.05);border-radius:20px;padding:1px 8px;}
+.agenda-section.attention .agenda-section-title{color:var(--danger);}
+
+/* ─── Source-colored item cards (reuses .session-item's box model) ─ */
+
+.agenda-item{padding:12px 14px;border-radius:var(--radius);background:var(--navy);border:1px solid rgba(201,168,76,0.15);margin-bottom:8px;display:flex;gap:12px;align-items:flex-start;border-inline-start:4px solid var(--info);transition:all var(--transition);}
+.agenda-item:hover{border-color:rgba(201,168,76,0.35);background:rgba(201,168,76,0.06);}
+.agenda-item.src-session{border-inline-start-color:var(--info);}
+.agenda-item.src-administrativeWork{border-inline-start-color:var(--warning);}
+.agenda-item.src-processServerWork{border-inline-start-color:var(--success);}
+.agenda-item.is-overdue{border-inline-start-color:var(--danger);}
+
+.agenda-item-time{min-width:46px;text-align:center;flex-shrink:0;font-size:11px;color:var(--muted);padding-top:2px;}
+.agenda-item-body{flex:1;min-width:0;cursor:pointer;}
+.agenda-item-title{font-size:13px;font-weight:700;margin-bottom:3px;color:#0D1B2A;}
+.agenda-item-title.done{text-decoration:line-through;color:#9AABB8;}
+.agenda-item-meta{font-size:11px;color:var(--muted);display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+
+.agenda-source-chip{display:inline-block;padding:1px 8px;border-radius:20px;font-size:10px;font-weight:700;}
+.agenda-source-chip.src-session{background:rgba(41,128,185,0.15);color:var(--info);}
+.agenda-source-chip.src-administrativeWork{background:rgba(230,126,34,0.15);color:var(--warning);}
+.agenda-source-chip.src-processServerWork{background:rgba(39,174,96,0.15);color:var(--success);}
+
+/* ─── Week view day columns ─────────────────────────────────────── */
+
+.agenda-week-grid{display:flex;flex-direction:column;gap:14px;}
+.agenda-week-day{border:1px solid rgba(201,168,76,0.15);border-radius:var(--radius);padding:12px;}
+.agenda-week-day-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;font-size:12px;font-weight:700;}
+.agenda-week-day-header.is-today{color:var(--gold);}
+.agenda-week-day-empty{font-size:11px;color:var(--muted);padding:4px 2px;}
+
+/* ─── Empty state (compact variant, reuses .empty-state tone) ─────── */
+
+.agenda-empty{text-align:center;padding:26px 16px;color:var(--muted);font-size:12px;}
+
+@media (max-width:600px){
+  .agenda-toolbar{flex-direction:column;align-items:stretch;}
+  .agenda-view-tabs{justify-content:center;}
+}
