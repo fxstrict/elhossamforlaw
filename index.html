@@ -335,6 +335,10 @@
      needing !important. See both files' own header comments for full scope
      and for what is explicitly OUT of scope in this pass (cases/clients/
      sessions/etc. list markup — later UI-phases). -->
+<!-- AGENDA-1 — Office Agenda (أجندة المكتب): additive stylesheet only,
+     same precedent as css/legal-directories.css just below. No existing
+     CSS file is modified. -->
+<link href="css/office-agenda.css?v=1" rel="stylesheet">
 <link href="css/tokens.css?v=1" rel="stylesheet">
 <link href="css/app-shell.css?v=1" rel="stylesheet">
 <link href="css/app-shell-pages.css?v=1" rel="stylesheet">
@@ -439,6 +443,7 @@
 <link rel="preload" as="script" href="js/core/SyncCoordinator.js?v=1" fetchpriority="high">
 <link rel="preload" as="script" href="js/modules/firstrun.js?v=42" fetchpriority="high">
 <link rel="preload" as="script" href="js/modules/calendar.js?v=42" fetchpriority="low">
+<link rel="preload" as="script" href="js/modules/office-agenda.js?v=1" fetchpriority="low">
 <link rel="preload" as="script" href="js/modules/children.js?v=42" fetchpriority="low">
 <link rel="preload" as="script" href="js/modules/dashboard.js?v=43" fetchpriority="high">
 <link rel="preload" as="script" href="js/modules/tasks.js?v=53" fetchpriority="low">
@@ -698,6 +703,10 @@ style="color:var(--muted);font-size:12px;margin-top:4px;"> جارٍ تحميل
     <div class="nav-item" tabindex="0" role="link" onclick="navigate('expenses')"><span class="nav-icon">&#128181;</span> المصروفات <span class="nav-badge" id="badgeExpenses">0</span></div>
     <div class="nav-section-label">الأدوات</div>
     <div class="nav-item" tabindex="0" role="link" onclick="navigate('calendar')"><span class="nav-icon">&#128467;</span> التقويم</div>
+    <!-- AGENDA-1 — additive nav item, same markup pattern as every item
+         above/below. Does not remove or rename the "التقويم" item above:
+         both remain available (see js/modules/office-agenda.js header). -->
+    <div class="nav-item" tabindex="0" role="link" onclick="navigate('officeAgenda')"><span class="nav-icon">&#128203;</span> أجندة المكتب</div>
     <div class="nav-item" tabindex="0" role="link" onclick="navigate('library')"><span class="nav-icon">&#128218;</span> المكتبة القانونية</div>
     <div class="nav-item" tabindex="0" role="link" onclick="navigate('templates')"><span class="nav-icon">&#128196;</span> صيغ الدعاوى</div>
     <!-- PHASE — Legal Directories: Generic UI (Stage 2) — additive nav item, same markup pattern as every item above. -->
@@ -1282,6 +1291,43 @@ style="color:var(--muted);font-size:12px;margin-top:4px;"> جارٍ تحميل
       <div class="card-header"><span><span class="icon">&#128197;</span> جلسات <span id="calSelectedLabel">هذا الشهر</span></span></div>
       <div class="card-body" id="calSessionsList"><div class="empty-state"><p>اختر يوماً لعرض جلساته</p></div></div>
     </div>
+  </div>
+</div>
+
+<!-- OFFICE AGENDA (أجندة المكتب) — AGENDA-1
+     Read-only derived Agenda over data.sessions / data.tasks /
+     data.processServerWorks. See js/modules/office-agenda.js header for
+     the full architecture note. This page performs ZERO writes — it only
+     reads the same in-memory mirrors every other page already reads, and
+     may navigate to a source page's existing edit/view function
+     (editSession/editTask/viewProcessServerWork), never mutate anything
+     itself. Does not replace or remove #page-calendar above. -->
+<div class="page" id="page-officeAgenda">
+  <div style="max-width:760px;">
+    <div class="agenda-toolbar">
+      <div class="agenda-view-tabs" role="tablist" aria-label="طريقة عرض الأجندة">
+        <button type="button" class="agenda-view-tab" id="agendaTabDay" onclick="agendaSetMode('day')">اليوم</button>
+        <button type="button" class="agenda-view-tab" id="agendaTabWeek" onclick="agendaSetMode('week')">الأسبوع</button>
+        <button type="button" class="agenda-view-tab" id="agendaTabCustom" onclick="agendaSetMode('custom')">نطاق مخصص</button>
+      </div>
+    </div>
+
+    <!-- Day/Week navigator — shown for 'day' and 'week' modes -->
+    <div class="agenda-nav" id="agendaNavRow" style="display:none;">
+      <button type="button" class="btn btn-ghost btn-icon" onclick="agendaNavPrev()">&#9654;</button>
+      <span class="agenda-nav-title" id="agendaNavTitle"></span>
+      <button type="button" class="btn btn-ghost btn-icon" onclick="agendaNavNext()">&#9664;</button>
+      <button type="button" class="btn btn-ghost btn-sm agenda-nav-today" id="agendaNavTodayBtn" onclick="agendaNavToday()">اليوم</button>
+    </div>
+
+    <!-- Custom range form — shown only for 'custom' mode -->
+    <div class="agenda-range-form" id="agendaRangeForm" style="display:none;">
+      <label>من <input type="date" id="agendaRangeFrom"></label>
+      <label>إلى <input type="date" id="agendaRangeTo"></label>
+      <button type="button" class="btn btn-primary btn-sm" onclick="agendaApplyCustomRange()">تطبيق</button>
+    </div>
+
+    <div id="agendaContent"></div>
   </div>
 </div>
 
@@ -2748,7 +2794,7 @@ function toast(msg,type){
 }
 function showLoading(v){document.getElementById('loadingOverlay').classList.toggle('show',v);}
 
-var PAGE_TITLES={dashboard:'لوحة التحكم',globalSearch:'البحث الشامل',cases:'القضايا',sessions:'الجلسات',clients:'الموكلون',opponents:'الخصوم',processServerWorks:'أعمال المحضرين',children:'الأطفال',documents:'المستندات',tasks:'المهام',fees:'الأتعاب',expenses:'المصروفات',calendar:'التقويم',library:'المكتبة القانونية',templates:'صيغ الدعاوى',legalDirectories:'الأجندة والمواقع الرسمية',settings:'الإعدادات',alerts:'التنبيهات ومركز المتابعة'};
+var PAGE_TITLES={dashboard:'لوحة التحكم',globalSearch:'البحث الشامل',cases:'القضايا',sessions:'الجلسات',clients:'الموكلون',opponents:'الخصوم',processServerWorks:'أعمال المحضرين',children:'الأطفال',documents:'المستندات',tasks:'المهام',fees:'الأتعاب',expenses:'المصروفات',calendar:'التقويم',library:'المكتبة القانونية',templates:'صيغ الدعاوى',legalDirectories:'الأجندة والمواقع الرسمية',officeAgenda:'أجندة المكتب',settings:'الإعدادات',alerts:'التنبيهات ومركز المتابعة'};
 var ADDABLE=['cases','sessions','clients','tasks','opponents','processServerWorks'];
 
 function navigate(page){
@@ -2897,6 +2943,7 @@ function navigate(page){
   else if(page==='fees'){if(__vcNeedsRender)__vcRunRender('fees',renderFees);}
   else if(page==='expenses'){if(__vcNeedsRender)__vcRunRender('expenses',renderExpenses);}
   else if(page==='calendar'){var n=new Date();calYear=n.getFullYear();calMonth=n.getMonth();if(__vcNeedsRender)__vcRunRender('calendar',renderCalendar);}
+  else if(page==='officeAgenda'){if(__vcNeedsRender)__vcRunRender('officeAgenda',renderOfficeAgenda);}
   else if(page==='library'){if(__vcNeedsRender)__vcRunRender('library',renderLibrary);}
   else if(page==='templates'){if(__vcNeedsRender)__vcRunRender('templates',renderTemplates);}
   else if(page==='legalDirectories'){if(__vcNeedsRender)__vcRunRender('legalDirectories',renderLegalDirectories);}
@@ -3361,6 +3408,11 @@ window.addEventListener('online',function(){
 <script src="js/modules/process-server-works.js?v=42"></script>
 <script src="js/modules/process-server-fields.js?v=42"></script>
 <script src="js/modules/administrative-work-fields.js?v=53"></script>
+<!-- AGENDA-1 — loaded after sessions.js/tasks.js/process-server-works.js
+     (and their *_ID_FIELD constants + editSession/editTask/
+     viewProcessServerWork functions) so office-agenda.js can safely read
+     those globals at call time. See file header for the full contract. -->
+<script src="js/modules/office-agenda.js?v=1"></script>
 <script src="js/modules/client-messages.js?v=42"></script>
 <script src="js/modules/fees.js?v=44"></script>
 <script src="js/modules/library.js?v=42"></script>
