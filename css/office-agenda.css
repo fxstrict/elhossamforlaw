@@ -55,6 +55,16 @@
 .agenda-source-chip.src-administrativeWork{background:rgba(230,126,34,0.15);color:var(--warning);}
 .agenda-source-chip.src-processServerWork{background:rgba(39,174,96,0.15);color:var(--success);}
 
+/* ─── AGENDA-2: status chip / assignee / action buttons ─────────── */
+
+.agenda-item-actions{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:8px;padding-top:8px;border-top:1px dashed rgba(201,168,76,0.2);}
+.agenda-status-chip{display:inline-block;padding:1px 9px;border-radius:20px;font-size:10px;font-weight:700;background:rgba(0,0,0,0.06);color:var(--muted);}
+.agenda-status-chip.st-IN_PROGRESS{background:rgba(41,128,185,0.15);color:var(--info);}
+.agenda-status-chip.st-BLOCKED{background:rgba(192,57,43,0.15);color:var(--danger);}
+.agenda-status-chip.st-COMPLETED{background:rgba(39,174,96,0.15);color:var(--success);}
+.agenda-assignee{font-size:11px;color:var(--muted);}
+.agenda-act-btn{padding:2px 9px;font-size:11px;}
+
 /* ─── Week view day columns ─────────────────────────────────────── */
 
 .agenda-week-grid{display:flex;flex-direction:column;gap:14px;}
