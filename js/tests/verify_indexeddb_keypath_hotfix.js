@@ -193,6 +193,18 @@ const REAL_RECORDS = {
     'التاريخ': '2026-07-16',
     createdAt: '2026-07-16T00:00:00.000Z',
     updatedAt: '2026-07-16T00:00:00.000Z'
+  },
+  // AGENDA-2: 'المعرف' is a caller-computed deterministic key
+  // (sourceType:sourceId — see office-agenda.js's agendaWorkItemId()),
+  // never repository-generated — same category as 'cases'.
+  agendaMetadata: {
+    'المعرف': 'administrativeWork:TASK-0001',
+    'نوع_المصدر': 'administrativeWork',
+    'معرف_المصدر': 'TASK-0001',
+    'مُسند_إلى': 'ahmed',
+    'حالة_التنفيذ': 'IN_PROGRESS',
+    createdAt: '2026-07-16T00:00:00.000Z',
+    updatedAt: '2026-07-16T00:00:00.000Z'
   }
 };
 
