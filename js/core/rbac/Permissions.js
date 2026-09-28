@@ -119,6 +119,23 @@
       viewAuditLog: 'CanViewAuditLog',
       viewLoginLog: 'CanViewLoginLog',
       endSessions: 'CanEndUserSessions'
+    }),
+    // AGENDA-2 — إضافة بحتة. راجع
+    // AGENDA_DESIGN_CLOSURE_AND_ARCHITECTURE_SPECIFICATION.md §19: فقط
+    // المفاتيح الخمسة التى يحتاجها AGENDA-2 فعليًا مُضافة هنا الآن
+    // (viewAll/assign/changeExecutionStatus هى ما تحكم فعل الإسناد
+    // وتغيير حالة التنفيذ فى js/modules/office-agenda.js) —
+    // CanCreateWorkSheet/CanCloseWorkSheet/CanShareAgendaReport من
+    // AGENDA-3/4، غير مُضافة الآن (لا وجود لأى منها فى هذه المرحلة). لا
+    // تغيير على محرك RBAC نفسه (PermissionService.js/Roles.js/
+    // PermissionGroups.js) — فقط تسجيل مفاتيح جديدة فى هذا السجل
+    // المُسطَّح الموجود بالفعل، بالضبط كما تفعل كل وحدة أعلاه.
+    agenda: Object.freeze({ // أجندة المكتب
+      view: 'CanViewAgenda',
+      viewAll: 'CanViewAllAgendaWork',
+      edit: 'CanEditAgendaWork',
+      assign: 'CanAssignAgendaWork',
+      changeExecutionStatus: 'CanChangeAgendaExecutionStatus'
     })
   });
 
