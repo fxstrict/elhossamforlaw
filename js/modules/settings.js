@@ -716,7 +716,7 @@ async function loadFromSheets(){
     // restricted — see PHASE S.9 report §5). Push already existed
     // (expenses.js's saveExpense/deleteExpense/restoreExpense); only
     // the pull side was missing before this line.
-    var pairs=[['القضايا','cases'],['الجلسات','sessions'],['الموكلين','clients'],['الأطفال','children'],['المستندات','documents'],['الأعمال الإدارية','tasks'],['الأتعاب','fees'],['رسائل_الموكل','clientMessages'],['الصيغ','templates'],['المكتبة','library'],['الخصوم','opponents'],['أعمال_المحضرين','processServerWorks'],['قضية_موكلين','caseClients'],['المصروفات','expenses']];
+    var pairs=[['القضايا','cases'],['الجلسات','sessions'],['الموكلين','clients'],['الأطفال','children'],['المستندات','documents'],['الأعمال الإدارية','tasks'],['الأتعاب','fees'],['رسائل_الموكل','clientMessages'],['الصيغ','templates'],['المكتبة','library'],['الخصوم','opponents'],['أعمال_المحضرين','processServerWorks'],['قضية_موكلين','caseClients'],['المصروفات','expenses'],['أجندة_البيانات_الوصفية','agendaMetadata']];
     var results=await Promise.all(pairs.map(async function(pair){
       var sh=pair[0],k=pair[1];
       try{

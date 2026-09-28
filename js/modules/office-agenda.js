@@ -3,6 +3,11 @@
  * js/modules/office-agenda.js — أجندة المكتب | نظام الحسام للمحاماة
  * ================================================================
  * AGENDA-1 — Read-Only Derived Agenda.
+ * AGENDA-2 (added) — Agenda Metadata: assignment + execution status. The
+ *   derivation/aggregation below is still read-only over the three source
+ *   domains; the ONLY writes are (a) agendaMetadata rows (+ their Sheet
+ *   sync) and (b) for Administrative Works only, the existing toggleTask()
+ *   on COMPLETED/reopen (closure spec §6). See the AGENDA-2 section.
  *
  * ARCHITECTURE (per AGENDA_DESIGN_CLOSURE_AND_ARCHITECTURE_SPECIFICATION.md,
  * §4/§5/§14/§15, and the AGENDA-1 implementation brief):
@@ -104,6 +109,281 @@ var agendaDayCursor    = new Date();   // pivot date for 'day' mode
 var agendaWeekCursor   = new Date();   // any date inside the displayed week
 var agendaRangeFromVal = null;         // Date | null — 'custom' mode
 var agendaRangeToVal   = null;         // Date | null — 'custom' mode
+
+// ================================================================
+// AGENDA-2 — Agenda Metadata: assignment + execution status.
+// ================================================================
+// Writes ONLY to the new 'agendaMetadata' store (and its Sheet
+// 'أجندة_البيانات_الوصفية' via ApiService.syncRow). The single exception,
+// mandated by closure spec §6, is Administrative Works: Agenda
+// COMPLETED/reopen calls the EXISTING toggleTask(i) so the source task's
+// own الحالة flips through its own function (Undo/History keep working).
+// Sessions and Process Server Works are NEVER written to. BLOCKED never
+// writes to any source.
+//
+// GLOBAL NAMES — 'agendaMetadataRepository' and
+// 'agendaMetadataRepositoryReadyPromise' are deliberately global `var`s:
+// SyncEngine.js (_applyPage) and settings.js (loadFromSheets) resolve
+// window[key + 'Repository'] / window[key + 'RepositoryReadyPromise'].
+
+var AGENDA_SHEET_NAME = 'أجندة_البيانات_الوصفية';
+var AGENDA_STATUS_LABELS = {
+  NOT_STARTED: 'لم يبدأ', IN_PROGRESS: 'قيد التنفيذ', BLOCKED: 'متوقف', COMPLETED: 'منجز'
+};
+
+var agendaMetadataRepository = (typeof AgendaMetadataRepository === 'function')
+  ? new AgendaMetadataRepository() : null;
+
+var agendaMetadataRepositoryReadyPromise = agendaMetadataRepository
+  ? agendaMetadataRepository.open().then(function () {
+      syncAgendaMetadataMirror();
+    }).catch(function (err) {
+      console.error('[office-agenda] AgendaMetadataRepository failed to open:', err);
+    })
+  : Promise.resolve();
+
+function syncAgendaMetadataMirror() {
+  if (!agendaMetadataRepository || typeof data === 'undefined') return;
+  if (!agendaMetadataRepository.isReady()) return;
+  data.agendaMetadata = agendaMetadataRepository.getAll();
+}
+
+function agendaMetaFor(type, sourceId) {
+  var id = agendaWorkItemId(type, sourceId);
+  var list = (typeof data !== 'undefined' && data.agendaMetadata) || [];
+  for (var i = 0; i < list.length; i++) {
+    if (list[i]['المعرف'] === id) return list[i];
+  }
+  return null;
+}
+
+/** No metadata row yet == implicit NOT_STARTED (closure spec §25, lazy migration). */
+function agendaStatusOf(meta) {
+  return (meta && meta['حالة_التنفيذ']) || 'NOT_STARTED';
+}
+
+/**
+ * RBAC gate. Mirrors the app's documented convention (SessionContext.js):
+ * with no login session the RBAC layer is inert (fail-open); with a
+ * session, PermissionService.can() decides (fail-closed on error).
+ */
+function agendaCan(permissionKey) {
+  try {
+    if (typeof HossamSession === 'undefined' || typeof HossamSession.getCurrentUser !== 'function') return true;
+    var user = HossamSession.getCurrentUser();
+    if (!user) return true;
+    if (typeof HossamPermissionService === 'undefined') return false;
+    return HossamPermissionService.can(user, permissionKey) === true;
+  } catch (e) {
+    return false;
+  }
+}
+
+function agendaCurrentUsername() {
+  try {
+    var u = (typeof HossamSession !== 'undefined' && HossamSession.getCurrentUser) ? HossamSession.getCurrentUser() : null;
+    return (u && u['اسم_المستخدم']) || '';
+  } catch (e) { return ''; }
+}
+
+var agendaUsersCache = null;
+function agendaLoadUsers() {
+  if (agendaUsersCache) return Promise.resolve(agendaUsersCache);
+  if (typeof UsersRepository !== 'function') return Promise.resolve([]);
+  var repo;
+  try { repo = new UsersRepository(); } catch (e) { return Promise.resolve([]); }
+  return repo.open().then(function () {
+    agendaUsersCache = repo.getAll().filter(function (u) { return u['الحالة'] === 'نشط'; });
+    return agendaUsersCache;
+  }).catch(function () { return []; });
+}
+
+function agendaAssigneeLabel(username) {
+  if (!username) return '';
+  var list = agendaUsersCache || [];
+  for (var i = 0; i < list.length; i++) {
+    if (list[i]['اسم_المستخدم'] === username) return list[i]['الاسم'] || username;
+  }
+  return username;
+}
+
+/** Status chip + assignee + contextual action buttons for one Work Item. */
+function agendaFooterHtml(type, sourceId) {
+  var meta = agendaMetaFor(type, sourceId);
+  var st = agendaStatusOf(meta);
+  var assignee = meta && meta['مُسند_إلى'];
+  var id = agendaEscape(sourceId);
+  var btn = function (kind, label) {
+    return '<button type="button" class="btn btn-ghost btn-sm agenda-act-btn" onclick="agendaAction(\'' + kind + '\',\'' + type + '\',\'' + id + '\')">' + label + '</button>';
+  };
+  var html = '<div class="agenda-item-actions" onclick="event.stopPropagation()">' +
+    '<span class="agenda-status-chip st-' + st + '">' + AGENDA_STATUS_LABELS[st] + '</span>' +
+    '<span class="agenda-assignee">&#128100; ' + (assignee ? agendaEscape(agendaAssigneeLabel(assignee)) : 'غير مُسند') + '</span>';
+  if (agendaCan('CanAssignAgendaWork')) html += btn('assign', assignee ? 'تغيير الإسناد' : 'إسناد');
+  if (agendaCan('CanChangeAgendaExecutionStatus')) {
+    if (st === 'NOT_STARTED') html += btn('start', 'بدء');
+    else if (st === 'IN_PROGRESS') html += btn('block', 'إيقاف') + btn('complete', 'إنجاز');
+    else if (st === 'BLOCKED') html += btn('resume', 'استئناف');
+    else if (st === 'COMPLETED') html += btn('reopen', 'إعادة فتح');
+  }
+  return html + '</div>';
+}
+
+// ---- Action dialog -------------------------------------------------
+
+var agendaPending = null;
+
+var AGENDA_ACTION_TEXT = {
+  block:    { title: 'إيقاف العمل',        label: 'سبب التوقف (إلزامي)' },
+  complete: { title: 'إنجاز العمل',        label: 'ملاحظة الإنجاز (إلزامية)' },
+  reopen:   { title: 'إعادة فتح العمل',    label: 'سبب إعادة الفتح (إلزامي)' }
+};
+
+function agendaAction(kind, type, sourceId) {
+  var needPerm = (kind === 'assign') ? 'CanAssignAgendaWork' : 'CanChangeAgendaExecutionStatus';
+  if (!agendaCan(needPerm)) {
+    if (typeof toast === 'function') toast('لا تملك صلاحية تنفيذ هذا الإجراء', 'error');
+    return;
+  }
+  agendaPending = { kind: kind, type: type, id: sourceId };
+
+  if (kind === 'start' || kind === 'resume') { agendaApplyAction(agendaPending, ''); return; }
+
+  var wrapA = document.getElementById('agendaActionAssigneeWrap');
+  var wrapT = document.getElementById('agendaActionTextWrap');
+  wrapA.style.display = 'none';
+  wrapT.style.display = 'none';
+
+  if (kind === 'assign') {
+    document.getElementById('agendaActionTitle').textContent = 'إسناد العمل';
+    wrapA.style.display = '';
+    var sel = document.getElementById('agendaActionAssignee');
+    var txt = document.getElementById('agendaActionAssigneeText');
+    var current = (agendaMetaFor(type, sourceId) || {})['مُسند_إلى'] || '';
+    agendaLoadUsers().then(function (users) {
+      if (users.length) {
+        sel.style.display = ''; txt.style.display = 'none';
+        sel.innerHTML = '<option value="">— بدون إسناد —</option>' + users.map(function (u) {
+          return '<option value="' + agendaEscape(u['اسم_المستخدم']) + '">' + agendaEscape(u['الاسم'] || u['اسم_المستخدم']) + '</option>';
+        }).join('');
+        sel.value = current;
+      } else {
+        sel.style.display = 'none'; txt.style.display = '';
+        txt.value = current;
+      }
+    });
+  } else {
+    var cfg = AGENDA_ACTION_TEXT[kind];
+    document.getElementById('agendaActionTitle').textContent = cfg.title;
+    document.getElementById('agendaActionTextLabel').textContent = cfg.label;
+    document.getElementById('agendaActionText').value = '';
+    wrapT.style.display = '';
+  }
+  document.getElementById('modalAgendaAction').classList.add('open');
+}
+
+function agendaActionSubmit() {
+  if (!agendaPending) return;
+  var value;
+  if (agendaPending.kind === 'assign') {
+    var sel = document.getElementById('agendaActionAssignee');
+    var txt = document.getElementById('agendaActionAssigneeText');
+    value = (sel.style.display === 'none') ? txt.value.trim() : sel.value;
+  } else {
+    value = document.getElementById('agendaActionText').value.trim();
+    if (!value) {
+      if (typeof toast === 'function') toast('هذا الحقل إلزامي', 'error');
+      return;
+    }
+  }
+  var pending = agendaPending;
+  closeModal('modalAgendaAction');
+  agendaApplyAction(pending, value);
+}
+
+function agendaNowIso() { return new Date().toISOString(); }
+
+/**
+ * agendaApplyAction — the ONLY write path of this module.
+ *  1. (COMPLETED / reopen on an Administrative Work only) flip the source
+ *     task through the existing toggleTask(); abort if it did not flip.
+ *  2. upsert the agendaMetadata row via AgendaMetadataRepository.
+ *  3. fire-and-forget ApiService.syncRow to the new Sheet.
+ */
+async function agendaApplyAction(pending, value) {
+  try {
+    if (!agendaMetadataRepository) throw new Error('agendaMetadataRepository unavailable');
+    await agendaMetadataRepositoryReadyPromise;
+    var type = pending.type, sourceId = pending.id, kind = pending.kind;
+    var meta = agendaMetaFor(type, sourceId);
+    var patch = {};
+
+    if (kind === 'assign') {
+      patch['مُسند_إلى'] = value || '';
+    } else if (kind === 'start' || kind === 'resume') {
+      patch['حالة_التنفيذ'] = 'IN_PROGRESS';
+      patch['سبب_التوقف'] = '';
+    } else if (kind === 'block') {
+      patch['حالة_التنفيذ'] = 'BLOCKED';
+      patch['سبب_التوقف'] = value;
+    } else if (kind === 'complete') {
+      await agendaWriteBackTask(type, sourceId, 'done');
+      patch['حالة_التنفيذ'] = 'COMPLETED';
+      patch['ملاحظة_الإنجاز'] = value;
+      patch['تاريخ_الإنجاز'] = agendaNowIso();
+      patch['أنجزها'] = agendaCurrentUsername();
+    } else if (kind === 'reopen') {
+      await agendaWriteBackTask(type, sourceId, 'pending');
+      var prev = (meta && meta['ملاحظة_الإنجاز']) || '';
+      var by = agendaCurrentUsername();
+      patch['حالة_التنفيذ'] = 'IN_PROGRESS';
+      patch['ملاحظة_الإنجاز'] = (prev ? prev + '\n' : '') +
+        'إعادة فتح ' + agendaNowIso() + (by ? ' بواسطة ' + by : '') + ': ' + value;
+      patch['تاريخ_الإنجاز'] = '';
+      patch['أنجزها'] = '';
+    } else {
+      return;
+    }
+
+    var result = await agendaMetadataRepository.upsertForWorkItem(type, sourceId, patch);
+    if (!result || !result.success) {
+      throw new Error((result && result.error && result.error.message) || 'فشل حفظ بيانات الأجندة');
+    }
+    syncAgendaMetadataMirror();
+    var list = data.agendaMetadata || [];
+    var idx = -1;
+    for (var i = 0; i < list.length; i++) { if (list[i]['المعرف'] === result.record['المعرف']) { idx = i; break; } }
+    // idx >= 0 -> updateData, -1 -> saveData; server matches by id either way.
+    if (typeof ApiService !== 'undefined' && ApiService.syncRow) {
+      ApiService.syncRow(AGENDA_SHEET_NAME, result.record, meta ? idx : -1);
+    }
+    agendaRenderCurrent();
+  } catch (err) {
+    console.error('[office-agenda] agenda action failed:', err);
+    if (typeof toast === 'function') toast(err && err.message ? err.message : 'تعذر تنفيذ الإجراء', 'error');
+    try { agendaRenderCurrent(); } catch (e) {}
+  }
+}
+
+/**
+ * Closure spec §6 write-back: only Administrative Works, only through the
+ * existing toggleTask(i). toggleTask FLIPS, so it is called only when the
+ * source is not already in the target state; afterwards the result is
+ * verified — if it did not flip, throw so no Agenda row is written.
+ */
+async function agendaWriteBackTask(type, sourceId, targetStatus) {
+  if (type !== 'administrativeWork') return; // sessions / PSW: never written
+  var idField = (typeof TASKS_ID_FIELD !== 'undefined') ? TASKS_ID_FIELD : 'رقم_المهمة';
+  var idx = (data.tasks || []).findIndex(function (t) { return String(t[idField]) === String(sourceId); });
+  if (idx < 0) throw new Error('تعذر العثور على العمل الإداري المصدر');
+  if (data.tasks[idx]['الحالة'] === targetStatus) return; // already in the desired source state
+  if (typeof toggleTask !== 'function') throw new Error('toggleTask غير متاح');
+  await toggleTask(idx);
+  var after = (data.tasks || []).findIndex(function (t) { return String(t[idField]) === String(sourceId); });
+  if (after < 0 || data.tasks[after]['الحالة'] !== targetStatus) {
+    throw new Error('تعذر تحديث حالة العمل الإداري المصدر');
+  }
+}
 
 // ================================================================
 // SMALL DATE HELPERS (local to this module — does not redeclare or
@@ -255,6 +535,7 @@ function agendaSessionItemHtml(s) {
           (typeof statusBadge === 'function' ? statusBadge(s['الحالة']) : '') +
         '</div>' +
         (s['القرار'] ? '<div style="font-size:11px;color:var(--gold);margin-top:3px;">&#9878; ' + agendaEscape(s['القرار']) + '</div>' : '') +
+        agendaFooterHtml('session', id) +
       '</div>' +
     '</div>'
   );
@@ -275,6 +556,7 @@ function agendaAdminWorkItemHtml(t, opts) {
           (t['رقم_القضية'] ? '<span>&#9878; ' + agendaEscape(t['رقم_القضية']) + '</span>' : '') +
           (opts.overdue ? '<span class="badge badge-urgent">متأخر</span>' : '') +
         '</div>' +
+        agendaFooterHtml('administrativeWork', id) +
       '</div>' +
     '</div>'
   );
@@ -295,6 +577,7 @@ function agendaPswItemHtml(w, opts) {
           (w['قلم_المحضرين'] ? '<span>' + agendaEscape(w['قلم_المحضرين']) + '</span>' : '') +
           '<span class="badge ' + (received ? 'badge-active' : 'badge-pending') + '">' + (received ? 'مستلم' : 'غير مستلم') + '</span>' +
         '</div>' +
+        agendaFooterHtml('processServerWork', id) +
       '</div>' +
     '</div>'
   );
@@ -581,8 +864,20 @@ function renderOfficeAgenda() {
   try {
     agendaDayCursor = new Date();
     agendaWeekCursor = new Date();
+    agendaUsersCache = null;
+    syncAgendaMetadataMirror();
     agendaUpdateTabsUI();
     agendaRenderCurrent();
+    // First visit before the repository finished opening: render again
+    // once it is ready (its rows were not yet in the mirror above).
+    if (agendaMetadataRepository && !agendaMetadataRepository.isReady()) {
+      agendaMetadataRepositoryReadyPromise.then(function () {
+        syncAgendaMetadataMirror();
+        agendaRenderCurrent();
+      });
+    }
+    // Load users once so assignee names render as full names.
+    agendaLoadUsers().then(function (u) { if (u.length) agendaRenderCurrent(); });
   } catch (err) {
     console.error('[office-agenda] تعذر عرض أجندة المكتب:', err);
     var el = document.getElementById('agendaContent');
