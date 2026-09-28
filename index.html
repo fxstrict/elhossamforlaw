@@ -419,6 +419,7 @@
 <link rel="preload" as="script" href="js/repositories/ChildrenRepository.js?v=42" fetchpriority="high">
 <link rel="preload" as="script" href="js/repositories/SessionsRepository.js?v=42" fetchpriority="high">
 <link rel="preload" as="script" href="js/repositories/TasksRepository.js?v=42" fetchpriority="high">
+<link rel="preload" as="script" href="js/repositories/AgendaMetadataRepository.js?v=1" fetchpriority="low">
 <link rel="preload" as="script" href="js/repositories/FeesRepository.js?v=42" fetchpriority="high">
 <link rel="preload" as="script" href="js/repositories/DocumentsRepository.js?v=42" fetchpriority="high">
 <link rel="preload" as="script" href="js/repositories/LibraryRepository.js?v=42" fetchpriority="high">
@@ -2684,6 +2685,8 @@ style="color:var(--muted);font-size:12px;margin-top:4px;"> جارٍ تحميل
 <script src="js/repositories/ChildrenRepository.js?v=42"></script>
 <script src="js/repositories/SessionsRepository.js?v=42"></script>
 <script src="js/repositories/TasksRepository.js?v=42"></script>
+<!-- AGENDA-2 — Agenda Metadata repository (same position/pattern as TasksRepository.js; office-agenda.js loads later and instantiates it). -->
+<script src="js/repositories/AgendaMetadataRepository.js?v=1"></script>
 <script src="js/repositories/FeesRepository.js?v=42"></script>
 <script src="js/repositories/DocumentsRepository.js?v=42"></script>
 <script src="js/repositories/LibraryRepository.js?v=42"></script>
@@ -3312,6 +3315,27 @@ window.addEventListener('online',function(){
 <script src="js/modules/tasks.js?v=53"></script>
 <script src="js/modules/documents.js?v=42"></script>
 <script src="js/modules/sessions.js?v=42"></script>
+
+<!-- AGENDA-2 — Agenda action dialog (إسناد / سبب توقف / ملاحظة إنجاز / سبب إعادة فتح).
+     Same .modal-overlay/.modal/.form-group pattern as every other modal here.
+     Driven only by js/modules/office-agenda.js; writes only agendaMetadata. -->
+<div class="modal-overlay" id="modalAgendaAction" style="z-index:310;">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-header"><div class="modal-title" id="agendaActionTitle"></div><button class="modal-close" onclick="closeModal('modalAgendaAction')" title="إغلاق">&#10005;</button></div>
+    <div class="modal-body">
+      <div class="form-group full" id="agendaActionAssigneeWrap" style="display:none;">
+        <label>المُسند إليه</label>
+        <select id="agendaActionAssignee"></select>
+        <input type="text" id="agendaActionAssigneeText" placeholder="اسم المستخدم" style="display:none;">
+      </div>
+      <div class="form-group full" id="agendaActionTextWrap" style="display:none;">
+        <label id="agendaActionTextLabel"></label>
+        <textarea id="agendaActionText" rows="3"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal('modalAgendaAction')">إلغاء</button><button class="btn btn-primary" id="agendaActionSave" onclick="agendaActionSubmit()">حفظ</button></div>
+  </div>
+</div>
 
 <!-- VIEW MODAL (عرض + طباعة) -->
 <div class="modal-overlay" id="modalView" style="z-index:300;">
