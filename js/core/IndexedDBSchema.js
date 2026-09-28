@@ -70,7 +70,12 @@
   // so an already-provisioned database only gains the two new stores on
   // next open. No conflict with 'clients'/'cases'/'opponents'/any other
   // store: purely additive, own store names, own keyPaths, own indexes.
-  var DB_VERSION = 6;
+  // AGENDA-2: bumped 6 -> 7 to add the 'agendaMetadata' object store
+  // (see SCHEMA_VERSIONS version 7 step below). Same existence-guarded
+  // ensureStore() behaviour — an already-provisioned database only
+  // gains this one new store on next open. No conflict with 'sessions'/
+  // 'tasks'/'processServerWorks'/any other store.
+  var DB_VERSION = 7;
 
   // ----------------------------------------------------------------
   // Index definitions per store. Only indexes an existing Repository/
@@ -347,12 +352,36 @@
     }
   ];
 
+  // V7_STORE_DEFINITIONS — AGENDA-2: one new store. 'agendaMetadata'
+  // backs the new 'أجندة_البيانات_الوصفية' GAS sheet (Config/00_Config.gs
+  // SHEET_DEFS) and the new js/repositories/AgendaMetadataRepository.js.
+  // keyPath is the Arabic 'المعرف' column itself (not a separate 'id')
+  // because the value is a deterministic, caller-computed key
+  // (sourceType + ':' + sourceId — see office-agenda.js's
+  // agendaWorkItemId()), never repository-generated — same rationale
+  // TasksRepository.js's own header documents for 'Cases'-style natural
+  // keys. Purely additive: does not touch 'sessions', 'tasks',
+  // 'processServerWorks', or any other store/index.
+  var V7_STORE_DEFINITIONS = [
+    {
+      name: 'agendaMetadata',
+      keyPath: 'المعرف',
+      autoIncrement: false,
+      indexes: [
+        { name: 'sourceType', keyPath: 'نوع_المصدر', unique: false },
+        { name: 'sourceId', keyPath: 'معرف_المصدر', unique: false },
+        { name: 'assignedTo', keyPath: 'مُسند_إلى', unique: false },
+        { name: 'executionStatus', keyPath: 'حالة_التنفيذ', unique: false }
+      ].concat(COMMON_AUDIT_INDEXES)
+    }
+  ];
+
   /**
    * STORE_DEFINITIONS — every store name the CURRENT (latest) schema
    * version defines (version 1 stores + every additive version's new
    * stores). Used by getStoreNames()/getStoreDefinition() below.
    */
-  var STORE_DEFINITIONS = V1_STORE_DEFINITIONS.concat(V2_STORE_DEFINITIONS).concat(V3_STORE_DEFINITIONS).concat(V4_STORE_DEFINITIONS).concat(V5_STORE_DEFINITIONS).concat(V6_STORE_DEFINITIONS);
+  var STORE_DEFINITIONS = V1_STORE_DEFINITIONS.concat(V2_STORE_DEFINITIONS).concat(V3_STORE_DEFINITIONS).concat(V4_STORE_DEFINITIONS).concat(V5_STORE_DEFINITIONS).concat(V6_STORE_DEFINITIONS).concat(V7_STORE_DEFINITIONS);
 
   /**
    * SCHEMA_VERSIONS — ordered upgrade steps. Version 1 was the original
@@ -395,6 +424,11 @@
       version: 6,
       description: 'CASES_RELATIONSHIP_FINANCIAL: adds the caseClients (Case<->Client junction) and expenses (3-level Expenses) object stores.',
       stores: V6_STORE_DEFINITIONS
+    },
+    {
+      version: 7,
+      description: 'AGENDA-2: adds the agendaMetadata (Agenda assignment + execution-status, keyed by sourceType:sourceId) object store.',
+      stores: V7_STORE_DEFINITIONS
     }
   ];
 

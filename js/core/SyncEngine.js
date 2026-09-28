@@ -148,7 +148,12 @@ const SyncEngine = (function () {
     ['الخصوم', 'opponents'],
     ['أعمال_المحضرين', 'processServerWorks'],
     ['قضية_موكلين', 'caseClients'],
-    ['المصروفات', 'expenses']
+    ['المصروفات', 'expenses'],
+    // AGENDA-2 — إضافة بحتة. يجب أن يبقى مطابقًا كسطر واحد لما فى
+    // settings.js's own 'pairs' array (loadFromSheets()) — راجع تعليق
+    // settings.js نفسه وPHASE_A7_frontend_sync_tests.js's الاختبار
+    // الثابت الذى يتحقق من هذا بالضبط.
+    ['أجندة_البيانات_الوصفية', 'agendaMetadata']
   ];
 
   const TOMBSTONE_FIELD = 'محذوف_في';
