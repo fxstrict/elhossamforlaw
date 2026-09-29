@@ -88,6 +88,8 @@ const FCM_NOTIFY_UPDATE_SHEETS_SRC = extractConst(configGs, 'FCM_NOTIFY_UPDATE_S
 const FCM_NOTIFY_DELETE_SHEETS_SRC = extractConst(configGs, 'FCM_NOTIFY_DELETE_SHEETS');
 const FCM_ENTITY_LABELS_SRC = extractVarObject(fcmGs, 'FCM_ENTITY_LABELS_');
 const resolveFcmTitleBody_SRC = extractFunction(fcmGs, 'resolveFcmTitleBody_');
+// AGENDA-2: resolveFcmTitleBody_() now calls this helper for the new sheet — must be in the same sandbox.
+const agendaFcmTitleBody_SRC = extractFunction(fcmGs, 'agendaFcmTitleBody_');
 const computeUpdateChangeContext_SRC = extractFunction(fcmGs, 'computeUpdateChangeContext_');
 
 const wrapped = new vm.Script(
@@ -97,6 +99,7 @@ const wrapped = new vm.Script(
   FCM_NOTIFY_DELETE_SHEETS_SRC + '\n' +
   FCM_ENTITY_LABELS_SRC + '\n' +
   resolveFcmTitleBody_SRC + '\n' +
+  agendaFcmTitleBody_SRC + '\n' +
   computeUpdateChangeContext_SRC + '\n' +
   'return { FCM_NOTIFY_SHEETS: FCM_NOTIFY_SHEETS, FCM_NOTIFY_UPDATE_SHEETS: FCM_NOTIFY_UPDATE_SHEETS, FCM_NOTIFY_DELETE_SHEETS: FCM_NOTIFY_DELETE_SHEETS, FCM_ENTITY_LABELS_: FCM_ENTITY_LABELS_, resolveFcmTitleBody_: resolveFcmTitleBody_, computeUpdateChangeContext_: computeUpdateChangeContext_ };\n' +
   '})'

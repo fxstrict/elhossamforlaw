@@ -76,6 +76,9 @@ async function check(label, fn) {
 const clone = (o) => JSON.parse(JSON.stringify(o));
 const OWNER = { 'اسم_المستخدم': 'boss', 'الاسم': 'المدير', 'الحالة': 'نشط', 'الدور': 'office_owner' };
 const LAWYER = { 'اسم_المستخدم': 'lw', 'الاسم': 'محامي', 'الحالة': 'نشط', 'الدور': 'lawyer' };
+// accountant: deliberately the one role with ZERO agenda permissions (no view/assign/status/edit) —
+// PermissionGroups.js's 'accountants' group. True negative-permission control.
+const ACCOUNTANT = { 'اسم_المستخدم': 'ac', 'الاسم': 'محاسب', 'الحالة': 'نشط', 'الدور': 'accountant' };
 const meta = (t, id) => agendaMetaFor(t, id);
 
 (async function main() {
@@ -108,13 +111,31 @@ const meta = (t, id) => agendaMetaFor(t, id);
   });
 
   // ---- RBAC: lawyer has no agenda keys ----
-  await check('lawyer session: no assign/status permission, footer shows NO action buttons', async () => {
-    HossamSession.setCurrentUser(LAWYER, { persist: false });
+  await check('accountant session (zero agenda permissions): footer shows NO action buttons, denied view screen', async () => {
+    HossamSession.setCurrentUser(ACCOUNTANT, { persist: false });
     assert.strictEqual(agendaCan('CanAssignAgendaWork'), false);
     assert.strictEqual(agendaCan('CanChangeAgendaExecutionStatus'), false);
+    assert.strictEqual(agendaCan('CanViewAgenda'), false);
     const html = agendaFooterHtml('session', 'S1');
     assert.ok(html.indexOf('agenda-act-btn') === -1, html);
     assert.ok(html.indexOf('لم يبدأ') !== -1);
+  });
+
+  await check('lawyer session (§19 default): can change status but CANNOT assign', async () => {
+    HossamSession.setCurrentUser(LAWYER, { persist: false });
+    assert.strictEqual(agendaCan('CanViewAgenda'), true);
+    assert.strictEqual(agendaCan('CanChangeAgendaExecutionStatus'), true);
+    assert.strictEqual(agendaCan('CanAssignAgendaWork'), false);
+    const html = agendaFooterHtml('session', 'S1');
+    assert.ok(html.indexOf("agendaAction('start'") !== -1, 'lawyer should get a status button');
+    assert.ok(html.indexOf("agendaAction('assign'") === -1, 'lawyer should NOT get an assign button');
+  });
+
+  await check('agendaApplyAction has no RBAC gate of its own — the gate lives in agendaAction (documented, isolated scratch id so it never pollutes S1)', async () => {
+    const n = apiCalls.length;
+    await agendaApplyAction({ kind: 'assign', type: 'session', id: 'SCRATCH_RBAC_DOC' }, 'lw');
+    assert.ok(apiCalls.length > n);
+    assert.ok(meta('session', 'SCRATCH_RBAC_DOC'));
   });
 
   await check('lawyer: agendaAction() is refused, writes nothing, does not open the dialog', async () => {
