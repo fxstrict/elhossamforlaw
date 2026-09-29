@@ -160,6 +160,12 @@
     if (!isBlank(r['حالة_التنفيذ']) && AGENDA_EXECUTION_STATUSES.indexOf(r['حالة_التنفيذ']) === -1) {
       errors.push({ field: 'حالة_التنفيذ', message: 'حالة_التنفيذ يجب أن تكون أحد: ' + AGENDA_EXECUTION_STATUSES.join(' | ') });
     }
+    ['تاريخ_استحقاق_الأجندة', 'تاريخ_الإجراء_التالي'].forEach(function (dateField) {
+      var dv = r[dateField];
+      if (!isBlank(dv) && !/^\d{4}-\d{2}-\d{2}$/.test(String(dv).trim())) {
+        errors.push({ field: dateField, message: 'الحقل "' + dateField + '" يجب أن يكون تاريخاً بصيغة YYYY-MM-DD.' });
+      }
+    });
     if (r['حالة_التنفيذ'] === 'BLOCKED' && isBlank(r['سبب_التوقف'])) {
       errors.push({ field: 'سبب_التوقف', message: 'سبب التوقف إلزامي عند الانتقال إلى BLOCKED.' });
     }
