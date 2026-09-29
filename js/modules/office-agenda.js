@@ -143,18 +143,20 @@ var agendaMetadataRepositoryReadyPromise = agendaMetadataRepository
   : Promise.resolve();
 
 function syncAgendaMetadataMirror() {
+  agendaMetaIndex = null; // فهرس المعرفات يُعاد بناؤه عند أول قراءة بعد أى تحديث
   if (!agendaMetadataRepository || typeof data === 'undefined') return;
   if (!agendaMetadataRepository.isReady()) return;
   data.agendaMetadata = agendaMetadataRepository.getAll();
 }
 
+var agendaMetaIndex = null;
 function agendaMetaFor(type, sourceId) {
-  var id = agendaWorkItemId(type, sourceId);
-  var list = (typeof data !== 'undefined' && data.agendaMetadata) || [];
-  for (var i = 0; i < list.length; i++) {
-    if (list[i]['المعرف'] === id) return list[i];
+  if (!agendaMetaIndex) {
+    agendaMetaIndex = {};
+    var list = (typeof data !== 'undefined' && data.agendaMetadata) || [];
+    for (var k = 0; k < list.length; k++) agendaMetaIndex[list[k]['المعرف']] = list[k];
   }
-  return null;
+  return agendaMetaIndex[agendaWorkItemId(type, sourceId)] || null;
 }
 
 /** No metadata row yet == implicit NOT_STARTED (closure spec §25, lazy migration). */
@@ -216,7 +218,14 @@ function agendaFooterHtml(type, sourceId) {
   var btn = function (kind, label) {
     return '<button type="button" class="btn btn-ghost btn-sm agenda-act-btn" onclick="agendaAction(\'' + kind + '\',\'' + type + '\',\'' + id + '\')">' + label + '</button>';
   };
-  var html = '<div class="agenda-item-actions" onclick="event.stopPropagation()">' +
+  var notes = [];
+  if (meta && st === 'BLOCKED' && meta['سبب_التوقف']) notes.push('سبب التوقف: ' + agendaEscape(meta['سبب_التوقف']));
+  if (meta && meta['الإجراء_التالي']) notes.push('الإجراء التالي: ' + agendaEscape(meta['الإجراء_التالي']));
+  if (meta && meta['تاريخ_الإجراء_التالي']) notes.push('المتابعة في: ' + agendaEscape(formatDate(meta['تاريخ_الإجراء_التالي'])));
+  if (type === 'processServerWork' && meta && meta['تاريخ_استحقاق_الأجندة']) notes.push('موعد الأجندة: ' + agendaEscape(formatDate(meta['تاريخ_استحقاق_الأجندة'])));
+
+  var html = (notes.length ? '<div class="agenda-item-note" onclick="event.stopPropagation()">' + notes.join(' &middot; ') + '</div>' : '') +
+    '<div class="agenda-item-actions" onclick="event.stopPropagation()">' +
     '<span class="agenda-status-chip st-' + st + '">' + AGENDA_STATUS_LABELS[st] + '</span>' +
     '<span class="agenda-assignee">&#128100; ' + (assignee ? agendaEscape(agendaAssigneeLabel(assignee)) : 'غير مُسند') + '</span>';
   if (agendaCan('CanAssignAgendaWork')) html += btn('assign', assignee ? 'تغيير الإسناد' : 'إسناد');
@@ -226,6 +235,7 @@ function agendaFooterHtml(type, sourceId) {
     else if (st === 'BLOCKED') html += btn('resume', 'استئناف');
     else if (st === 'COMPLETED') html += btn('reopen', 'إعادة فتح');
   }
+  if (agendaCan('CanEditAgendaWork') && st !== 'COMPLETED') html += btn('edit', 'المتابعة/الموعد');
   return html + '</div>';
 }
 
@@ -239,8 +249,18 @@ var AGENDA_ACTION_TEXT = {
   reopen:   { title: 'إعادة فتح العمل',    label: 'سبب إعادة الفتح (إلزامي)' }
 };
 
+function agendaSetDisplay(id, show) {
+  var el = document.getElementById(id);
+  if (el) el.style.display = show ? '' : 'none';
+}
+function agendaFieldVal(id) {
+  var el = document.getElementById(id);
+  return el ? String(el.value || '').trim() : '';
+}
+
 function agendaAction(kind, type, sourceId) {
-  var needPerm = (kind === 'assign') ? 'CanAssignAgendaWork' : 'CanChangeAgendaExecutionStatus';
+  var needPerm = (kind === 'assign') ? 'CanAssignAgendaWork'
+    : (kind === 'edit') ? 'CanEditAgendaWork' : 'CanChangeAgendaExecutionStatus';
   if (!agendaCan(needPerm)) {
     if (typeof toast === 'function') toast('لا تملك صلاحية تنفيذ هذا الإجراء', 'error');
     return;
@@ -249,17 +269,16 @@ function agendaAction(kind, type, sourceId) {
 
   if (kind === 'start' || kind === 'resume') { agendaApplyAction(agendaPending, ''); return; }
 
-  var wrapA = document.getElementById('agendaActionAssigneeWrap');
-  var wrapT = document.getElementById('agendaActionTextWrap');
-  wrapA.style.display = 'none';
-  wrapT.style.display = 'none';
+  ['agendaActionAssigneeWrap', 'agendaActionTextWrap', 'agendaActionNextActionWrap',
+   'agendaActionNextDateWrap', 'agendaActionDueWrap'].forEach(function (w) { agendaSetDisplay(w, false); });
+  var meta = agendaMetaFor(type, sourceId) || {};
 
   if (kind === 'assign') {
     document.getElementById('agendaActionTitle').textContent = 'إسناد العمل';
-    wrapA.style.display = '';
+    agendaSetDisplay('agendaActionAssigneeWrap', true);
     var sel = document.getElementById('agendaActionAssignee');
     var txt = document.getElementById('agendaActionAssigneeText');
-    var current = (agendaMetaFor(type, sourceId) || {})['مُسند_إلى'] || '';
+    var current = meta['مُسند_إلى'] || '';
     agendaLoadUsers().then(function (users) {
       if (users.length) {
         sel.style.display = ''; txt.style.display = 'none';
@@ -272,33 +291,57 @@ function agendaAction(kind, type, sourceId) {
         txt.value = current;
       }
     });
+  } else if (kind === 'edit') {
+    document.getElementById('agendaActionTitle').textContent = 'المتابعة والموعد';
+    agendaSetDisplay('agendaActionNextActionWrap', true);
+    agendaSetDisplay('agendaActionNextDateWrap', true);
+    agendaSetDisplay('agendaActionDueWrap', type === 'processServerWork'); // agendaDueDate: لأعمال المحضرين فقط (§8)
+    document.getElementById('agendaActionNextAction').value = meta['الإجراء_التالي'] || '';
+    document.getElementById('agendaActionNextDate').value = meta['تاريخ_الإجراء_التالي'] || '';
+    document.getElementById('agendaActionDue').value = meta['تاريخ_استحقاق_الأجندة'] || '';
   } else {
     var cfg = AGENDA_ACTION_TEXT[kind];
     document.getElementById('agendaActionTitle').textContent = cfg.title;
     document.getElementById('agendaActionTextLabel').textContent = cfg.label;
     document.getElementById('agendaActionText').value = '';
-    wrapT.style.display = '';
+    agendaSetDisplay('agendaActionTextWrap', true);
+    if (kind === 'block') {
+      document.getElementById('agendaActionNextAction').value = '';
+      document.getElementById('agendaActionNextDate').value = '';
+      agendaSetDisplay('agendaActionNextActionWrap', true);
+      agendaSetDisplay('agendaActionNextDateWrap', true);
+    }
   }
   document.getElementById('modalAgendaAction').classList.add('open');
 }
 
 function agendaActionSubmit() {
   if (!agendaPending) return;
-  var value;
+  var value = '';
+  var extra = null;
   if (agendaPending.kind === 'assign') {
     var sel = document.getElementById('agendaActionAssignee');
     var txt = document.getElementById('agendaActionAssigneeText');
     value = (sel.style.display === 'none') ? txt.value.trim() : sel.value;
+  } else if (agendaPending.kind === 'edit') {
+    extra = {
+      nextAction: agendaFieldVal('agendaActionNextAction'),
+      nextDate: agendaFieldVal('agendaActionNextDate'),
+      due: agendaFieldVal('agendaActionDue')
+    };
   } else {
-    value = document.getElementById('agendaActionText').value.trim();
+    value = agendaFieldVal('agendaActionText');
     if (!value) {
       if (typeof toast === 'function') toast('هذا الحقل إلزامي', 'error');
       return;
     }
+    if (agendaPending.kind === 'block') {
+      extra = { nextAction: agendaFieldVal('agendaActionNextAction'), nextDate: agendaFieldVal('agendaActionNextDate') };
+    }
   }
   var pending = agendaPending;
   closeModal('modalAgendaAction');
-  agendaApplyAction(pending, value);
+  agendaApplyAction(pending, value, extra);
 }
 
 function agendaNowIso() { return new Date().toISOString(); }
@@ -309,29 +352,41 @@ function agendaNowIso() { return new Date().toISOString(); }
  *     task through the existing toggleTask(); abort if it did not flip.
  *  2. upsert the agendaMetadata row via AgendaMetadataRepository.
  *  3. fire-and-forget ApiService.syncRow to the new Sheet.
+ * `extra` (اختياري): block => {nextAction,nextDate}؛ edit => {nextAction,nextDate,due}.
  */
-async function agendaApplyAction(pending, value) {
+async function agendaApplyAction(pending, value, extra) {
   try {
     if (!agendaMetadataRepository) throw new Error('agendaMetadataRepository unavailable');
     await agendaMetadataRepositoryReadyPromise;
     var type = pending.type, sourceId = pending.id, kind = pending.kind;
     var meta = agendaMetaFor(type, sourceId);
     var patch = {};
+    extra = extra || {};
 
     if (kind === 'assign') {
       patch['مُسند_إلى'] = value || '';
+    } else if (kind === 'edit') {
+      patch['الإجراء_التالي'] = extra.nextAction || '';
+      patch['تاريخ_الإجراء_التالي'] = extra.nextDate || '';
+      if (type === 'processServerWork') patch['تاريخ_استحقاق_الأجندة'] = extra.due || '';
+      if (!meta && !patch['الإجراء_التالي'] && !patch['تاريخ_الإجراء_التالي'] && !patch['تاريخ_استحقاق_الأجندة']) return; // لا صف فارغ بلا سبب
     } else if (kind === 'start' || kind === 'resume') {
       patch['حالة_التنفيذ'] = 'IN_PROGRESS';
       patch['سبب_التوقف'] = '';
+      if (kind === 'resume') { patch['الإجراء_التالي'] = ''; patch['تاريخ_الإجراء_التالي'] = ''; }
     } else if (kind === 'block') {
       patch['حالة_التنفيذ'] = 'BLOCKED';
       patch['سبب_التوقف'] = value;
+      patch['الإجراء_التالي'] = extra.nextAction || '';
+      patch['تاريخ_الإجراء_التالي'] = extra.nextDate || '';
     } else if (kind === 'complete') {
       await agendaWriteBackTask(type, sourceId, 'done');
       patch['حالة_التنفيذ'] = 'COMPLETED';
       patch['ملاحظة_الإنجاز'] = value;
       patch['تاريخ_الإنجاز'] = agendaNowIso();
       patch['أنجزها'] = agendaCurrentUsername();
+      patch['الإجراء_التالي'] = '';
+      patch['تاريخ_الإجراء_التالي'] = '';
     } else if (kind === 'reopen') {
       await agendaWriteBackTask(type, sourceId, 'pending');
       var prev = (meta && meta['ملاحظة_الإنجاز']) || '';
@@ -442,66 +497,161 @@ function agendaWorkItemId(type, sourceId) {
   return type + ':' + sourceId;
 }
 
+// ---- visibility (closure spec §19) --------------------------------
+function agendaIdField(type) {
+  if (type === 'session') return (typeof SESSIONS_ID_FIELD !== 'undefined') ? SESSIONS_ID_FIELD : 'رقم_الجلسة';
+  if (type === 'administrativeWork') return (typeof TASKS_ID_FIELD !== 'undefined') ? TASKS_ID_FIELD : 'رقم_المهمة';
+  return (typeof PSW_ID_FIELD !== 'undefined') ? PSW_ID_FIELD : 'رقم_العمل';
+}
+function agendaIdOf(type, rec) { return rec[agendaIdField(type)]; }
+
+function agendaCaseFor(caseNo) {
+  var list = (typeof data !== 'undefined' && data.cases) || [];
+  for (var i = 0; i < list.length; i++) {
+    if (String(list[i]['رقم_القضية']) === String(caseNo)) return list[i];
+  }
+  return null;
+}
+
 /**
- * agendaSessionsOn — sessions whose التاريخ falls on the given day.
- * Never marked overdue, regardless of how far in the past/future `day` is
- * (§7.1 — a past session is a historical event, not a missed deadline).
+ * agendaVisible — نفس قاعدة §19: مع CanViewAllAgendaWork يرى الكل؛ وإلا فالعنصر
+ * المرتبط بقضية يخضع لطبقة نطاق القضايا الموجودة (PermissionService.canAccessCase)،
+ * وغير المرتبط بقضية يظهر لمن أُسند إليه فقط. إضافة صغيرة: من أُسند إليه عملٌ يراه
+ * دائمًا. بلا مستخدم مسجّل (طبقة RBAC خاملة) يظهر كل شيء.
  */
+function agendaVisible(type, rec) {
+  try {
+    if (typeof HossamSession === 'undefined' || typeof HossamSession.getCurrentUser !== 'function') return true;
+    var user = HossamSession.getCurrentUser();
+    if (!user) return true;
+    if (agendaCan('CanViewAllAgendaWork')) return true;
+    var m = agendaMetaFor(type, agendaIdOf(type, rec));
+    if (m && m['مُسند_إلى'] && m['مُسند_إلى'] === user['اسم_المستخدم']) return true;
+    var caseNo = rec['رقم_القضية'];
+    if (caseNo) {
+      // PermissionService.js's own contract: canAccessCase() only narrows —
+      // the base CanViewCases permission must be checked first.
+      if (!agendaCan('CanViewCases')) return false;
+      var c = agendaCaseFor(caseNo);
+      return !!(c && typeof HossamPermissionService !== 'undefined' && HossamPermissionService.canAccessCase(user, c));
+    }
+    return false;
+  } catch (e) {
+    return false;
+  }
+}
+
+function agendaSourceList(type) {
+  var key = (type === 'session') ? 'sessions' : (type === 'administrativeWork') ? 'tasks' : 'processServerWorks';
+  var list = (typeof data !== 'undefined' && data[key]) || [];
+  return list.filter(function (r) { return agendaVisible(type, r); });
+}
+
+function agendaIdsOf(type, arr, into) {
+  arr.forEach(function (r) { into[agendaWorkItemId(type, agendaIdOf(type, r))] = true; });
+  return into;
+}
+function agendaExcluding(type, arr, shown) {
+  return arr.filter(function (r) { return !shown[agendaWorkItemId(type, agendaIdOf(type, r))]; });
+}
+function agendaItemHtml(type, rec, opts) {
+  if (type === 'session') return agendaSessionItemHtml(rec);
+  if (type === 'administrativeWork') return agendaAdminWorkItemHtml(rec, opts);
+  return agendaPswItemHtml(rec, opts);
+}
+
+// ---- next-date reappearance (§6/§11 worked example: "إعادة الإعلان 28/9") ----
+function agendaNextDateOf(type, rec) {
+  var m = agendaMetaFor(type, agendaIdOf(type, rec));
+  if (!m || !m['تاريخ_الإجراء_التالي'] || agendaStatusOf(m) === 'COMPLETED') return null;
+  return parseLocalDate(m['تاريخ_الإجراء_التالي']);
+}
+function agendaNextDateOn(type, rec, day) { return agendaSameDay(agendaNextDateOf(type, rec), day); }
+function agendaInRange(d, from, to) {
+  if (!d) return false;
+  var x = agendaStartOfDay(d);
+  return x >= from && x <= to;
+}
+
+// ---- per-source derivation ----------------------------------------
+/** Sessions: never overdue (§7.1). Reappear on their Agenda nextDate too. */
 function agendaSessionsOn(day) {
-  return (data.sessions || []).filter(function (s) {
-    var d = parseLocalDate(s['التاريخ']);
-    return agendaSameDay(d, day);
+  return agendaSourceList('session').filter(function (s) {
+    return agendaSameDay(parseLocalDate(s['التاريخ']), day) || agendaNextDateOn('session', s, day);
   });
 }
 
-/**
- * agendaAdminWorksDueOn — administrative works whose الموعد_النهائي falls
- * on the given day (regardless of done/pending status — status is shown
- * via the existing .task-text.done styling, not filtered out here).
- */
 function agendaAdminWorksDueOn(day) {
-  return (data.tasks || []).filter(function (t) {
+  return agendaSourceList('administrativeWork').filter(function (t) {
     var d = t['الموعد_النهائي'] ? parseLocalDate(t['الموعد_النهائي']) : null;
-    return agendaSameDay(d, day);
+    return agendaSameDay(d, day) || agendaNextDateOn('administrativeWork', t, day);
   });
 }
 
 /**
- * agendaOverdueAdminWorks — EXACT same rule as dashboard.js's
- * renderAlertsCenter() overdueTasks filter: status !== 'done' AND
- * الموعد_النهائي < asOf. Reused verbatim (not a second competing
- * definition), scoped to items due strictly before `asOf`.
+ * PSW effective deadline (§8): تاريخ_الجلسة إن وُجد، وإلا تاريخ_استحقاق_الأجندة
+ * (Agenda-owned، يُضبط بـ CanEditAgendaWork)، وإلا لا موعد إطلاقًا (لا يُخترَع).
+ */
+function agendaPswDeadline(w) {
+  if (w['تاريخ_الجلسة']) return parseLocalDate(w['تاريخ_الجلسة']);
+  var m = agendaMetaFor('processServerWork', agendaIdOf('processServerWork', w));
+  return (m && m['تاريخ_استحقاق_الأجندة']) ? parseLocalDate(m['تاريخ_استحقاق_الأجندة']) : null;
+}
+
+function agendaPswOn(day) {
+  return agendaSourceList('processServerWork').filter(function (w) {
+    return agendaSameDay(agendaPswDeadline(w), day) || agendaNextDateOn('processServerWork', w, day);
+  });
+}
+
+/** BLOCKED / COMPLETED suppress "overdue" (§7): blocked has its own bucket. */
+function agendaSuppressesOverdue(type, rec) {
+  var st = agendaStatusOf(agendaMetaFor(type, agendaIdOf(type, rec)));
+  return st === 'BLOCKED' || st === 'COMPLETED';
+}
+
+/**
+ * agendaOverdueAdminWorks — نفس قاعدة dashboard.js حرفيًا (status !== 'done' AND
+ * الموعد_النهائي < asOf)، مع استثناء ما هو متوقف/منجز فى الأجندة (§7).
  */
 function agendaOverdueAdminWorks(asOf) {
-  return (data.tasks || []).filter(function (t) {
+  return agendaSourceList('administrativeWork').filter(function (t) {
     if (t['الحالة'] === 'done') return false;
+    if (agendaSuppressesOverdue('administrativeWork', t)) return false;
     var d = t['الموعد_النهائي'] ? parseLocalDate(t['الموعد_النهائي']) : null;
     return d && d < asOf;
   });
 }
 
-/**
- * agendaPswOn — process server works whose تاريخ_الجلسة falls on the
- * given day. PSW records with no تاريخ_الجلسة are never matched here
- * (§5.3/§8 — no invented deadline).
- */
-function agendaPswOn(day) {
-  return (data.processServerWorks || []).filter(function (w) {
-    if (!w['تاريخ_الجلسة']) return false;
-    var d = parseLocalDate(w['تاريخ_الجلسة']);
-    return agendaSameDay(d, day);
+/** PSW overdue (§7 Table 6): deadline < today AND الحالة != 'مستلم'. No deadline => never overdue. */
+function agendaOverduePsw(asOf) {
+  return agendaSourceList('processServerWork').filter(function (w) {
+    if (w['الحالة'] === 'مستلم') return false;
+    if (agendaSuppressesOverdue('processServerWork', w)) return false;
+    var d = agendaPswDeadline(w);
+    return d && d < asOf;
   });
 }
 
-/**
- * agendaPswAwaitingNoDate — process server works with no تاريخ_الجلسة at
- * all, still غير مستلم. Shown as a neutral, non-date-tied bucket (§7.3 —
- * never labeled overdue, never given an invented date).
- */
+/** PSW with no deadline at all: neutral "بانتظار الاستلام" bucket, never overdue. */
 function agendaPswAwaitingNoDate() {
-  return (data.processServerWorks || []).filter(function (w) {
-    return !w['تاريخ_الجلسة'] && w['الحالة'] !== 'مستلم';
+  return agendaSourceList('processServerWork').filter(function (w) {
+    return !agendaPswDeadline(w) && w['الحالة'] !== 'مستلم' && !agendaSuppressesOverdue('processServerWork', w);
   });
+}
+
+/** Every visible, still-existing item whose Agenda status is BLOCKED and that is not already displayed. */
+function agendaBlockedItems(shown) {
+  var out = [];
+  ['session', 'administrativeWork', 'processServerWork'].forEach(function (type) {
+    agendaSourceList(type).forEach(function (rec) {
+      var m = agendaMetaFor(type, agendaIdOf(type, rec));
+      if (m && agendaStatusOf(m) === 'BLOCKED' && !(shown && shown[agendaWorkItemId(type, agendaIdOf(type, rec))])) {
+        out.push({ type: type, rec: rec });
+      }
+    });
+  });
+  return out;
 }
 
 // ================================================================
@@ -567,8 +717,8 @@ function agendaPswItemHtml(w, opts) {
   var id = w[(typeof PSW_ID_FIELD !== 'undefined') ? PSW_ID_FIELD : 'رقم_العمل'];
   var received = w['الحالة'] === 'مستلم';
   return (
-    '<div class="agenda-item src-processServerWork" onclick="agendaOpenPsw(\'' + agendaEscape(id) + '\')">' +
-      '<div class="agenda-item-time">' + (w['تاريخ_الجلسة'] ? agendaEscape(formatDate(w['تاريخ_الجلسة'])) : '&#9203;') + '</div>' +
+    '<div class="agenda-item src-processServerWork' + (opts.overdue ? ' is-overdue' : '') + '" onclick="agendaOpenPsw(\'' + agendaEscape(id) + '\')">' +
+      '<div class="agenda-item-time">' + (agendaPswDeadline(w) ? agendaEscape(formatDate(agendaDateKey(agendaPswDeadline(w)))) : '&#9203;') + '</div>' +
       '<div class="agenda-item-body">' +
         '<div class="agenda-item-title">' + agendaEscape(w['طبيعة_الاعلان'] || 'عمل محضرين') + '</div>' +
         '<div class="agenda-item-meta">' +
@@ -576,6 +726,7 @@ function agendaPswItemHtml(w, opts) {
           (w['رقم_المحضرين'] ? '<span>&#128100; ' + agendaEscape(w['رقم_المحضرين']) + '</span>' : '') +
           (w['قلم_المحضرين'] ? '<span>' + agendaEscape(w['قلم_المحضرين']) + '</span>' : '') +
           '<span class="badge ' + (received ? 'badge-active' : 'badge-pending') + '">' + (received ? 'مستلم' : 'غير مستلم') + '</span>' +
+          (opts.overdue ? '<span class="badge badge-urgent">متأخر</span>' : '') +
         '</div>' +
         agendaFooterHtml('processServerWork', id) +
       '</div>' +
@@ -594,8 +745,37 @@ function agendaSectionHtml(title, count, innerHtml, opts) {
 }
 
 // ================================================================
-// DAY VIEW
+// DAY / WEEK / CUSTOM VIEWS
 // ================================================================
+// كل عنصر يظهر مرة واحدة فقط فى العرض الواحد: قوائم التاريخ أولًا، ثم المتأخر/المتوقف
+// بعد استبعاد ما سبق عرضه (مصدر واحد = عنصر واحد، بلا تكرار).
+
+function agendaSortByTime(list) {
+  return list.slice().sort(function (a, b) { return String(a['الوقت'] || '').localeCompare(String(b['الوقت'] || '')); });
+}
+
+function agendaOverdueSectionsHtml(asOfAdmin, asOfPsw, shown, labels) {
+  var html = '';
+  var od = agendaExcluding('administrativeWork', agendaOverdueAdminWorks(asOfAdmin), shown);
+  agendaIdsOf('administrativeWork', od, shown);
+  html += agendaSectionHtml(labels.admin, od.length,
+    od.map(function (t) { return agendaAdminWorkItemHtml(t, { overdue: true }); }).join(''),
+    { attention: true, emptyLabel: labels.adminEmpty });
+  var op = agendaExcluding('processServerWork', agendaOverduePsw(asOfPsw), shown);
+  agendaIdsOf('processServerWork', op, shown);
+  if (op.length) {
+    html += agendaSectionHtml(labels.psw, op.length,
+      op.map(function (w) { return agendaPswItemHtml(w, { overdue: true }); }).join(''), { attention: true });
+  }
+  return html;
+}
+
+function agendaBlockedSectionHtml(shown) {
+  var blocked = agendaBlockedItems(shown);
+  return agendaSectionHtml('&#9940; أعمال متوقفة', blocked.length,
+    blocked.map(function (b) { return agendaItemHtml(b.type, b.rec, { overdue: false }); }).join(''),
+    { attention: true, emptyLabel: 'لا توجد أعمال متوقفة' });
+}
 
 function agendaRenderDay() {
   var day = agendaStartOfDay(agendaDayCursor);
@@ -605,56 +785,41 @@ function agendaRenderDay() {
   document.getElementById('agendaNavTitle').textContent = agendaDayTitleLabel(day);
   document.getElementById('agendaNavTodayBtn').style.display = isToday ? 'none' : '';
 
-  var sessions = agendaSessionsOn(day);
+  var sessions = agendaSortByTime(agendaSessionsOn(day));
   var adminWorks = agendaAdminWorksDueOn(day);
   var psw = agendaPswOn(day);
+  var shown = {};
+  agendaIdsOf('session', sessions, shown);
+  agendaIdsOf('administrativeWork', adminWorks, shown);
+  agendaIdsOf('processServerWork', psw, shown);
 
   var html = '';
-  html += agendaSectionHtml(
-    '&#9878; جلسات ' + (isToday ? 'اليوم' : ''), sessions.length,
-    sessions.sort(function (a, b) { return (a['الوقت'] || '').localeCompare(b['الوقت'] || ''); })
-      .map(agendaSessionItemHtml).join(''),
-    { emptyLabel: 'لا توجد جلسات في هذا اليوم' }
-  );
-
-  html += agendaSectionHtml(
-    '&#128203; أعمال إدارية مستحقة ' + (isToday ? 'اليوم' : ''), adminWorks.length,
+  html += agendaSectionHtml('&#9878; جلسات ' + (isToday ? 'اليوم' : ''), sessions.length,
+    sessions.map(agendaSessionItemHtml).join(''), { emptyLabel: 'لا توجد جلسات في هذا اليوم' });
+  html += agendaSectionHtml('&#128203; أعمال إدارية مستحقة ' + (isToday ? 'اليوم' : ''), adminWorks.length,
     adminWorks.map(function (t) { return agendaAdminWorkItemHtml(t, { overdue: false }); }).join(''),
-    { emptyLabel: 'لا توجد أعمال إدارية مستحقة' }
-  );
-
-  html += agendaSectionHtml(
-    '&#128231; أعمال محضرين مرتبطة بموعد ' + (isToday ? 'اليوم' : 'هذا اليوم'), psw.length,
+    { emptyLabel: 'لا توجد أعمال إدارية مستحقة' });
+  html += agendaSectionHtml('&#128231; أعمال محضرين مرتبطة بموعد ' + (isToday ? 'اليوم' : 'هذا اليوم'), psw.length,
     psw.map(function (w) { return agendaPswItemHtml(w); }).join(''),
-    { emptyLabel: 'لا توجد أعمال محضرين مرتبطة بهذه الفترة' }
-  );
+    { emptyLabel: 'لا توجد أعمال محضرين مرتبطة بهذه الفترة' });
 
-  // "متأخر" — reuses the exact existing dashboard rule (§7.2). Only shown
-  // on the 'today' pivot, since "overdue as of now" only makes sense
-  // relative to the real current moment, not an arbitrary browsed day.
+  // "متأخر/متوقف/بانتظار الاستلام" مرتبطة بلحظة الآن، فتظهر على يوم اليوم فقط.
   if (isToday) {
-    var overdue = agendaOverdueAdminWorks(new Date());
-    html += agendaSectionHtml(
-      '&#9888; أعمال إدارية متأخرة', overdue.length,
-      overdue.map(function (t) { return agendaAdminWorkItemHtml(t, { overdue: true }); }).join(''),
-      { emptyLabel: 'لا توجد أعمال إدارية متأخرة' }
-    );
-
-    var awaiting = agendaPswAwaitingNoDate();
+    html += agendaOverdueSectionsHtml(new Date(), today, shown, {
+      admin: '&#9888; أعمال إدارية متأخرة', adminEmpty: 'لا توجد أعمال إدارية متأخرة',
+      psw: '&#9888; أعمال محضرين متأخرة'
+    });
+    var awaiting = agendaExcluding('processServerWork', agendaPswAwaitingNoDate(), shown);
+    agendaIdsOf('processServerWork', awaiting, shown);
     if (awaiting.length) {
-      html += agendaSectionHtml(
-        '&#128231; أعمال محضرين بانتظار الاستلام', awaiting.length,
-        awaiting.map(function (w) { return agendaPswItemHtml(w); }).join('')
-      );
+      html += agendaSectionHtml('&#128231; أعمال محضرين بانتظار الاستلام', awaiting.length,
+        awaiting.map(function (w) { return agendaPswItemHtml(w); }).join(''));
     }
+    html += agendaBlockedSectionHtml(shown);
   }
 
   document.getElementById('agendaContent').innerHTML = html;
 }
-
-// ================================================================
-// WEEK VIEW
-// ================================================================
 
 function agendaRenderWeek() {
   var weekStart = agendaStartOfWeek(agendaWeekCursor);
@@ -666,13 +831,17 @@ function agendaRenderWeek() {
   document.getElementById('agendaNavTodayBtn').style.display =
     (today >= weekStart && today <= weekEnd) ? 'none' : '';
 
+  var shown = {};
   var html = '<div class="agenda-week-grid">';
   for (var i = 0; i < 7; i++) {
     var day = agendaAddDays(weekStart, i);
     var isToday = agendaSameDay(day, today);
-    var sessions = agendaSessionsOn(day);
+    var sessions = agendaSortByTime(agendaSessionsOn(day));
     var adminWorks = agendaAdminWorksDueOn(day);
     var psw = agendaPswOn(day);
+    agendaIdsOf('session', sessions, shown);
+    agendaIdsOf('administrativeWork', adminWorks, shown);
+    agendaIdsOf('processServerWork', psw, shown);
     var total = sessions.length + adminWorks.length + psw.length;
 
     html +=
@@ -683,7 +852,7 @@ function agendaRenderWeek() {
         '</div>' +
         (total
           ? (
-              sessions.sort(function (a, b) { return (a['الوقت'] || '').localeCompare(b['الوقت'] || ''); }).map(agendaSessionItemHtml).join('') +
+              sessions.map(agendaSessionItemHtml).join('') +
               adminWorks.map(function (t) { return agendaAdminWorkItemHtml(t, { overdue: false }); }).join('') +
               psw.map(function (w) { return agendaPswItemHtml(w); }).join('')
             )
@@ -693,22 +862,15 @@ function agendaRenderWeek() {
   }
   html += '</div>';
 
-  // Overdue Administrative Works that fall strictly before this week —
-  // surfaced separately (§11.2) rather than silently lost, using the
-  // exact same overdue rule as the Day view / dashboard.js.
-  var overdueBeforeWeek = agendaOverdueAdminWorks(weekStart);
-  html += agendaSectionHtml(
-    '&#9888; متأخر (قبل هذا الأسبوع)', overdueBeforeWeek.length,
-    overdueBeforeWeek.map(function (t) { return agendaAdminWorkItemHtml(t, { overdue: true }); }).join(''),
-    { emptyLabel: 'لا توجد أعمال إدارية متأخرة قبل هذا الأسبوع' }
-  );
+  // المتأخر قبل بداية الأسبوع (§11.2) بنفس القاعدة الوحيدة، ثم المتوقف.
+  html += agendaOverdueSectionsHtml(weekStart, weekStart, shown, {
+    admin: '&#9888; متأخر (قبل هذا الأسبوع)', adminEmpty: 'لا توجد أعمال إدارية متأخرة قبل هذا الأسبوع',
+    psw: '&#9888; أعمال محضرين متأخرة (قبل هذا الأسبوع)'
+  });
+  html += agendaBlockedSectionHtml(shown);
 
   document.getElementById('agendaContent').innerHTML = html;
 }
-
-// ================================================================
-// CUSTOM RANGE VIEW
-// ================================================================
 
 function agendaRenderCustom() {
   if (!agendaRangeFromVal || !agendaRangeToVal) {
@@ -721,21 +883,23 @@ function agendaRenderCustom() {
   var to = agendaStartOfDay(agendaRangeToVal);
   if (from > to) { var tmp = from; from = to; to = tmp; }
 
-  var sessions = (data.sessions || []).filter(function (s) {
-    var d = parseLocalDate(s['التاريخ']);
-    return d && agendaStartOfDay(d) >= from && agendaStartOfDay(d) <= to;
+  var sessions = agendaSourceList('session').filter(function (s) {
+    return agendaInRange(parseLocalDate(s['التاريخ']), from, to) || agendaInRange(agendaNextDateOf('session', s), from, to);
   }).sort(function (a, b) { return String(a['التاريخ']).localeCompare(String(b['التاريخ'])); });
 
-  var adminWorks = (data.tasks || []).filter(function (t) {
+  var adminWorks = agendaSourceList('administrativeWork').filter(function (t) {
     var d = t['الموعد_النهائي'] ? parseLocalDate(t['الموعد_النهائي']) : null;
-    return d && agendaStartOfDay(d) >= from && agendaStartOfDay(d) <= to;
+    return agendaInRange(d, from, to) || agendaInRange(agendaNextDateOf('administrativeWork', t), from, to);
   });
 
-  var psw = (data.processServerWorks || []).filter(function (w) {
-    if (!w['تاريخ_الجلسة']) return false;
-    var d = parseLocalDate(w['تاريخ_الجلسة']);
-    return d && agendaStartOfDay(d) >= from && agendaStartOfDay(d) <= to;
+  var psw = agendaSourceList('processServerWork').filter(function (w) {
+    return agendaInRange(agendaPswDeadline(w), from, to) || agendaInRange(agendaNextDateOf('processServerWork', w), from, to);
   });
+
+  var shown = {};
+  agendaIdsOf('session', sessions, shown);
+  agendaIdsOf('administrativeWork', adminWorks, shown);
+  agendaIdsOf('processServerWork', psw, shown);
 
   var html = '';
   html += agendaSectionHtml('&#9878; جلسات', sessions.length, sessions.map(agendaSessionItemHtml).join(''),
@@ -747,14 +911,11 @@ function agendaRenderCustom() {
     psw.map(function (w) { return agendaPswItemHtml(w); }).join(''),
     { emptyLabel: 'لا توجد أعمال محضرين مرتبطة بهذه الفترة' });
 
-  // Overdue Administrative Works before the range start — same treatment
-  // as the Week view, using the one shared overdue rule.
-  var overdueBeforeRange = agendaOverdueAdminWorks(from);
-  html += agendaSectionHtml(
-    '&#9888; متأخر (قبل بداية الفترة)', overdueBeforeRange.length,
-    overdueBeforeRange.map(function (t) { return agendaAdminWorkItemHtml(t, { overdue: true }); }).join(''),
-    { emptyLabel: 'لا توجد أعمال إدارية متأخرة قبل بداية الفترة' }
-  );
+  html += agendaOverdueSectionsHtml(from, from, shown, {
+    admin: '&#9888; متأخر (قبل بداية الفترة)', adminEmpty: 'لا توجد أعمال إدارية متأخرة قبل بداية الفترة',
+    psw: '&#9888; أعمال محضرين متأخرة (قبل بداية الفترة)'
+  });
+  html += agendaBlockedSectionHtml(shown);
 
   document.getElementById('agendaContent').innerHTML = html;
 }
@@ -781,7 +942,17 @@ function agendaSetMode(mode) {
   agendaRenderCurrent();
 }
 
+function agendaRenderDenied() {
+  var navRow = document.getElementById('agendaNavRow');
+  var rangeForm = document.getElementById('agendaRangeForm');
+  if (navRow) navRow.style.display = 'none';
+  if (rangeForm) rangeForm.style.display = 'none';
+  document.getElementById('agendaContent').innerHTML =
+    '<div class="agenda-empty">لا تملك صلاحية عرض أجندة المكتب (CanViewAgenda). تواصل مع مدير النظام.</div>';
+}
+
 function agendaRenderCurrent() {
+  if (!agendaCan('CanViewAgenda')) { agendaRenderDenied(); return; }
   if (agendaMode === 'day') agendaRenderDay();
   else if (agendaMode === 'week') agendaRenderWeek();
   else agendaRenderCustom();
@@ -865,6 +1036,7 @@ function renderOfficeAgenda() {
     agendaDayCursor = new Date();
     agendaWeekCursor = new Date();
     agendaUsersCache = null;
+    agendaMetaIndex = null;
     syncAgendaMetadataMirror();
     agendaUpdateTabsUI();
     agendaRenderCurrent();
