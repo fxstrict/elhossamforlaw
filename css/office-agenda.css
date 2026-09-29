@@ -65,6 +65,8 @@
 .agenda-assignee{font-size:11px;color:var(--muted);}
 .agenda-act-btn{padding:2px 9px;font-size:11px;}
 
+.agenda-item-note{font-size:11px;color:var(--muted);margin-top:6px;line-height:1.7;}
+
 /* ─── Week view day columns ─────────────────────────────────────── */
 
 .agenda-week-grid{display:flex;flex-direction:column;gap:14px;}
