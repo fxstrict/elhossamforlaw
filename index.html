@@ -3332,6 +3332,18 @@ window.addEventListener('online',function(){
         <label id="agendaActionTextLabel"></label>
         <textarea id="agendaActionText" rows="3"></textarea>
       </div>
+      <div class="form-group full" id="agendaActionNextActionWrap" style="display:none;">
+        <label>الإجراء التالي (اختياري)</label>
+        <input type="text" id="agendaActionNextAction">
+      </div>
+      <div class="form-group full" id="agendaActionNextDateWrap" style="display:none;">
+        <label>تاريخ المتابعة (اختياري — يُعيد ظهور العمل في هذا اليوم)</label>
+        <input type="date" id="agendaActionNextDate">
+      </div>
+      <div class="form-group full" id="agendaActionDueWrap" style="display:none;">
+        <label>موعد الأجندة (اختياري — لأعمال المحضرين التي لا تاريخ جلسة لها)</label>
+        <input type="date" id="agendaActionDue">
+      </div>
     </div>
     <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal('modalAgendaAction')">إلغاء</button><button class="btn btn-primary" id="agendaActionSave" onclick="agendaActionSubmit()">حفظ</button></div>
   </div>
