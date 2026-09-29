@@ -88,7 +88,8 @@
       permissions: Object.freeze(union(
         g('lawyers'),
         [P.cases.delete, P.cases.restore, P.cases.transfer, P.sessions.approve,
-         P.clients.delete, P.clients.restore, P.finance.viewReports]
+         P.clients.delete, P.clients.restore, P.finance.viewReports,
+         P.agenda.assign, P.agenda.viewAll] // AGENDA-2: الشريك يُسند ويرى كل أعمال الأجندة
       ))
     }),
     lawyer: Object.freeze({ // محام — "القضايا الخاصة به، إضافة، تعديل، جلسات، مذكرات"
@@ -104,7 +105,8 @@
       permissions: Object.freeze(union(
         [P.clients.view, P.clients.create, P.clients.edit],
         [P.sessions.view, P.sessions.create, P.sessions.edit],
-        [P.cases.view]
+        [P.cases.view],
+        [P.agenda.view, P.agenda.changeExecutionStatus] // AGENDA-2
       ))
     }),
     accountant: Object.freeze({ // المحاسب — "الفواتير، الإيرادات، المصروفات، لا يرى تفاصيل القضايا"
@@ -123,7 +125,7 @@
       label: 'مراقب',
       permissions: Object.freeze([
         P.clients.view, P.cases.view, P.sessions.view, P.documents.view,
-        P.library.view, P.finance.viewReports
+        P.library.view, P.finance.viewReports, P.agenda.view // AGENDA-2
       ])
     }),
     guest: Object.freeze({ // ضيف — "صلاحيات محدودة جداً"

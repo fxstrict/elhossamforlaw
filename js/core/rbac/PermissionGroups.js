@@ -70,7 +70,9 @@
         P.cases.open, P.cases.print, P.cases.export,
         P.sessions.view, P.sessions.create, P.sessions.edit,
         P.documents.view, P.documents.upload, P.documents.download, P.documents.print,
-        P.library.view, P.library.download
+        P.library.view, P.library.download,
+        // AGENDA-2: المحامى يرى الأجندة وينفّذ ويُحدّث حالة عمله ومتابعته (الإسناد للشريك/المدير).
+        P.agenda.view, P.agenda.changeExecutionStatus, P.agenda.edit
       ])
     }),
     trainees: Object.freeze({ // مجموعة المتدربين
@@ -78,7 +80,8 @@
       permissions: Object.freeze([
         P.clients.view, P.cases.view, P.sessions.view,
         P.documents.view, P.documents.download,
-        P.library.view, P.library.download
+        P.library.view, P.library.download,
+        P.agenda.view // AGENDA-2: عرض فقط للمتدرب
       ])
     }),
     management: Object.freeze({ // مجموعة الإدارة
