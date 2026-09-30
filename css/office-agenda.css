@@ -65,6 +65,10 @@
 .agenda-assignee{font-size:11px;color:var(--muted);}
 .agenda-act-btn{padding:2px 9px;font-size:11px;}
 
+/* ─── AGENDA-3: work sheets ───────────────────────────────────── */
+.agenda-sheet-card{cursor:pointer;}
+.agenda-on-sheet-flag{font-size:10px;color:var(--gold);background:rgba(201,168,76,0.12);border-radius:20px;padding:1px 8px;}
+
 .agenda-item-note{font-size:11px;color:var(--muted);margin-top:6px;line-height:1.7;}
 
 /* ─── Week view day columns ─────────────────────────────────────── */
