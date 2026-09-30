@@ -90,6 +90,7 @@ const FCM_ENTITY_LABELS_SRC = extractVarObject(fcmGs, 'FCM_ENTITY_LABELS_');
 const resolveFcmTitleBody_SRC = extractFunction(fcmGs, 'resolveFcmTitleBody_');
 // AGENDA-2: resolveFcmTitleBody_() now calls this helper for the new sheet — must be in the same sandbox.
 const agendaFcmTitleBody_SRC = extractFunction(fcmGs, 'agendaFcmTitleBody_');
+const workSheetFcmTitleBody_SRC = extractFunction(fcmGs, 'workSheetFcmTitleBody_'); // AGENDA-3
 const computeUpdateChangeContext_SRC = extractFunction(fcmGs, 'computeUpdateChangeContext_');
 
 const wrapped = new vm.Script(
@@ -100,6 +101,7 @@ const wrapped = new vm.Script(
   FCM_ENTITY_LABELS_SRC + '\n' +
   resolveFcmTitleBody_SRC + '\n' +
   agendaFcmTitleBody_SRC + '\n' +
+  workSheetFcmTitleBody_SRC + '\n' +
   computeUpdateChangeContext_SRC + '\n' +
   'return { FCM_NOTIFY_SHEETS: FCM_NOTIFY_SHEETS, FCM_NOTIFY_UPDATE_SHEETS: FCM_NOTIFY_UPDATE_SHEETS, FCM_NOTIFY_DELETE_SHEETS: FCM_NOTIFY_DELETE_SHEETS, FCM_ENTITY_LABELS_: FCM_ENTITY_LABELS_, resolveFcmTitleBody_: resolveFcmTitleBody_, computeUpdateChangeContext_: computeUpdateChangeContext_ };\n' +
   '})'
@@ -122,9 +124,11 @@ const ALL_14_ENTITIES = [
   'المكتبة', 'الصيغ', 'رسائل_الموكل',
   // AGENDA-2 — إضافة بحتة: الورقة الخامسة عشرة المُتزامنة. الاسم
   // 'ALL_14_ENTITIES' نفسه بقي دون تغيير عمدًا (يطابق تسمية PHASE N.12
-  // الأصلية بالحرف) رغم أن القائمة الآن 15 عنصرًا — إعادة تسمية المتغير
+  // الأصلية بالحرف) رغم أن القائمة الآن 16 عنصرًا — إعادة تسمية المتغير
   // كانت ستُعتبر تعديلًا أوسع من اللازم لهذا الاختبار تحديدًا.
-  'أجندة_البيانات_الوصفية'
+  'أجندة_البيانات_الوصفية',
+  // AGENDA-3 — إضافة بحتة: الورقة السادسة عشرة.
+  'أوراق_الشغل'
 ];
 // Cross-checked directly against Config/00_Config.gs's SHEET_DEFS entries,
 // minus the 4 already-documented-and-unchanged exclusions (بيانات_المكتب,
@@ -133,23 +137,23 @@ const ALL_14_ENTITIES = [
 // ================================================================
 // SUITE 1 — coverage: all 14 entities are now eligible for add/update/delete
 // ================================================================
-check('FCM_NOTIFY_SHEETS (add-eligible) now contains all 15 synced business entities', () => {
+check('FCM_NOTIFY_SHEETS (add-eligible) now contains all 16 synced business entities', () => {
   ALL_14_ENTITIES.forEach((sheet) => {
     assert.ok(FCM_NOTIFY_SHEETS.indexOf(sheet) !== -1, sheet + ' missing from FCM_NOTIFY_SHEETS');
   });
-  assert.strictEqual(FCM_NOTIFY_SHEETS.length, 15);
+  assert.strictEqual(FCM_NOTIFY_SHEETS.length, 16);
 });
-check('FCM_NOTIFY_UPDATE_SHEETS now contains all 15 synced business entities', () => {
+check('FCM_NOTIFY_UPDATE_SHEETS now contains all 16 synced business entities', () => {
   ALL_14_ENTITIES.forEach((sheet) => {
     assert.ok(FCM_NOTIFY_UPDATE_SHEETS.indexOf(sheet) !== -1, sheet + ' missing from FCM_NOTIFY_UPDATE_SHEETS');
   });
-  assert.strictEqual(FCM_NOTIFY_UPDATE_SHEETS.length, 15);
+  assert.strictEqual(FCM_NOTIFY_UPDATE_SHEETS.length, 16);
 });
-check('FCM_NOTIFY_DELETE_SHEETS now contains all 15 synced business entities', () => {
+check('FCM_NOTIFY_DELETE_SHEETS now contains all 16 synced business entities', () => {
   ALL_14_ENTITIES.forEach((sheet) => {
     assert.ok(FCM_NOTIFY_DELETE_SHEETS.indexOf(sheet) !== -1, sheet + ' missing from FCM_NOTIFY_DELETE_SHEETS');
   });
-  assert.strictEqual(FCM_NOTIFY_DELETE_SHEETS.length, 15);
+  assert.strictEqual(FCM_NOTIFY_DELETE_SHEETS.length, 16);
 });
 check('Deliberately-excluded sheets remain excluded from all 3 lists (بيانات_المكتب/أجهزة_FCM/التثبيتات/أكواد_التفعيل)', () => {
   ['بيانات_المكتب', 'أجهزة_FCM', 'التثبيتات', 'أكواد_التفعيل'].forEach((sheet) => {
@@ -268,7 +272,7 @@ check('Every one of the 14 entities gets its OWN distinct add/update/delete batc
 // ================================================================
 // SUITE 4 — FCM_ENTITY_LABELS_ map integrity
 // ================================================================
-check('FCM_ENTITY_LABELS_ has a complete, non-empty {label, page} entry for all 15 entities', () => {
+check('FCM_ENTITY_LABELS_ has a complete, non-empty {label, page} entry for all 16 entities', () => {
   ALL_14_ENTITIES.forEach((sheet) => {
     const info = FCM_ENTITY_LABELS_[sheet];
     assert.ok(info, sheet + ' missing from FCM_ENTITY_LABELS_');

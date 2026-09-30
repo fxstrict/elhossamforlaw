@@ -205,6 +205,19 @@ const REAL_RECORDS = {
     'حالة_التنفيذ': 'IN_PROGRESS',
     createdAt: '2026-07-16T00:00:00.000Z',
     updatedAt: '2026-07-16T00:00:00.000Z'
+  },
+  // AGENDA-3: 'معرف_الورقة' is repository-generated (WorkSheetsRepository's
+  // own _resolveId override) — same category as 'tasks'/'sessions'.
+  workSheets: {
+    'معرف_الورقة': 'ws:test0001',
+    'تاريخ_الإنشاء': '2026-07-16T00:00:00.000Z',
+    'أنشأها': 'boss',
+    'تاريخ_الاستهداف': '2026-07-16',
+    'المسند_إلى': 'ahmed',
+    'العناصر': '[{"sourceType":"session","sourceRecordId":"S1"}]',
+    'الحالة': 'DRAFT',
+    createdAt: '2026-07-16T00:00:00.000Z',
+    updatedAt: '2026-07-16T00:00:00.000Z'
   }
 };
 

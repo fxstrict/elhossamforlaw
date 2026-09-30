@@ -44,17 +44,18 @@ function newEngine(extra) {
 (async function main() {
 
   // ---- 1. Schema sanity ----
-  await check('Schema declares all 20 required stores', () => {
+  await check('Schema declares all 21 required stores', () => {
     // PHASE 31 (RBAC): +3 stores ('users', 'auditLog', 'loginLog'),
     // 12 -> 15. See IndexedDBSchema.js's own PHASE 31 comment.
     // PHASE 37 (Opponents Module): +1 store ('opponents'), 15 -> 16.
     // PHASE 38 (Process Server Works): +1 store ('processServerWorks'), 16 -> 17.
     // CASES_RELATIONSHIP_FINANCIAL: +2 stores ('caseClients', 'expenses'), 17 -> 19.
     // AGENDA-2: +1 store ('agendaMetadata'), 19 -> 20.
+    // AGENDA-3: +1 store ('workSheets'), 20 -> 21.
     const expected = ['cases', 'clients', 'sessions', 'documents', 'tasks',
       'children', 'fees', 'library', 'templates', 'settings', 'metadata',
       'clientMessages', 'users', 'auditLog', 'loginLog', 'opponents',
-      'processServerWorks', 'caseClients', 'expenses', 'agendaMetadata'];
+      'processServerWorks', 'caseClients', 'expenses', 'agendaMetadata', 'workSheets'];
     const actual = SchemaNS.getStoreNames();
     expected.forEach(name => assert.ok(actual.indexOf(name) !== -1, 'missing store ' + name));
     assert.strictEqual(actual.length, expected.length);
@@ -100,26 +101,31 @@ function newEngine(extra) {
       // AGENDA-2: 'agendaMetadata' keyPath matches
       // AgendaMetadataRepository's idField ('المعرف') — a caller-computed
       // natural key (sourceType:sourceId), same category as 'cases'.
-      agendaMetadata: 'المعرف'
+      agendaMetadata: 'المعرف',
+      // AGENDA-3: 'workSheets' keyPath matches WorkSheetsRepository's
+      // idField ('معرف_الورقة') — repository-generated, same category
+      // as 'tasks'/'sessions'.
+      workSheets: 'معرف_الورقة'
     };
     SchemaNS.STORE_DEFINITIONS.forEach(def => {
       assert.strictEqual(def.keyPath, expectedKeyPaths[def.name], def.name);
     });
   });
 
-  await check('DB_NAME is "HossamLawOffice" and DB_VERSION is 7', () => {
+  await check('DB_NAME is "HossamLawOffice" and DB_VERSION is 8', () => {
     // PHASE 31 (RBAC): DB_VERSION bumped 2 -> 3.
     // PHASE 37 (Opponents Module): DB_VERSION bumped 3 -> 4.
     // AGENDA-2: DB_VERSION bumped 6 -> 7.
+    // AGENDA-3: DB_VERSION bumped 7 -> 8.
     assert.strictEqual(SchemaNS.DB_NAME, 'HossamLawOffice');
-    assert.strictEqual(SchemaNS.DB_VERSION, 7);
+    assert.strictEqual(SchemaNS.DB_VERSION, 8);
   });
 
   // ---- 2. Database opens correctly ----
   await check('Database opens and reports the expected version', async () => {
     const { engine } = newEngine();
     const db = await engine.open();
-    assert.strictEqual(db.version, 7); // PHASE 31 (RBAC): DB_VERSION 2 -> 3. PHASE 37 (Opponents): 3 -> 4. PHASE 38 (Process Server Works): 4 -> 5. CASES_RELATIONSHIP_FINANCIAL: 5 -> 6. AGENDA-2: 6 -> 7.
+    assert.strictEqual(db.version, 8); // PHASE 31 (RBAC): DB_VERSION 2 -> 3. PHASE 37 (Opponents): 3 -> 4. PHASE 38 (Process Server Works): 4 -> 5. CASES_RELATIONSHIP_FINANCIAL: 5 -> 6. AGENDA-2: 6 -> 7.
     assert.strictEqual(engine.isOpen(), true);
     await engine.close();
   });
@@ -163,7 +169,7 @@ function newEngine(extra) {
     const { engine } = newEngine();
     await engine.open();
     const result = engine.getLastUpgradeResult();
-    assert.deepStrictEqual(result.appliedVersions, [1, 2, 3, 4, 5, 6, 7]); // PHASE 31 (RBAC): version 3 added. PHASE 37 (Opponents): version 4 added. PHASE 38 (Process Server Works): version 5 added. CASES_RELATIONSHIP_FINANCIAL: version 6 added. AGENDA-2: version 7 added.
+    assert.deepStrictEqual(result.appliedVersions, [1, 2, 3, 4, 5, 6, 7, 8]); // PHASE 31 (RBAC): version 3 added. PHASE 37 (Opponents): version 4 added. PHASE 38 (Process Server Works): version 5 added. CASES_RELATIONSHIP_FINANCIAL: version 6 added. AGENDA-2: version 7 added. AGENDA-3: version 8 added.
     assert.strictEqual(result.storesCreated.length, SchemaNS.getStoreNames().length);
     await engine.close();
   });
@@ -177,7 +183,7 @@ function newEngine(extra) {
     // should not re-run onupgradeneeded at all.
     const engine2 = new IndexedDBEngine({ indexedDBImpl: fake });
     const db2 = await engine2.open();
-    assert.strictEqual(db2.version, 7); // PHASE 31 (RBAC): DB_VERSION 2 -> 3. PHASE 37 (Opponents): 3 -> 4. PHASE 38 (Process Server Works): 4 -> 5. CASES_RELATIONSHIP_FINANCIAL: 5 -> 6. AGENDA-2: 6 -> 7.
+    assert.strictEqual(db2.version, 8); // PHASE 31 (RBAC): DB_VERSION 2 -> 3. PHASE 37 (Opponents): 3 -> 4. PHASE 38 (Process Server Works): 4 -> 5. CASES_RELATIONSHIP_FINANCIAL: 5 -> 6. AGENDA-2: 6 -> 7.
     assert.strictEqual(engine2.getLastUpgradeResult(), null, 'no upgrade should have run on reopen');
     await engine2.close();
   });
@@ -267,7 +273,7 @@ function newEngine(extra) {
     const engine2 = new IndexedDBEngine({ indexedDBImpl: fake });
     await engine2.open();
     const result = engine2.getLastUpgradeResult();
-    assert.deepStrictEqual(result.appliedVersions, [1, 2, 3, 4, 5, 6, 7], 'delete should force a fresh upgrade on next open'); // PHASE 31 (RBAC): version 3 added. PHASE 37 (Opponents): version 4 added. PHASE 38 (Process Server Works): version 5 added. CASES_RELATIONSHIP_FINANCIAL: version 6 added. AGENDA-2: version 7 added.
+    assert.deepStrictEqual(result.appliedVersions, [1, 2, 3, 4, 5, 6, 7, 8], 'delete should force a fresh upgrade on next open'); // PHASE 31 (RBAC): version 3 added. PHASE 37 (Opponents): version 4 added. PHASE 38 (Process Server Works): version 5 added. CASES_RELATIONSHIP_FINANCIAL: version 6 added. AGENDA-2: version 7 added. AGENDA-3: version 8 added.
     await engine2.close();
   });
 
@@ -285,11 +291,11 @@ function newEngine(extra) {
     const engine = new IndexedDBEngine({ indexedDBImpl: fake });
     await engine.open();
     const firstUpgradeResult = engine.getLastUpgradeResult();
-    assert.deepStrictEqual(firstUpgradeResult.appliedVersions, [1, 2, 3, 4, 5, 6, 7]); // PHASE 31 (RBAC): version 3 added. PHASE 37 (Opponents): version 4 added. PHASE 38 (Process Server Works): version 5 added. CASES_RELATIONSHIP_FINANCIAL: version 6 added. AGENDA-2: version 7 added.
+    assert.deepStrictEqual(firstUpgradeResult.appliedVersions, [1, 2, 3, 4, 5, 6, 7, 8]); // PHASE 31 (RBAC): version 3 added. PHASE 37 (Opponents): version 4 added. PHASE 38 (Process Server Works): version 5 added. CASES_RELATIONSHIP_FINANCIAL: version 6 added. AGENDA-2: version 7 added. AGENDA-3: version 8 added.
     await engine.close();
 
     const db2 = await engine.open();
-    assert.strictEqual(db2.version, 7); // PHASE 31 (RBAC): DB_VERSION 2 -> 3. PHASE 37 (Opponents): 3 -> 4. PHASE 38 (Process Server Works): 4 -> 5. CASES_RELATIONSHIP_FINANCIAL: 5 -> 6. AGENDA-2: 6 -> 7.
+    assert.strictEqual(db2.version, 8); // PHASE 31 (RBAC): DB_VERSION 2 -> 3. PHASE 37 (Opponents): 3 -> 4. PHASE 38 (Process Server Works): 4 -> 5. CASES_RELATIONSHIP_FINANCIAL: 5 -> 6. AGENDA-2: 6 -> 7.
     // No second upgrade ran, so the recorded result is unchanged from the
     // first (and only) upgrade — a fresh IndexedDBEngine on the same
     // backing store confirms this independently in the prior test.
@@ -367,7 +373,7 @@ function newEngine(extra) {
       // PHASE 37 (Opponents): schema DB_VERSION bumped 3 -> 4.
       // PHASE 38 (Process Server Works): schema DB_VERSION bumped 4 -> 5.
       // CASES_RELATIONSHIP_FINANCIAL: schema DB_VERSION bumped 5 -> 6.
-      assert.strictEqual(db.version, 7); // AGENDA-2: DB_VERSION 6 -> 7.
+      assert.strictEqual(db.version, 8); // AGENDA-2: DB_VERSION 6 -> 7.
       assert.strictEqual(engine.isOpen(), true);
       await engine.close();
       assert.strictEqual(engine.isOpen(), false);
@@ -393,8 +399,8 @@ function newEngine(extra) {
     // PHASE 37 (Opponents): schema DB_VERSION bumped 3 -> 4.
     // PHASE 38 (Process Server Works): schema DB_VERSION bumped 4 -> 5.
     // CASES_RELATIONSHIP_FINANCIAL: schema DB_VERSION bumped 5 -> 6.
-    assert.strictEqual(db.version, 7); // AGENDA-2: DB_VERSION 6 -> 7.
-    assert.deepStrictEqual(finalEngine.getLastUpgradeResult().appliedVersions, [1, 2, 3, 4, 5, 6, 7]);
+    assert.strictEqual(db.version, 8); // AGENDA-3: DB_VERSION 7 -> 8.
+    assert.deepStrictEqual(finalEngine.getLastUpgradeResult().appliedVersions, [1, 2, 3, 4, 5, 6, 7, 8]);
     await finalEngine.close();
   });
 
