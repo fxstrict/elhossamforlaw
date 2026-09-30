@@ -420,6 +420,7 @@
 <link rel="preload" as="script" href="js/repositories/SessionsRepository.js?v=42" fetchpriority="high">
 <link rel="preload" as="script" href="js/repositories/TasksRepository.js?v=42" fetchpriority="high">
 <link rel="preload" as="script" href="js/repositories/AgendaMetadataRepository.js?v=1" fetchpriority="low">
+<link rel="preload" as="script" href="js/repositories/WorkSheetsRepository.js?v=1" fetchpriority="low">
 <link rel="preload" as="script" href="js/repositories/FeesRepository.js?v=42" fetchpriority="high">
 <link rel="preload" as="script" href="js/repositories/DocumentsRepository.js?v=42" fetchpriority="high">
 <link rel="preload" as="script" href="js/repositories/LibraryRepository.js?v=42" fetchpriority="high">
@@ -1310,6 +1311,8 @@ style="color:var(--muted);font-size:12px;margin-top:4px;"> جارٍ تحميل
         <button type="button" class="agenda-view-tab" id="agendaTabDay" onclick="agendaSetMode('day')">اليوم</button>
         <button type="button" class="agenda-view-tab" id="agendaTabWeek" onclick="agendaSetMode('week')">الأسبوع</button>
         <button type="button" class="agenda-view-tab" id="agendaTabCustom" onclick="agendaSetMode('custom')">نطاق مخصص</button>
+        <!-- AGENDA-3 — أوراق الشغل (§10/§11). -->
+        <button type="button" class="agenda-view-tab" id="agendaTabSheets" onclick="agendaSetMode('sheets')">أوراق الشغل</button>
       </div>
     </div>
 
@@ -2687,6 +2690,8 @@ style="color:var(--muted);font-size:12px;margin-top:4px;"> جارٍ تحميل
 <script src="js/repositories/TasksRepository.js?v=42"></script>
 <!-- AGENDA-2 — Agenda Metadata repository (same position/pattern as TasksRepository.js; office-agenda.js loads later and instantiates it). -->
 <script src="js/repositories/AgendaMetadataRepository.js?v=1"></script>
+<!-- AGENDA-3 — Work Sheets repository (same position/pattern; office-agenda.js instantiates it). -->
+<script src="js/repositories/WorkSheetsRepository.js?v=1"></script>
 <script src="js/repositories/FeesRepository.js?v=42"></script>
 <script src="js/repositories/DocumentsRepository.js?v=42"></script>
 <script src="js/repositories/LibraryRepository.js?v=42"></script>
