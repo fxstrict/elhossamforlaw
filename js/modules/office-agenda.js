@@ -8,6 +8,12 @@
  *   domains; the ONLY writes are (a) agendaMetadata rows (+ their Sheet
  *   sync) and (b) for Administrative Works only, the existing toggleTask()
  *   on COMPLETED/reopen (closure spec §6). See the AGENDA-2 section.
+ * AGENDA-3 (added) — Work Sheets (§10/§11): a 4th "أوراق الشغل" tab lists/
+ *   creates/opens reference-only Work Sheets over the same three sources;
+ *   the ONLY writes are to the new 'workSheets' store (+ its Sheet sync),
+ *   plus settlement's idempotent re-confirmation via the SAME
+ *   agendaWriteBackTask() AGENDA-2 already uses — never a second write
+ *   path. See the AGENDA-3 section.
  *
  * ARCHITECTURE (per AGENDA_DESIGN_CLOSURE_AND_ARCHITECTURE_SPECIFICATION.md,
  * §4/§5/§14/§15, and the AGENDA-1 implementation brief):
@@ -236,6 +242,13 @@ function agendaFooterHtml(type, sourceId) {
     else if (st === 'COMPLETED') html += btn('reopen', 'إعادة فتح');
   }
   if (agendaCan('CanEditAgendaWork') && st !== 'COMPLETED') html += btn('edit', 'المتابعة/الموعد');
+  if (agendaCan('CanCreateWorkSheet') && typeof workSheetsRepository !== 'undefined' && workSheetsRepository) {
+    var onOpenSheets = workSheetsRepository.findOpenSheetsContaining(type, sourceId);
+    if (onOpenSheets.length) {
+      html += '<span class="agenda-on-sheet-flag" title="موجود بالفعل على ' + onOpenSheets.length + ' ورقة شغل مفتوحة">&#128203; على ورقة أخرى</span>';
+    }
+    html += '<button type="button" class="btn btn-ghost btn-sm agenda-act-btn" onclick="agendaAddToSheetPrompt(\'' + type + '\',\'' + id + '\')">+ ورقة شغل</button>';
+  }
   return html + '</div>';
 }
 
@@ -925,7 +938,7 @@ function agendaRenderCustom() {
 // ================================================================
 
 function agendaUpdateTabsUI() {
-  var map = { day: 'agendaTabDay', week: 'agendaTabWeek', custom: 'agendaTabCustom' };
+  var map = { day: 'agendaTabDay', week: 'agendaTabWeek', custom: 'agendaTabCustom', sheets: 'agendaTabSheets' };
   Object.keys(map).forEach(function (m) {
     var el = document.getElementById(map[m]);
     if (el) el.classList.toggle('active', m === agendaMode);
@@ -955,7 +968,9 @@ function agendaRenderCurrent() {
   if (!agendaCan('CanViewAgenda')) { agendaRenderDenied(); return; }
   if (agendaMode === 'day') agendaRenderDay();
   else if (agendaMode === 'week') agendaRenderWeek();
-  else agendaRenderCustom();
+  else if (agendaMode === 'custom') agendaRenderCustom();
+  else if (agendaSheetDetailId) agendaRenderSheetDetail(agendaSheetDetailId);
+  else agendaRenderSheetsList();
 }
 
 function agendaNavPrev() {
@@ -1031,12 +1046,341 @@ function agendaOpenPsw(sourceId) {
  * error (§17 — no crash, no fabricated data, reuses the existing toast()
  * mechanism) and performs ZERO writes to `data` or storage.
  */
+// ================================================================
+// AGENDA-3 — Work Sheets (أوراق الشغل): §10 schema + §11 lifecycle.
+// ================================================================
+// Reference-only (§10): a sheet never copies or mutates a Session/Task/
+// PSW row — only WorkSheetsRepository.js's own 'workSheets' store/Sheet
+// is ever written here, except the ONE §6/§11 exception: settlement
+// re-confirms (idempotently, via the existing agendaWriteBackTask()) that
+// every COMPLETED Administrative Work item on the sheet has its source
+// توسك flipped to 'done' — the same single write-back path AGENDA-2
+// already uses, never a second one.
+
+var workSheetsRepository = (typeof WorkSheetsRepository === 'function')
+  ? new WorkSheetsRepository() : null;
+
+var workSheetsRepositoryReadyPromise = workSheetsRepository
+  ? workSheetsRepository.open().catch(function (err) {
+      console.error('[office-agenda] WorkSheetsRepository failed to open:', err);
+    })
+  : Promise.resolve();
+
+var agendaSheetDetailId = null; // null => list view; otherwise showing one sheet
+
+function agendaSheetSourceLabel(type) {
+  return type === 'session' ? 'جلسة' : type === 'administrativeWork' ? 'عمل إداري' : 'عمل محضرين';
+}
+
+var WORK_SHEET_STATUS_LABELS = {
+  DRAFT: 'مسودة', ISSUED: 'صادرة', IN_PROGRESS: 'قيد التنفيذ',
+  SETTLED: 'مُسوّاة', CLOSED: 'مغلقة', CANCELLED: 'ملغاة'
+};
+
+function agendaSheetsAll() {
+  return workSheetsRepository ? workSheetsRepository.getAll() : [];
+}
+
+/** Resolve one item reference {sourceType, sourceRecordId} to its live source record, or null if it no longer exists. */
+function agendaResolveSheetItem(ref) {
+  var idField = agendaIdField(ref.sourceType);
+  var key = ref.sourceType === 'session' ? 'sessions' : ref.sourceType === 'administrativeWork' ? 'tasks' : 'processServerWorks';
+  var list = (typeof data !== 'undefined' && data[key]) || [];
+  for (var i = 0; i < list.length; i++) {
+    if (String(list[i][idField]) === String(ref.sourceRecordId)) return list[i];
+  }
+  return null;
+}
+
+// ---- List view ------------------------------------------------------
+
+function agendaSheetCardHtml(ws) {
+  var items = workSheetsRepository.getItems(ws);
+  var st = ws['الحالة'];
+  return (
+    '<div class="agenda-item agenda-sheet-card" onclick="agendaOpenSheet(\'' + agendaEscape(ws['معرف_الورقة']) + '\')">' +
+      '<div class="agenda-item-body">' +
+        '<div class="agenda-item-title">ورقة شغل ' + agendaEscape(formatDate(ws['تاريخ_الاستهداف'])) + '</div>' +
+        '<div class="agenda-item-meta">' +
+          '<span class="agenda-status-chip st-' + (st === 'IN_PROGRESS' || st === 'ISSUED' ? 'IN_PROGRESS' : (st === 'CANCELLED' ? 'BLOCKED' : st === 'CLOSED' || st === 'SETTLED' ? 'COMPLETED' : '')) + '">' + WORK_SHEET_STATUS_LABELS[st] + '</span>' +
+          '<span>&#128100; ' + (ws['المسند_إلى'] ? agendaEscape(agendaAssigneeLabel(ws['المسند_إلى'])) : 'بلا إسناد') + '</span>' +
+          '<span>' + items.length + ' عنصر</span>' +
+        '</div>' +
+      '</div>' +
+    '</div>'
+  );
+}
+
+function agendaRenderSheetsList() {
+  document.getElementById('agendaNavRow').style.display = 'none';
+  document.getElementById('agendaRangeForm').style.display = 'none';
+
+  var sheets = agendaSheetsAll().sort(function (a, b) {
+    return String(b['تاريخ_الإنشاء'] || '').localeCompare(String(a['تاريخ_الإنشاء'] || ''));
+  });
+
+  var html = '';
+  if (agendaCan('CanCreateWorkSheet')) {
+    html += '<div class="agenda-range-form">' +
+      '<label>تاريخ الاستهداف<input type="date" id="agendaNewSheetDate" value="' + agendaDateKey(new Date()) + '"></label>' +
+      '<button type="button" class="btn btn-primary btn-sm" onclick="agendaCreateSheet()">+ ورقة شغل جديدة</button>' +
+    '</div>';
+  }
+  html += agendaSectionHtml('&#128203; أوراق الشغل', sheets.length,
+    sheets.map(agendaSheetCardHtml).join(''), { emptyLabel: 'لا توجد أوراق شغل بعد' });
+
+  document.getElementById('agendaContent').innerHTML = html;
+}
+
+function agendaOpenSheet(id) {
+  agendaSheetDetailId = id;
+  agendaRenderCurrent();
+}
+
+function agendaBackToSheetsList() {
+  agendaSheetDetailId = null;
+  agendaRenderCurrent();
+}
+
+// ---- Detail view ------------------------------------------------------
+
+function agendaSheetDetail_ItemsBySource(ws) {
+  var items = workSheetsRepository.getItems(ws);
+  var groups = { session: [], administrativeWork: [], processServerWork: [] };
+  items.forEach(function (ref) {
+    var rec = agendaResolveSheetItem(ref);
+    groups[ref.sourceType].push({ ref: ref, rec: rec });
+  });
+  return groups;
+}
+
+function agendaSheetItemRowHtml(ws, type, entry) {
+  var removable = ['DRAFT', 'ISSUED', 'IN_PROGRESS'].indexOf(ws['الحالة']) !== -1;
+  var label = entry.rec
+    ? (type === 'session' ? (entry.rec['عنوان_القضية'] || 'جلسة') : type === 'administrativeWork' ? (entry.rec['العنوان'] || 'عمل إداري') : (entry.rec['طبيعة_الاعلان'] || 'عمل محضرين'))
+    : '(سجل محذوف: ' + agendaEscape(entry.ref.sourceRecordId) + ')';
+  var statusHtml = entry.rec ? agendaFooterHtml(type, entry.ref.sourceRecordId) : '';
+  return (
+    '<div class="agenda-item src-' + type + '">' +
+      '<div class="agenda-item-body">' +
+        '<div class="agenda-item-title">' + agendaEscape(label) + '</div>' +
+        statusHtml +
+      '</div>' +
+      (removable ? '<button type="button" class="btn btn-ghost btn-sm" onclick="agendaSheetRemoveItem(\'' + agendaEscape(ws['معرف_الورقة']) + '\',\'' + type + '\',\'' + agendaEscape(entry.ref.sourceRecordId) + '\')">&#10005;</button>' : '') +
+    '</div>'
+  );
+}
+
+function agendaRenderSheetDetail(id) {
+  var ws = workSheetsRepository.get(id);
+  if (!ws) { agendaBackToSheetsList(); return; }
+
+  document.getElementById('agendaNavRow').style.display = 'none';
+  document.getElementById('agendaRangeForm').style.display = 'none';
+
+  var groups = agendaSheetDetail_ItemsBySource(ws);
+  var st = ws['الحالة'];
+  var canClose = agendaCan('CanCloseWorkSheet');
+  var canEdit = agendaCan('CanCreateWorkSheet');
+  var canAssign = agendaCan('CanAssignAgendaWork');
+
+  var html = '<button type="button" class="btn btn-ghost btn-sm" onclick="agendaBackToSheetsList()">&#8592; كل أوراق الشغل</button>';
+
+  html += '<div class="agenda-section" style="margin-top:10px;">' +
+    '<div class="agenda-item-meta" style="margin-bottom:10px;">' +
+      '<span class="agenda-status-chip">' + WORK_SHEET_STATUS_LABELS[st] + '</span>' +
+      '<span>تاريخ الاستهداف: ' + agendaEscape(formatDate(ws['تاريخ_الاستهداف'])) + '</span>' +
+      '<span>&#128100; ' + (ws['المسند_إلى'] ? agendaEscape(agendaAssigneeLabel(ws['المسند_إلى'])) : 'بلا إسناد') +
+        (canAssign && (st === 'DRAFT' || st === 'ISSUED') ? ' <button type="button" class="btn btn-ghost btn-sm" onclick="agendaSheetAssignPrompt(\'' + agendaEscape(id) + '\')">تغيير</button>' : '') +
+      '</span>' +
+    '</div>';
+
+  // Lifecycle action buttons — exactly the §11 edges, nothing else.
+  html += '<div class="agenda-item-actions" style="border:none;padding-top:0;">';
+  if (canEdit && st === 'DRAFT') html += '<button type="button" class="btn btn-primary btn-sm" onclick="agendaSheetTransition(\'' + agendaEscape(id) + '\',\'ISSUED\')">إصدار</button>';
+  if (canEdit && (st === 'DRAFT' || st === 'ISSUED')) html += '<button type="button" class="btn btn-ghost btn-sm" onclick="agendaSheetTransition(\'' + agendaEscape(id) + '\',\'CANCELLED\')">إلغاء</button>';
+  if (canEdit && st === 'ISSUED') html += '<button type="button" class="btn btn-primary btn-sm" onclick="agendaSheetTransition(\'' + agendaEscape(id) + '\',\'IN_PROGRESS\')">بدء التنفيذ</button>';
+  if (canEdit && st === 'IN_PROGRESS') html += '<button type="button" class="btn btn-primary btn-sm" onclick="agendaSheetSettlePrompt(\'' + agendaEscape(id) + '\')">تسوية</button>';
+  if (canClose && st === 'SETTLED') html += '<button type="button" class="btn btn-primary btn-sm" onclick="agendaSheetClose(\'' + agendaEscape(id) + '\')">إغلاق</button>';
+  html += '</div>';
+
+  if (ws['ملخص_التسوية']) html += '<div class="agenda-item-note">ملخص التسوية: ' + agendaEscape(ws['ملخص_التسوية']) + '</div>';
+  html += '</div>';
+
+  ['session', 'administrativeWork', 'processServerWork'].forEach(function (type) {
+    var entries = groups[type];
+    html += agendaSectionHtml(agendaSheetSourceLabel(type) + 'ات', entries.length,
+      entries.map(function (e) { return agendaSheetItemRowHtml(ws, type, e); }).join(''),
+      { emptyLabel: 'لا توجد عناصر من هذا النوع' });
+  });
+
+  document.getElementById('agendaContent').innerHTML = html;
+}
+
+// ---- Write actions ------------------------------------------------
+
+async function agendaCreateSheet() {
+  if (!agendaCan('CanCreateWorkSheet')) { if (typeof toast === 'function') toast('لا تملك صلاحية إنشاء ورقة شغل', 'error'); return; }
+  var dateVal = agendaFieldVal('agendaNewSheetDate') || agendaDateKey(new Date());
+  try {
+    await workSheetsRepositoryReadyPromise;
+    var r = await workSheetsRepository.createDraft({ 'تاريخ_الاستهداف': dateVal, 'أنشأها': agendaCurrentUsername() });
+    if (!r || !r.success) throw new Error((r && r.error && r.error.message) || 'فشل إنشاء ورقة الشغل');
+    if (typeof ApiService !== 'undefined' && ApiService.syncRow) ApiService.syncRow('أوراق_الشغل', r.record, -1);
+    agendaOpenSheet(r.record['معرف_الورقة']);
+  } catch (err) {
+    if (typeof toast === 'function') toast(err.message || 'تعذر إنشاء ورقة الشغل', 'error');
+  }
+}
+
+function agendaSyncSheetToServer(id) {
+  var rec = workSheetsRepository.get(id);
+  if (rec && typeof ApiService !== 'undefined' && ApiService.syncRow) {
+    var all = workSheetsRepository.getAll();
+    var idx = all.findIndex(function (w) { return w['معرف_الورقة'] === id; });
+    ApiService.syncRow('أوراق_الشغل', rec, idx);
+  }
+}
+
+/** The ONLY place office-agenda.js writes to a Work Sheet from an item's own footer. */
+function agendaAddToSheetPrompt(type, sourceId) {
+  if (!agendaCan('CanCreateWorkSheet')) { if (typeof toast === 'function') toast('لا تملك صلاحية إضافة عناصر لورقة شغل', 'error'); return; }
+  var open = agendaSheetsAll().filter(function (ws) { return ws['الحالة'] === 'DRAFT' || ws['الحالة'] === 'ISSUED' || ws['الحالة'] === 'IN_PROGRESS'; });
+  if (!open.length) { agendaAddToNewSheet(type, sourceId); return; }
+  // Simple inline chooser via window.prompt-free select: reuse the existing sheets list render
+  // by jumping there is heavier UX than needed for a quick add, so default to the most
+  // recently created open sheet (documented, minimal v1 — see AGENDA-3 report "Known limitations").
+  var target = open.sort(function (a, b) { return String(b['تاريخ_الإنشاء']).localeCompare(String(a['تاريخ_الإنشاء'])); })[0];
+  agendaSheetAddItem(target['معرف_الورقة'], type, sourceId);
+}
+
+async function agendaAddToNewSheet(type, sourceId) {
+  await workSheetsRepositoryReadyPromise;
+  var r = await workSheetsRepository.createDraft({ 'تاريخ_الاستهداف': agendaDateKey(new Date()), 'أنشأها': agendaCurrentUsername() });
+  if (!r || !r.success) { if (typeof toast === 'function') toast('تعذر إنشاء ورقة الشغل', 'error'); return; }
+  agendaSyncSheetToServer(r.record['معرف_الورقة']);
+  await agendaSheetAddItem(r.record['معرف_الورقة'], type, sourceId);
+}
+
+async function agendaSheetAddItem(sheetId, type, sourceId) {
+  await workSheetsRepositoryReadyPromise;
+  var r = await workSheetsRepository.addItem(sheetId, type, sourceId);
+  if (!r || !r.success) { if (typeof toast === 'function') toast((r && r.error && r.error.message) || 'تعذر الإضافة', 'error'); return; }
+  agendaSyncSheetToServer(sheetId);
+  if (typeof toast === 'function') toast('أُضيف إلى ورقة الشغل', 'success');
+  agendaRenderCurrent();
+}
+
+async function agendaSheetRemoveItem(sheetId, type, sourceId) {
+  await workSheetsRepositoryReadyPromise;
+  var r = await workSheetsRepository.removeItem(sheetId, type, sourceId);
+  if (!r || !r.success) { if (typeof toast === 'function') toast((r && r.error && r.error.message) || 'تعذر الحذف', 'error'); return; }
+  agendaSyncSheetToServer(sheetId);
+  agendaRenderCurrent();
+}
+
+function agendaSheetAssignPrompt(sheetId) {
+  var ws = workSheetsRepository.get(sheetId);
+  agendaLoadUsers().then(function (users) {
+    var current = (ws && ws['المسند_إلى']) || '';
+    var names = users.map(function (u) { return u['اسم_المستخدم']; });
+    var val = names.length
+      ? window.prompt('المُسند إليه (' + names.join('، ') + ')', current)
+      : window.prompt('اسم المستخدم المُسند إليه', current);
+    if (val == null) return; // cancelled
+    agendaSheetAssign(sheetId, val.trim());
+  });
+}
+
+async function agendaSheetAssign(sheetId, username) {
+  await workSheetsRepositoryReadyPromise;
+  var r = await workSheetsRepository.update(sheetId, { 'المسند_إلى': username || '' });
+  if (!r || !r.success) { if (typeof toast === 'function') toast('تعذر تحديث الإسناد', 'error'); return; }
+  agendaSyncSheetToServer(sheetId);
+  agendaRenderCurrent();
+}
+
+async function agendaSheetTransition(sheetId, toState) {
+  var neededPerm = (toState === 'CLOSED') ? 'CanCloseWorkSheet' : 'CanCreateWorkSheet';
+  if (!agendaCan(neededPerm)) { if (typeof toast === 'function') toast('لا تملك صلاحية هذا الإجراء', 'error'); return; }
+  await workSheetsRepositoryReadyPromise;
+  var r = await workSheetsRepository.transitionState(sheetId, toState);
+  if (!r || !r.success) { if (typeof toast === 'function') toast((r && r.error && r.error.message) || 'انتقال غير مسموح', 'error'); return; }
+  agendaSyncSheetToServer(sheetId);
+  syncAgendaMetadataMirror();
+  agendaRenderCurrent();
+}
+
+function agendaSheetSettlePrompt(sheetId) {
+  var val = window.prompt('ملخص التسوية (إلزامي)', '');
+  if (val == null) return;
+  val = val.trim();
+  if (!val) { if (typeof toast === 'function') toast('ملخص التسوية إلزامي', 'error'); return; }
+  agendaSheetSettle(sheetId, val);
+}
+
+/**
+ * agendaSheetSettle — IN_PROGRESS -> SETTLED. Per §11/§6: re-confirms
+ * (idempotently) that every COMPLETED Administrative Work item's source
+ * توسك is flipped to 'done'. Uses the SAME agendaWriteBackTask() as
+ * AGENDA-2's own complete action — never a second write path. A failed
+ * reconciliation on one item aborts the whole settlement (atomic).
+ */
+async function agendaSheetSettle(sheetId, summary) {
+  if (!agendaCan('CanCreateWorkSheet')) { if (typeof toast === 'function') toast('لا تملك صلاحية التسوية', 'error'); return; }
+  try {
+    await workSheetsRepositoryReadyPromise;
+    var ws = workSheetsRepository.get(sheetId);
+    if (!ws) throw new Error('ورقة الشغل غير موجودة');
+    var items = workSheetsRepository.getItems(ws);
+    for (var i = 0; i < items.length; i++) {
+      var ref = items[i];
+      if (ref.sourceType !== 'administrativeWork') continue;
+      var m = agendaMetaFor('administrativeWork', ref.sourceRecordId);
+      if (m && agendaStatusOf(m) === 'COMPLETED') {
+        await agendaWriteBackTask('administrativeWork', ref.sourceRecordId, 'done');
+      }
+    }
+    var r = await workSheetsRepository.transitionState(sheetId, 'SETTLED', { 'ملخص_التسوية': summary });
+    if (!r || !r.success) throw new Error((r && r.error && r.error.message) || 'فشلت التسوية');
+    agendaSyncSheetToServer(sheetId);
+    agendaRenderCurrent();
+  } catch (err) {
+    if (typeof toast === 'function') toast(err.message || 'تعذرت التسوية', 'error');
+    try { agendaRenderCurrent(); } catch (e) {}
+  }
+}
+
+/**
+ * agendaSheetClose — SETTLED -> CLOSED. §11: closing with incomplete
+ * items is ALLOWED but requires an explicit confirmation step (not a
+ * permission block) — uses the app's existing confirmDialog(), same
+ * contract as every delete-confirmation in the app.
+ */
+async function agendaSheetClose(sheetId) {
+  if (!agendaCan('CanCloseWorkSheet')) { if (typeof toast === 'function') toast('لا تملك صلاحية إغلاق ورقة الشغل', 'error'); return; }
+  var ws = workSheetsRepository.get(sheetId);
+  if (!ws) return;
+  var items = workSheetsRepository.getItems(ws);
+  var incomplete = items.filter(function (ref) {
+    return agendaStatusOf(agendaMetaFor(ref.sourceType, ref.sourceRecordId)) !== 'COMPLETED';
+  });
+  if (incomplete.length) {
+    var proceed = (typeof confirmDialog === 'function')
+      ? await confirmDialog('يوجد ' + incomplete.length + ' عنصر غير منجز في هذه الورقة. إغلاقها لن يُنجزها — ستظل تظهر في الأجندة بتاريخها. متابعة الإغلاق؟', 'إغلاق ورقة شغل غير مكتملة')
+      : window.confirm('يوجد عناصر غير منجزة. متابعة الإغلاق؟');
+    if (!proceed) return;
+  }
+  await agendaSheetTransition(sheetId, 'CLOSED');
+}
+
 function renderOfficeAgenda() {
   try {
     agendaDayCursor = new Date();
     agendaWeekCursor = new Date();
     agendaUsersCache = null;
     agendaMetaIndex = null;
+    agendaSheetDetailId = null; // AGENDA-3: always land back on the sheets list, not a stale detail view
     syncAgendaMetadataMirror();
     agendaUpdateTabsUI();
     agendaRenderCurrent();
@@ -1047,6 +1391,9 @@ function renderOfficeAgenda() {
         syncAgendaMetadataMirror();
         agendaRenderCurrent();
       });
+    }
+    if (workSheetsRepository && !workSheetsRepository.isReady()) {
+      workSheetsRepositoryReadyPromise.then(function () { agendaRenderCurrent(); });
     }
     // Load users once so assignee names render as full names.
     agendaLoadUsers().then(function (u) { if (u.length) agendaRenderCurrent(); });
