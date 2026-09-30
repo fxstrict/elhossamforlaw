@@ -75,7 +75,9 @@
   // ensureStore() behaviour — an already-provisioned database only
   // gains this one new store on next open. No conflict with 'sessions'/
   // 'tasks'/'processServerWorks'/any other store.
-  var DB_VERSION = 7;
+  // AGENDA-3: bumped 7 -> 8 to add the 'workSheets' object store (see
+  // SCHEMA_VERSIONS version 8 step below). Same guarantees as above.
+  var DB_VERSION = 8;
 
   // ----------------------------------------------------------------
   // Index definitions per store. Only indexes an existing Repository/
@@ -376,12 +378,31 @@
     }
   ];
 
+  // V8_STORE_DEFINITIONS — AGENDA-3: one new store. 'workSheets' backs the
+  // new 'أوراق_الشغل' GAS sheet and js/repositories/WorkSheetsRepository.js.
+  // keyPath 'معرف_الورقة' is a repository-generated uid (unlike
+  // 'agendaMetadata' — a Work Sheet is a genuinely new object, not a
+  // deterministic reference). Purely additive.
+  var V8_STORE_DEFINITIONS = [
+    {
+      name: 'workSheets',
+      keyPath: 'معرف_الورقة',
+      autoIncrement: false,
+      indexes: [
+        { name: 'targetDate', keyPath: 'تاريخ_الاستهداف', unique: false },
+        { name: 'assignedTo', keyPath: 'المسند_إلى', unique: false },
+        { name: 'status', keyPath: 'الحالة', unique: false },
+        { name: 'createdBy', keyPath: 'أنشأها', unique: false }
+      ].concat(COMMON_AUDIT_INDEXES)
+    }
+  ];
+
   /**
    * STORE_DEFINITIONS — every store name the CURRENT (latest) schema
    * version defines (version 1 stores + every additive version's new
    * stores). Used by getStoreNames()/getStoreDefinition() below.
    */
-  var STORE_DEFINITIONS = V1_STORE_DEFINITIONS.concat(V2_STORE_DEFINITIONS).concat(V3_STORE_DEFINITIONS).concat(V4_STORE_DEFINITIONS).concat(V5_STORE_DEFINITIONS).concat(V6_STORE_DEFINITIONS).concat(V7_STORE_DEFINITIONS);
+  var STORE_DEFINITIONS = V1_STORE_DEFINITIONS.concat(V2_STORE_DEFINITIONS).concat(V3_STORE_DEFINITIONS).concat(V4_STORE_DEFINITIONS).concat(V5_STORE_DEFINITIONS).concat(V6_STORE_DEFINITIONS).concat(V7_STORE_DEFINITIONS).concat(V8_STORE_DEFINITIONS);
 
   /**
    * SCHEMA_VERSIONS — ordered upgrade steps. Version 1 was the original
@@ -429,6 +450,11 @@
       version: 7,
       description: 'AGENDA-2: adds the agendaMetadata (Agenda assignment + execution-status, keyed by sourceType:sourceId) object store.',
       stores: V7_STORE_DEFINITIONS
+    },
+    {
+      version: 8,
+      description: 'AGENDA-3: adds the workSheets (Work Sheet lifecycle: DRAFT..CLOSED, reference-only item list) object store.',
+      stores: V8_STORE_DEFINITIONS
     }
   ];
 

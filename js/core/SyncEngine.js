@@ -153,7 +153,9 @@ const SyncEngine = (function () {
     // settings.js's own 'pairs' array (loadFromSheets()) — راجع تعليق
     // settings.js نفسه وPHASE_A7_frontend_sync_tests.js's الاختبار
     // الثابت الذى يتحقق من هذا بالضبط.
-    ['أجندة_البيانات_الوصفية', 'agendaMetadata']
+    ['أجندة_البيانات_الوصفية', 'agendaMetadata'],
+    // AGENDA-3 — إضافة بحتة، نفس الالتزام أعلاه.
+    ['أوراق_الشغل', 'workSheets']
   ];
 
   const TOMBSTONE_FIELD = 'محذوف_في';
