@@ -72,7 +72,9 @@
         P.documents.view, P.documents.upload, P.documents.download, P.documents.print,
         P.library.view, P.library.download,
         // AGENDA-2: المحامى يرى الأجندة وينفّذ ويُحدّث حالة عمله ومتابعته (الإسناد للشريك/المدير).
-        P.agenda.view, P.agenda.changeExecutionStatus, P.agenda.edit
+        P.agenda.view, P.agenda.changeExecutionStatus, P.agenda.edit,
+        // AGENDA-3: المحامى المسئول يُغلق ورقة الشغل (§11).
+        P.workSheets.close
       ])
     }),
     trainees: Object.freeze({ // مجموعة المتدربين

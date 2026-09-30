@@ -136,6 +136,15 @@
       edit: 'CanEditAgendaWork',
       assign: 'CanAssignAgendaWork',
       changeExecutionStatus: 'CanChangeAgendaExecutionStatus'
+    }),
+    // AGENDA-3 — إضافة بحتة. راجع §11: الإنشاء/التعديل أثناء DRAFT/
+    // الإصدار/الإلغاء كلها تستخدم CanCreateWorkSheet (لا صلاحية إصدار
+    // منفصلة فى v1)؛ الإسناد يعيد استخدام agenda.assign الموجودة أصلاً؛
+    // الإغلاق صلاحية مستقلة عمدًا (§11: "قد يتطلب المكتب ألا يُغلق
+    // الورقة إلا المحامى المسئول أو المالك حتى لو جهّزها سكرتير").
+    workSheets: Object.freeze({
+      create: 'CanCreateWorkSheet',
+      close: 'CanCloseWorkSheet'
     })
   });
 

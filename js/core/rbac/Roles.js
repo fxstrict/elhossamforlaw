@@ -89,7 +89,8 @@
         g('lawyers'),
         [P.cases.delete, P.cases.restore, P.cases.transfer, P.sessions.approve,
          P.clients.delete, P.clients.restore, P.finance.viewReports,
-         P.agenda.assign, P.agenda.viewAll] // AGENDA-2: الشريك يُسند ويرى كل أعمال الأجندة
+         P.agenda.assign, P.agenda.viewAll, // AGENDA-2: الشريك يُسند ويرى كل أعمال الأجندة
+         P.workSheets.create] // AGENDA-3: الشريك يُجهّز ورقة الشغل أيضًا
       ))
     }),
     lawyer: Object.freeze({ // محام — "القضايا الخاصة به، إضافة، تعديل، جلسات، مذكرات"
@@ -106,7 +107,8 @@
         [P.clients.view, P.clients.create, P.clients.edit],
         [P.sessions.view, P.sessions.create, P.sessions.edit],
         [P.cases.view],
-        [P.agenda.view, P.agenda.changeExecutionStatus] // AGENDA-2
+        [P.agenda.view, P.agenda.changeExecutionStatus], // AGENDA-2
+        [P.workSheets.create] // AGENDA-3: السكرتير يُجهّز ورقة شغل اليوم (مطابق للقطة المرجعية)
       ))
     }),
     accountant: Object.freeze({ // المحاسب — "الفواتير، الإيرادات، المصروفات، لا يرى تفاصيل القضايا"
