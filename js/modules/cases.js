@@ -485,6 +485,28 @@ function resolveCaseIndex(list, record) {
 // RENDER — عرض قائمة القضايا
 // ================================================================
 
+// DESKTOP-UI MOD-08 — paired local-SVG icon (legacy glyph stays visible below 1024px via css/desktop.css).
+// Falls back to the plain glyph when UiIcon is not loaded (e.g. VM-based tests, Safe Mode).
+function caseUiIcon(name, legacy, size) {
+  return (typeof UiIcon !== 'undefined' && UiIcon && UiIcon.pair) ? UiIcon.pair(name, legacy, size) : legacy;
+}
+
+// DESKTOP-UI MOD-08 — page header (>=1024px only; DesktopHeader ignores other widths). Reads the DOM that
+// renderCases() just painted (row count) — no data access. Never throws.
+function caseDeskHeader() {
+  try {
+    if (!window.DesktopHeader || window.currentPage !== 'cases') return;
+    var tbody = document.getElementById('casesTableBody');
+    var n = tbody && tbody.rows ? tbody.rows.length : 0;
+    window.DesktopHeader.set({
+      page: 'cases',
+      subtitle: n ? n + ' قضية' : 'لا نتائج',
+      actions: [{ label: 'إضافة قضية', icon: 'act-add', variant: 'primary', replacesAdd: true,
+                  title: 'إضافة قضية جديدة', onClick: function () { openAddModal(); } }]
+    });
+  } catch (e) {}
+}
+
 function renderCases() {
   // Defensive only — see casesRepositoryReadyPromise's doc comment.
   // In normal page load order this is always true by the time any
@@ -540,6 +562,7 @@ function renderCases() {
       if (!data.clients.length) { caseStepClient.style.display = ''; caseStepCase.style.display = 'none'; }
       else { caseStepClient.style.display = 'none'; caseStepCase.style.display = ''; }
     }
+    caseDeskHeader();
     return;
   }
   em.style.display = 'none';
@@ -572,11 +595,11 @@ function renderCases() {
         ? urgencyBadge(c['تاريخ_الجلسة_القادمة']) + '<br><small>' + escapeHtml(formatDate(c['تاريخ_الجلسة_القادمة'])) + '</small>'
         : '—') + '</td>' +
       '<td style="white-space:nowrap;">' +
-        '<button class="btn btn-ghost btn-sm btn-icon" onclick="editCase(' + ri + ')" title="تعديل">&#9998;</button> ' +
-        '<button class="btn btn-success btn-sm btn-icon" onclick="viewCase(' + ri + ')" title="عرض وطباعة القضية">&#128065;</button> ' +
-        '<button class="btn btn-info btn-sm btn-icon" onclick="quickPrintCase(' + ri + ')" title="طباعة سريعة">&#128424;</button> ' +
-        '<button class="btn btn-ghost btn-sm btn-icon" onclick="quickCaseQR(' + ri + ')" title="QR بوابة الموكل">&#128275;</button> ' +
-        '<button class="btn btn-danger btn-sm btn-icon" onclick="deleteCase(' + ri + ')" title="حذف">&#128465;</button>' +
+        '<button class="btn btn-ghost btn-sm btn-icon" onclick="editCase(' + ri + ')" title="تعديل">' + caseUiIcon('act-edit', '&#9998;', 16) + '</button> ' +
+        '<button class="btn btn-success btn-sm btn-icon" onclick="viewCase(' + ri + ')" title="عرض وطباعة القضية">' + caseUiIcon('act-view', '&#128065;', 16) + '</button> ' +
+        '<button class="btn btn-info btn-sm btn-icon" onclick="quickPrintCase(' + ri + ')" title="طباعة سريعة">' + caseUiIcon('act-print', '&#128424;', 16) + '</button> ' +
+        '<button class="btn btn-ghost btn-sm btn-icon" onclick="quickCaseQR(' + ri + ')" title="QR بوابة الموكل">' + caseUiIcon('status-unlock', '&#128275;', 16) + '</button> ' +
+        '<button class="btn btn-danger btn-sm btn-icon" onclick="deleteCase(' + ri + ')" title="حذف">' + caseUiIcon('act-delete', '&#128465;', 16) + '</button>' +
       '</td>';
   }
 
@@ -636,6 +659,7 @@ function renderCases() {
       return '<div class="m-card">' + mobileCardInner(c) + '</div>';
     }).join('');
   }
+  caseDeskHeader();
 }
 
 // ================================================================
@@ -1310,7 +1334,7 @@ function viewCase(i) {
   var html = buildCaseReport(c, sessions, docs, children, tasks, psw);
 
   document.getElementById('viewModalTitle').innerHTML =
-    '&#128065; عرض القضية: ' + escapeHtml(caseNum) + ' — ' + escapeHtml(c['عنوان_القضية'] || '');
+    '<span>' + caseUiIcon('act-view', '&#128065;', 16) + ' عرض القضية: ' + escapeHtml(caseNum) + ' — ' + escapeHtml(c['عنوان_القضية'] || '') + '</span>';
   document.getElementById('viewModalBody').innerHTML = html;
   document.getElementById('modalView').classList.add('open');
 
@@ -1848,7 +1872,7 @@ function addChildRow(childData) {
         '<option' + (childData.custody === 'مع الأب' ? ' selected' : '') + '>مع الأب</option>' +
         '<option' + (childData.custody === 'مشتركة'  ? ' selected' : '') + '>مشتركة</option>' +
       '</select></div>' +
-    '<button type="button" class="btn btn-danger btn-icon btn-sm" onclick="this.parentNode.remove();updateChildrenData();">&#10005;</button>';
+    '<button type="button" class="btn btn-danger btn-icon btn-sm" onclick="this.parentNode.remove();updateChildrenData();">' + caseUiIcon('act-close', '&#10005;', 16) + '</button>';
   d.appendChild(row);
   updateChildrenData();
 }

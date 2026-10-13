@@ -473,6 +473,36 @@ function filterTaskStatus(status) {
 // RENDER — عرض قائمة المهام
 // ================================================================
 
+// DESKTOP-UI MOD-12 — paired local-SVG icon (legacy glyph stays visible below 1024px via css/desktop.css).
+// Falls back to the plain glyph when UiIcon is not loaded. Resolved at call time (UiIcon.js loads after this file).
+function taskUiIcon(name, legacy, size) {
+  return (typeof UiIcon !== 'undefined' && UiIcon && UiIcon.pair) ? UiIcon.pair(name, legacy, size) : legacy;
+}
+
+// DESKTOP-UI MOD-12 — priority dot: legacy emoji below 1024px (TASK_PRIORITY_ICONS, unchanged), tone-coloured SVG dot above.
+var TASK_PRIORITY_DOTS = { high: 'status-dot-critical', medium: 'status-dot-warning', low: 'status-dot-success' };
+function taskPriorityIcon(p) {
+  var legacy = TASK_PRIORITY_ICONS[p] || '';
+  var dot = TASK_PRIORITY_DOTS[p];
+  if (!legacy || !dot || typeof UiIcon === 'undefined' || !UiIcon || !UiIcon.html) return legacy;
+  var tone = dot.replace('status-dot-', 'ui-tone-');
+  return '<span class="ui-legacy">' + legacy + '</span>' + UiIcon.html(dot, 16, tone);
+}
+
+// DESKTOP-UI MOD-12 — page header (>=1024px only). Reads the DOM renderTasks() just painted. Never throws.
+function taskDeskHeader() {
+  try {
+    if (!window.DesktopHeader || window.currentPage !== 'tasks') return;
+    var n = document.querySelectorAll('#tasksListView .task-item').length;
+    window.DesktopHeader.set({
+      page: 'tasks',
+      subtitle: n ? n + ' عمل إداري' : 'لا نتائج',
+      actions: [{ label: 'إضافة عمل إداري', icon: 'act-add', variant: 'primary', replacesAdd: true,
+                  title: 'إضافة عمل إداري جديد', onClick: function () { openAddModal(); } }]
+    });
+  } catch (e) {}
+}
+
 /**
  * renderTasks — renders the tasks list view.
  * Reads: TasksRepository (search + getAll — both synchronous),
@@ -536,6 +566,7 @@ function renderTasks() {
     // loaded, hence the guard (same pattern as cases.js/clients.js).
     if (window.DomKeyIndex) DomKeyIndex.reset(c);
     em.style.display = '';
+    taskDeskHeader();
     return;
   }
   em.style.display = 'none';
@@ -583,14 +614,14 @@ function renderTasks() {
       // change needed, statusBadge() already conveys done/pending state.
       '<div style="flex:1;min-width:0;">' +
         '<div class="task-text ' + (done ? 'done' : '') + '">' +
-          (TASK_PRIORITY_ICONS[t['الأولوية']] || '') + '&nbsp;' + _twEsc(t['العنوان'] || '') +
+          taskPriorityIcon(t['الأولوية']) + '&nbsp;' + _twEsc(t['العنوان'] || '') +
         '</div>' +
         // ADMINISTRATIVE WORKS TRANSFORM — الموكل/القضية (additive،
         // نفس .task-due class المستخدمة أصلاً — صفر CSS جديد).
         (t['اسم_الموكل'] || t['رقم_القضية']
           ? '<div style="display:flex;gap:9px;flex-wrap:wrap;margin-top:2px;">' +
-              (t['اسم_الموكل'] ? '<span class="task-due">&#128100; ' + _twEsc(t['اسم_الموكل']) + '</span>' : '') +
-              (t['رقم_القضية'] ? '<span class="task-due">&#9878; ' + _twEsc(t['رقم_القضية']) + '</span>' : '') +
+              (t['اسم_الموكل'] ? '<span class="task-due">' + taskUiIcon('sys-user', '&#128100;', 12) + ' ' + _twEsc(t['اسم_الموكل']) + '</span>' : '') +
+              (t['رقم_القضية'] ? '<span class="task-due">' + taskUiIcon('nav-cases', '&#9878;', 12) + ' ' + _twEsc(t['رقم_القضية']) + '</span>' : '') +
             '</div>'
           : '') +
         '<div style="display:flex;gap:9px;flex-wrap:wrap;margin-top:3px;">' +
@@ -598,7 +629,7 @@ function renderTasks() {
           (t['الموعد_النهائي']
             ? '<span class="task-due">' + urgencyBadge(t['الموعد_النهائي']) + ' ' + formatDate(t['الموعد_النهائي']) + '</span>'
             : '') +
-          (t['مكان_التنفيذ'] ? '<span class="task-due">&#128205; ' + _twEsc(t['مكان_التنفيذ']) + '</span>' : '') +
+          (t['مكان_التنفيذ'] ? '<span class="task-due">' + taskUiIcon('sys-pin', '&#128205;', 12) + ' ' + _twEsc(t['مكان_التنفيذ']) + '</span>' : '') +
         '</div>' +
         // "المطلوب" — صندوق ذهبي مميز، مطابق لمتطلبات التصميم (§4 من
         // طلب التنفيذ: "إدخال اللون الذهبي المستخدم في النظام").
@@ -606,13 +637,13 @@ function renderTasks() {
           ? '<div class="task-required-box">' + _twEsc(t['المطلوب']) + '</div>'
           : '') +
         (_taskDocsCount(t) > 0
-          ? '<div class="task-due" style="margin-top:2px;">&#128206; ' + _taskDocsCount(t) + ' مستند' + (_taskDocsCount(t) > 1 ? 'ات' : '') + '</div>'
+          ? '<div class="task-due" style="margin-top:2px;">' + taskUiIcon('act-attach', '&#128206;', 12) + ' ' + _taskDocsCount(t) + ' مستند' + (_taskDocsCount(t) > 1 ? 'ات' : '') + '</div>'
           : '') +
         historyLine +
       '</div>' +
       '<div style="display:flex;gap:5px;flex-shrink:0;">' +
-        '<button class="btn btn-ghost btn-sm btn-icon" onclick="editTask(' + ri + ')">&#9998;</button>' +
-        '<button class="btn btn-danger btn-sm btn-icon" onclick="deleteTask(' + ri + ')">&#128465;</button>' +
+        '<button class="btn btn-ghost btn-sm btn-icon" onclick="editTask(' + ri + ')">' + taskUiIcon('act-edit', '&#9998;', 16) + '</button>' +
+        '<button class="btn btn-danger btn-sm btn-icon" onclick="deleteTask(' + ri + ')">' + taskUiIcon('act-delete', '&#128465;', 16) + '</button>' +
       '</div>'
     );
   }
@@ -660,6 +691,7 @@ function renderTasks() {
       return '<div class="task-item ' + (t['الأولوية'] || '') + '">' + taskInnerHtml(t) + '</div>';
     }).join('');
   }
+  taskDeskHeader();
 }
 
 // ================================================================

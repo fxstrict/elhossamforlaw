@@ -169,9 +169,28 @@
    * defensive fallback for a stray legacy `&#NNNN;` entity string, and
    * even then only ever with the app's own escapeHtml()-safe values,
    * never anything derived from a search result/record. */
+  // DESKTOP-UI MOD-17 — entity glyph (global-search.js config, unchanged) -> local SVG name. Display only.
+  var _GS_GLYPH_SVG = {
+    '\u2696\uFE0F': 'nav-cases', '\uD83D\uDC65': 'nav-clients', '\uD83D\uDCC5': 'nav-sessions',
+    '\uD83D\uDCCE': 'nav-documents', '\u2705': 'nav-tasks', '\uD83E\uDD3A': 'nav-opponents',
+    '\uD83D\uDC66': 'nav-children', '\uD83D\uDCB0': 'nav-fees', '\uD83D\uDCDA': 'nav-library',
+    '\uD83D\uDCC4': 'nav-templates', '\uD83D\uDCB5': 'nav-expenses', '\uD83D\uDCDC': 'nav-process',
+    '\uD83D\uDCCB': 'nav-agenda'
+  };
+
+  // Paired markup (legacy glyph visible < 1024px, local SVG >= 1024px via css/desktop.css). Falls back to null when
+  // UiIcon is not loaded (VM-based tests, Safe Mode) so callers keep the original plain-glyph behaviour.
+  function _pairMarkup(name, glyph, size) {
+    if (!name || typeof UiIcon === 'undefined' || !UiIcon || !UiIcon.pair) return null;
+    return UiIcon.pair(name, glyph, size);
+  }
+
   function _icon(glyph) {
     var span = _el('span', 'global-search-scope-icon');
-    if (glyph && /&#/.test(glyph)) {
+    var paired = (glyph && !/&#/.test(glyph)) ? _pairMarkup(_GS_GLYPH_SVG[glyph], glyph, 14) : null;
+    if (paired !== null) {
+      span.innerHTML = paired; // trusted: fixed internal glyph + fixed sprite name only
+    } else if (glyph && /&#/.test(glyph)) {
       span.innerHTML = glyph; // trusted, fixed internal config value only
     } else {
       span.textContent = glyph || '';
@@ -292,7 +311,8 @@
       var removeBtn = _el('button', 'global-search-recent-chip-remove');
       removeBtn.type = 'button';
       removeBtn.setAttribute('aria-label', 'حذف');
-      _text(removeBtn, '✕');
+      var _rm = _pairMarkup('act-close', '\u2715', 12);
+      if (_rm !== null) { removeBtn.innerHTML = _rm; } else { _text(removeBtn, '✕'); }
       removeBtn.addEventListener('click', function (event) {
         removeRecentGlobalSearch(event, term); // real closure — no re-parsed string
       });

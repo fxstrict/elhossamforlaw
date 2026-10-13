@@ -90,6 +90,12 @@ function renderReportPeriod(period) {
     }).join('') + '</table></div>';
 }
 
+// DESKTOP-UI MOD-16 — paired local-SVG icon (legacy glyph stays visible below 1024px via css/desktop.css).
+// Falls back to the plain glyph when UiIcon is not loaded (e.g. VM-based tests, Safe Mode). Display only.
+function frUiIcon(name, legacy, size) {
+  return (typeof UiIcon !== 'undefined' && UiIcon && UiIcon.pair) ? UiIcon.pair(name, legacy, size) : legacy;
+}
+
 /**
  * renderReportCases(sortBy) — table from getCaseFinancialRanking()
  * (single-pass aggregation — see that function's own header for why
@@ -128,8 +134,8 @@ function renderReportCases(sortBy) {
       '<td style="padding:7px 10px;border:1px solid #e8e0d0;color:#c0392b;">' + r.expenses.toLocaleString('ar-EG') + '</td>' +
       '<td style="padding:7px 10px;border:1px solid #e8e0d0;font-weight:900;">' + r.netCash.toLocaleString('ar-EG') + '</td>' +
       '<td style="padding:7px 10px;border:1px solid #e8e0d0;">' +
-        (caseIdx > -1 ? '<button class="btn btn-ghost btn-sm" onclick="viewCase(' + caseIdx + ')">&#128065;</button> ' : '') +
-        '<button class="btn btn-ghost btn-sm" onclick="openLedger(\'case\',\'' + escapeHtml(r.caseNum) + '\')">&#128179;</button>' +
+        (caseIdx > -1 ? '<button class="btn btn-ghost btn-sm" onclick="viewCase(' + caseIdx + ')" title="فتح القضية">' + frUiIcon('act-view', '&#128065;', 16) + '</button> ' : '') +
+        '<button class="btn btn-ghost btn-sm" onclick="openLedger(\'case\',\'' + escapeHtml(r.caseNum) + '\')" title="كشف الحساب">' + frUiIcon('sys-credit-card', '&#128179;', 16) + '</button>' +
       '</td></tr>';
   });
   table += '</table></div>';
@@ -175,8 +181,8 @@ function renderReportClients(sortBy) {
       '<td style="padding:7px 10px;border:1px solid #e8e0d0;color:#c0392b;">' + r.expenses.toLocaleString('ar-EG') + '</td>' +
       '<td style="padding:7px 10px;border:1px solid #e8e0d0;font-weight:900;">' + r.netCash.toLocaleString('ar-EG') + '</td>' +
       '<td style="padding:7px 10px;border:1px solid #e8e0d0;">' +
-        (clientIdx > -1 ? '<button class="btn btn-ghost btn-sm" onclick="viewClient(' + clientIdx + ')">&#128065;</button> ' : '') +
-        '<button class="btn btn-ghost btn-sm" onclick="openLedger(\'client\',\'' + escapeHtml(r.clientId) + '\')">&#128179;</button>' +
+        (clientIdx > -1 ? '<button class="btn btn-ghost btn-sm" onclick="viewClient(' + clientIdx + ')" title="فتح الموكل">' + frUiIcon('act-view', '&#128065;', 16) + '</button> ' : '') +
+        '<button class="btn btn-ghost btn-sm" onclick="openLedger(\'client\',\'' + escapeHtml(r.clientId) + '\')" title="كشف الحساب">' + frUiIcon('sys-credit-card', '&#128179;', 16) + '</button>' +
       '</td></tr>';
   });
   table += '</table></div>';

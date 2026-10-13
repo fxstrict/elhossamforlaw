@@ -130,6 +130,27 @@ function resolveOpponentIndex(list, record) {
 // ================================================================
 // RENDER — عرض قائمة الخصوم
 // ================================================================
+// DESKTOP-UI MOD-13 — paired local-SVG icon (legacy glyph stays visible below 1024px via css/desktop.css).
+// Falls back to the plain glyph when UiIcon is not loaded (e.g. VM-based tests, Safe Mode).
+function opponentUiIcon(name, legacy, size) {
+  return (typeof UiIcon !== 'undefined' && UiIcon && UiIcon.pair) ? UiIcon.pair(name, legacy, size) : legacy;
+}
+
+// DESKTOP-UI MOD-13 — page header (>=1024px only). Reads the DOM renderOpponents() just painted. Never throws.
+function opponentDeskHeader() {
+  try {
+    if (!window.DesktopHeader || window.currentPage !== 'opponents') return;
+    var tbody = document.getElementById('opponentsTableBody');
+    var n = tbody && tbody.rows ? tbody.rows.length : 0;
+    window.DesktopHeader.set({
+      page: 'opponents',
+      subtitle: n ? n + ' خصم' : 'لا نتائج',
+      actions: [{ label: 'إضافة خصم', icon: 'act-add', variant: 'primary', replacesAdd: true,
+                  title: 'إضافة خصم جديد', onClick: function () { openAddModal(); } }]
+    });
+  } catch (e) {}
+}
+
 function renderOpponents() {
   if (!opponentsRepository.isReady()) return;
 
@@ -152,6 +173,7 @@ function renderOpponents() {
     if (tb) tb.innerHTML = '';
     if (ml) ml.innerHTML = '';
     if (em) em.style.display = '';
+    opponentDeskHeader();
     return;
   }
   if (em) em.style.display = 'none';
@@ -165,11 +187,11 @@ function renderOpponents() {
       '<td style="direction:ltr;text-align:right;">' + escapeHtml(o['الرقم_القومي'] || '—') + '</td>' +
       '<td>' + escapeHtml(o['الوظيفة'] || '—') + '</td>' +
       '<td>' +
-        '<button class="btn btn-call btn-sm btn-icon" onclick="callOpponent(' + ri + ')" title="اتصال هاتفي">&#128222;</button> ' +
-        '<button class="btn btn-whatsapp btn-sm btn-icon" onclick="whatsappOpponent(' + ri + ')" title="محادثة واتساب">&#128172;</button> ' +
-        '<button class="btn btn-info btn-sm btn-icon" onclick="viewOpponent(' + ri + ')" title="عرض">&#128065;</button> ' +
-        '<button class="btn btn-ghost btn-sm btn-icon" onclick="editOpponent(' + ri + ')" title="تعديل">&#9998;</button> ' +
-        '<button class="btn btn-danger btn-sm btn-icon" onclick="deleteOpponent(' + ri + ')" title="حذف">&#128465;</button>' +
+        '<button class="btn btn-call btn-sm btn-icon" onclick="callOpponent(' + ri + ')" title="اتصال هاتفي">' + opponentUiIcon('sys-phone', '&#128222;', 16) + '</button> ' +
+        '<button class="btn btn-whatsapp btn-sm btn-icon" onclick="whatsappOpponent(' + ri + ')" title="محادثة واتساب">' + opponentUiIcon('sys-message', '&#128172;', 16) + '</button> ' +
+        '<button class="btn btn-info btn-sm btn-icon" onclick="viewOpponent(' + ri + ')" title="عرض">' + opponentUiIcon('act-view', '&#128065;', 16) + '</button> ' +
+        '<button class="btn btn-ghost btn-sm btn-icon" onclick="editOpponent(' + ri + ')" title="تعديل">' + opponentUiIcon('act-edit', '&#9998;', 16) + '</button> ' +
+        '<button class="btn btn-danger btn-sm btn-icon" onclick="deleteOpponent(' + ri + ')" title="حذف">' + opponentUiIcon('act-delete', '&#128465;', 16) + '</button>' +
       '</td>';
   }
 
@@ -199,6 +221,7 @@ function renderOpponents() {
 
   if (tb) tb.innerHTML = rows.map(function (o) { return '<tr>' + desktopOpponentRowInner(o) + '</tr>'; }).join('');
   if (ml) ml.innerHTML = rows.map(function (o) { return '<div class="m-card">' + mobileOpponentCardInner(o) + '</div>'; }).join('');
+  opponentDeskHeader();
 }
 
 function searchOpponents() { renderOpponents(); }
@@ -403,7 +426,7 @@ function viewOpponent(i) {
   if (portalBtn) portalBtn.style.display = 'none';
 
   document.getElementById('viewModalTitle').innerHTML =
-    '&#129333; ملف الخصم — ' + escapeHtml(o['الاسم'] || '');
+    opponentUiIcon('nav-opponents', '&#129333;', 16) + ' ملف الخصم — ' + escapeHtml(o['الاسم'] || '');
   document.getElementById('viewModalBody').innerHTML = buildOpponentReport(o);
   document.getElementById('modalView').classList.add('open');
 }

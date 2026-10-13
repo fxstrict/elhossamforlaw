@@ -367,6 +367,29 @@ function resolveFeeIndex(list, record) {
 // RENDER — عرض قائمة الأتعاب + الإحصائيات
 // ================================================================
 
+// DESKTOP-UI MOD-16 — paired local-SVG icon (legacy glyph stays visible below 1024px via css/desktop.css).
+// Falls back to the plain glyph when UiIcon is not loaded (e.g. VM-based tests, Safe Mode).
+function feeUiIcon(name, legacy, size) {
+  return (typeof UiIcon !== 'undefined' && UiIcon && UiIcon.pair) ? UiIcon.pair(name, legacy, size) : legacy;
+}
+
+// DESKTOP-UI MOD-16 — page header (>=1024px only). Display only; reads the DOM just painted. Never throws.
+function feeDeskHeader() {
+  try {
+    if (!window.DesktopHeader || window.currentPage !== 'fees') return;
+    var tb = document.getElementById('feesTableBody');
+    var n = tb && tb.rows ? tb.rows.length : 0;
+    window.DesktopHeader.set({
+      page: 'fees',
+      subtitle: n ? n + ' عملية' : 'لا نتائج',
+      actions: [{ label: 'تسجيل أتعاب', icon: 'act-add', variant: 'primary',
+                  title: 'تسجيل أتعاب جديدة', onClick: function () { openAddFeeModal(); } },
+                { label: 'إضافة دفعة', icon: 'nav-fees', variant: 'secondary',
+                  title: 'إضافة دفعة على أتعاب', onClick: function () { openPaymentModal(); } }]
+    });
+  } catch (e) {}
+}
+
 /**
  * renderFees — renders the fees table + mobile cards, and updates the
  * totals/count statistics.
@@ -449,6 +472,7 @@ function renderFees() {
     // cases.js/tasks.js/sessions.js/documents.js).
     if (window.DomKeyIndex) { DomKeyIndex.reset(tb); DomKeyIndex.reset(ml); }
     em.style.display = '';
+    feeDeskHeader();
     return;
   }
   em.style.display = 'none';
@@ -474,7 +498,7 @@ function renderFees() {
       var caseObj = (data.cases || []).filter(function (c) { return c['رقم_القضية'] === f['رقم_القضية']; })[0];
       if (caseObj) {
         var cIdx = resolveCaseIndex(data.cases, caseObj);
-        caseLink = ' <button class="btn btn-ghost btn-sm btn-icon" title="فتح القضية" onclick="viewCase(' + cIdx + ')">&#128065;</button>';
+        caseLink = ' <button class="btn btn-ghost btn-sm btn-icon" title="فتح القضية" onclick="viewCase(' + cIdx + ')">' + feeUiIcon('act-view', '&#128065;', 16) + '</button>';
       }
     }
     var clientLink = '';
@@ -482,10 +506,10 @@ function renderFees() {
       var clientObj = (data.clients || []).filter(function (cl) { return cl['رقم_الموكل'] === f['رقم_الموكل']; })[0];
       if (clientObj) {
         var clIdx = resolveClientIndex(data.clients, clientObj);
-        clientLink = ' <button class="btn btn-ghost btn-sm btn-icon" title="فتح الموكل" onclick="viewClient(' + clIdx + ')">&#128100;</button>';
+        clientLink = ' <button class="btn btn-ghost btn-sm btn-icon" title="فتح الموكل" onclick="viewClient(' + clIdx + ')">' + feeUiIcon('sys-user', '&#128100;', 16) + '</button>';
       }
     }
-    var relBadge = f['رقم_علاقة'] ? ' <span title="مرتبطة بعلاقة موكل/قضية">&#128279;</span>' : '';
+    var relBadge = f['رقم_علاقة'] ? ' <span title="مرتبطة بعلاقة موكل/قضية">' + feeUiIcon('act-link', '&#128279;', 14) + '</span>' : '';
     return (
       '<td style="color:var(--gold)">' + (f['رقم_القضية'] || '—') + caseLink + '</td>' +
       '<td>' + (f['اسم_الموكل'] || '—') + clientLink + relBadge + '</td>' +
@@ -497,8 +521,8 @@ function renderFees() {
       '<td>' + (f['طريقة_الدفع'] || '—') + '</td>' +
       '<td><small>' + (f['الملاحظات'] || '—') + '</small></td>' +
       '<td>' +
-        '<button class="btn btn-ghost btn-sm btn-icon" onclick="editFee(' + ri + ')">&#9998;</button> ' +
-        '<button class="btn btn-danger btn-sm btn-icon" onclick="deleteFee(' + ri + ')">&#128465;</button>' +
+        '<button class="btn btn-ghost btn-sm btn-icon" onclick="editFee(' + ri + ')" title="تعديل">' + feeUiIcon('act-edit', '&#9998;', 16) + '</button> ' +
+        '<button class="btn btn-danger btn-sm btn-icon" onclick="deleteFee(' + ri + ')" title="حذف">' + feeUiIcon('act-delete', '&#128465;', 16) + '</button>' +
       '</td>'
     );
   }
@@ -558,6 +582,7 @@ function renderFees() {
       return '<div class="m-card">' + feeCardInner(f) + '</div>';
     }).join('');
   }
+  feeDeskHeader();
 }
 
 // ================================================================

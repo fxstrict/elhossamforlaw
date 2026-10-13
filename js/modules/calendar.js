@@ -63,6 +63,12 @@
 // RENDER — عرض التقويم وجلسات اليوم/الشهر المحدد
 // ================================================================
 
+// DESKTOP-UI MOD-18 — paired legacy glyph + local SVG (SVG visible only >=1024px via desktop.css; the legacy glyph
+// stays exactly as before below 1024px). Falls back to the plain glyph when UiIcon is not loaded (VM tests, Safe Mode).
+function calUiIcon(name, legacy, size) {
+  return (typeof UiIcon !== 'undefined' && UiIcon && UiIcon.pair) ? UiIcon.pair(name, legacy, size) : legacy;
+}
+
 /**
  * renderCalendar — renders the month grid (#calGrid) for calYear/calMonth,
  * marking today and any days that have sessions, then renders the
@@ -163,12 +169,12 @@ function renderCalSessions(day) {
         '<div class="session-info">' +
           '<div class="session-title">' + (s['عنوان_القضية'] || 'جلسة') + '</div>' +
           '<div class="session-meta">' +
-            '<span>&#128336; ' + formatTime(s['الوقت']) + '</span>' +
-            '<span>&#127963; ' + (s['المحكمة'] || '—') + '</span>' +
+            '<span>' + calUiIcon('status-pending', '&#128336;', 14) + ' ' + formatTime(s['الوقت']) + '</span>' +
+            '<span>' + calUiIcon('sys-building', '&#127963;', 14) + ' ' + (s['المحكمة'] || '—') + '</span>' +
             statusBadge(s['الحالة']) +
           '</div>' +
           (s['القرار']
-            ? '<div style="font-size:12px;color:var(--gold);margin-top:3px;">&#9878; ' + s['القرار'] + '</div>'
+            ? '<div style="font-size:12px;color:var(--gold);margin-top:3px;">' + calUiIcon('nav-cases', '&#9878;', 14) + ' ' + s['القرار'] + '</div>'
             : '') +
         '</div>' +
       '</div>'

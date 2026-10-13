@@ -1,3 +1,24 @@
+// DESKTOP-UI MOD-16 — paired local-SVG icon (legacy glyph stays visible below 1024px via css/desktop.css).
+// Falls back to the plain glyph when UiIcon is not loaded (e.g. VM-based tests, Safe Mode).
+function expUiIcon(name, legacy, size) {
+  return (typeof UiIcon !== 'undefined' && UiIcon && UiIcon.pair) ? UiIcon.pair(name, legacy, size) : legacy;
+}
+
+// DESKTOP-UI MOD-16 — page header (>=1024px only). Display only; reads the DOM just painted. Never throws.
+function expDeskHeader() {
+  try {
+    if (!window.DesktopHeader || window.currentPage !== 'expenses') return;
+    var tb = document.getElementById('expensesTableBody');
+    var n = tb && tb.rows ? tb.rows.length : 0;
+    window.DesktopHeader.set({
+      page: 'expenses',
+      subtitle: n ? n + ' مصروف' : 'لا نتائج',
+      actions: [{ label: 'تسجيل مصروف', icon: 'act-add', variant: 'primary',
+                  title: 'تسجيل مصروف جديد', onClick: function () { openAddExpenseModal(); } }]
+    });
+  } catch (e) {}
+}
+
 /**
  * ================================================================
  * expenses.js — Expenses CRUD (المصروفات) | نظام الحسام
@@ -67,6 +88,7 @@ function renderExpenses() {
     tb.innerHTML = '';
     ml.innerHTML = '';
     em.style.display = '';
+    expDeskHeader();
     return;
   }
   em.style.display = 'none';
@@ -75,10 +97,10 @@ function renderExpenses() {
     var scope = e['النطاق'];
     if (scope === 'موكل') {
       var client = (data.clients || []).filter(function (c) { return c[(typeof CLIENTS_ID_FIELD !== 'undefined' ? CLIENTS_ID_FIELD : 'رقم_الموكل')] === e['رقم_الموكل']; })[0];
-      return '&#128100; ' + (client ? escapeHtml(client['الاسم']) : (e['رقم_الموكل'] || '—'));
+      return expUiIcon('sys-user', '&#128100;', 14) + ' ' + (client ? escapeHtml(client['الاسم']) : (e['رقم_الموكل'] || '—'));
     }
-    if (scope === 'قضية') return '&#9878; ' + escapeHtml(e['رقم_القضية'] || '—');
-    if (scope === 'مكتب') return '&#127970; مكتب';
+    if (scope === 'قضية') return expUiIcon('nav-cases', '&#9878;', 14) + ' ' + escapeHtml(e['رقم_القضية'] || '—');
+    if (scope === 'مكتب') return expUiIcon('sys-building', '&#127970;', 14) + ' مكتب';
     return '—';
   }
 
@@ -95,8 +117,8 @@ function renderExpenses() {
       '<td>' + escapeHtml(e['الحالة'] || '—') + '</td>' +
       '<td><small>' + escapeHtml(e['الملاحظات'] || '—') + '</small></td>' +
       '<td>' +
-        '<button class="btn btn-ghost btn-sm btn-icon" onclick="editExpense(' + ri + ')">&#9998;</button> ' +
-        '<button class="btn btn-danger btn-sm btn-icon" onclick="deleteExpense(' + ri + ')">&#128465;</button>' +
+        '<button class="btn btn-ghost btn-sm btn-icon" onclick="editExpense(' + ri + ')" title="تعديل">' + expUiIcon('act-edit', '&#9998;', 16) + '</button> ' +
+        '<button class="btn btn-danger btn-sm btn-icon" onclick="deleteExpense(' + ri + ')" title="حذف">' + expUiIcon('act-delete', '&#128465;', 16) + '</button>' +
       '</td>'
     );
   }
@@ -127,6 +149,7 @@ function renderExpenses() {
   // MVP scope, not a shortcut around an existing requirement).
   tb.innerHTML = rows.map(function (e) { return '<tr>' + expenseRowInner(e) + '</tr>'; }).join('');
   ml.innerHTML = rows.map(function (e) { return '<div class="m-card">' + expenseCardInner(e) + '</div>'; }).join('');
+  expDeskHeader();
 }
 
 /**

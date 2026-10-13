@@ -146,6 +146,18 @@
       group.anchor.timestamp + ':' + (group.bulk ? ('bulk' + group.members.length) : 'single');
   }
 
+  // DESKTOP-UI MOD-19 — paired legacy glyph + local SVG (SVG visible only >=1024px via desktop.css; the legacy glyph stays
+  // exactly as before below 1024px). Falls back to the plain glyph when UiIcon is not loaded. Display only.
+  var HP_ENTITY_SVG = { cases: 'nav-cases', clients: 'nav-clients', children: 'nav-children', sessions: 'nav-sessions', tasks: 'nav-tasks',
+                        fees: 'nav-fees', documents: 'nav-documents', library: 'nav-library', templates: 'nav-templates' };
+  var HP_MARKER_SVG = { create: 'act-add', update: 'act-edit', 'delete': 'act-delete', restore: 'act-undo' };
+  function hpUi(name, legacy, size) {
+    try { return (window.UiIcon && window.UiIcon.pair) ? window.UiIcon.pair(name, legacy, size) : legacy; } catch (e) { return legacy; }
+  }
+  function hpEntityIcon(e, size) {
+    return HP_ENTITY_SVG[e.key] ? hpUi(HP_ENTITY_SVG[e.key], e.icon, size) : e.icon;
+  }
+
   function rowContent(group, listKind) {
     var e = group.entity;
     var anchor = group.anchor;
@@ -180,11 +192,13 @@
 
     var markerClass = (isBulk ? 'hp-marker-bulk' : (MARKER_CLASS[group.type] || 'hp-marker-update'));
     var listAccentClass = listKind === 'redo' ? 'hp-list-redo' : 'hp-list-undo';
-    var markerIcon = isBulk ? '🗑' : { create: '➕', update: '✎', delete: '🗑', restore: '↺' }[group.type] || e.icon;
+    var markerGlyph = { create: '➕', update: '✎', delete: '🗑', restore: '↺' }[group.type];
+    var markerIcon = isBulk ? hpUi('act-delete', '🗑', 14)
+      : (markerGlyph && HP_MARKER_SVG[group.type] ? hpUi(HP_MARKER_SVG[group.type], markerGlyph, 14) : hpEntityIcon(e, 14));
 
     return {
       badgeClass: badgeClass, typeAr: typeAr, title: title, sub: sub,
-      actionLabel: actionLabel, entityLabel: e.label, entityIcon: e.icon,
+      actionLabel: actionLabel, entityLabel: e.label, entityIcon: hpEntityIcon(e, 12),
       searchBlob: searchBlob, markerClass: markerClass, markerIcon: markerIcon,
       listAccentClass: listAccentClass
     };
@@ -365,15 +379,15 @@
     if (query) {
       title = 'لا توجد نتائج';
       sub = 'لم يتم العثور على أى عملية تطابق "' + escapeHtml(query) + '".';
-      icon = '🔎';
+      icon = hpUi('nav-search', '🔎', 34);
     } else if (filter !== 'all' && filter !== 'undo' && filter !== 'redo') {
       title = 'لا توجد عمليات لهذا القسم';
       sub = 'سيظهر هنا سجل التعديلات الخاصة بهذا النوع من السجلات عند إجرائها.';
-      icon = '🕘';
+      icon = hpUi('nav-history', '🕘', 34);
     } else if (filter === 'redo') {
       title = 'لا توجد عمليات لإعادتها';
       sub = 'العمليات التى تقوم بالتراجع عنها ستظهر هنا لإمكانية إعادتها.';
-      icon = '🕘';
+      icon = hpUi('nav-history', '🕘', 34);
     } else {
       title = 'لا توجد عمليات حتى الآن';
       sub = 'سيظهر هنا سجل كامل لجميع التعديلات التى تقوم بها داخل البرنامج.<br>ابدأ بإضافة موكل أو قضية ليبدأ السجل تلقائياً.';

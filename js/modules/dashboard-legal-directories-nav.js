@@ -116,7 +116,9 @@
     var icon = doc.createElement('span');
     icon.className = 'legal-dir-card-icon';
     icon.setAttribute('aria-hidden', 'true');
-    icon.textContent = '\u2190'; // ← — same glyph convention as the full page's breadcrumb affordance
+    // MOD-07: desktop shows the local SVG (act-back, mirrored under RTL); <1024px keeps the same glyph inside .ui-legacy.
+    if (typeof UiIcon !== 'undefined') { icon.innerHTML = UiIcon.pair('act-back', '\u2190', 20); }
+    else { icon.textContent = '\u2190'; } // ← — same glyph convention as the full page's breadcrumb affordance
 
     var title = doc.createElement('span');
     title.className = 'legal-dir-card-title';

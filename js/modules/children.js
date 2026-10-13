@@ -539,6 +539,27 @@ async function restoreChild(id){
 // RENDER — عرض قائمة الأطفال
 // ================================================================
 
+// DESKTOP-UI MOD-15 — paired local-SVG icon (legacy glyph stays visible below 1024px via css/desktop.css).
+// Falls back to the plain glyph when UiIcon is not loaded (e.g. VM-based tests, Safe Mode).
+function childUiIcon(name, legacy, size){
+  return (typeof UiIcon !== 'undefined' && UiIcon && UiIcon.pair) ? UiIcon.pair(name, legacy, size) : legacy;
+}
+
+// DESKTOP-UI MOD-15 — page header (>=1024px only). Reads the DOM renderChildren() just painted. Never throws.
+function childDeskHeader(){
+  try{
+    if(!window.DesktopHeader || window.currentPage !== 'children') return;
+    var tb = document.getElementById('childrenTableBody');
+    var n = tb && tb.rows ? tb.rows.length : 0;
+    window.DesktopHeader.set({
+      page: 'children',
+      subtitle: n ? n + ' طفل' : 'لا نتائج',
+      actions: [{ label: 'إضافة طفل', icon: 'act-add', variant: 'primary',
+                  title: 'إضافة بيانات طفل', onClick: function(){ openAddChildModal(); } }]
+    });
+  }catch(e){}
+}
+
 /**
  * renderChildren — renders the children list view (table + mobile
  * cards).
@@ -606,7 +627,7 @@ function renderChildren(){
     // js/core/dom/ isn't loaded, hence the guard (same pattern as
     // cases.js/tasks.js/sessions.js/documents.js/fees.js).
     if(window.DomKeyIndex){DomKeyIndex.reset(tb);DomKeyIndex.reset(ml);}
-    em.style.display='';return;
+    em.style.display='';childDeskHeader();return;
   }
   em.style.display='none';
 
@@ -621,7 +642,7 @@ function renderChildren(){
 
   function childRowInner(c){
     var ri=resolveChildIndex(allRows,c);
-    return '<td><strong>'+(c['الاسم']||'—')+'</strong></td><td style="color:var(--gold)">'+(c['رقم_القضية']||'—')+'</td><td>'+(c['السن']?c['السن']+' سنة':'—')+'</td><td>'+(c['المدرسة']||'—')+'</td><td>'+(c['الحضانة_الحالية']||'—')+'</td><td>'+(c['محل_الإقامة']||'—')+'</td><td>'+(c['النفقة_الحالية']?c['النفقة_الحالية']+' ج.م':'—')+'</td><td><button class="btn btn-ghost btn-sm btn-icon" onclick="editChild('+ri+')">&#9998;</button> <button class="btn btn-danger btn-sm btn-icon" onclick="deleteChild('+ri+')">&#128465;</button></td>';
+    return '<td><strong>'+(c['الاسم']||'—')+'</strong></td><td style="color:var(--gold)">'+(c['رقم_القضية']||'—')+'</td><td>'+(c['السن']?c['السن']+' سنة':'—')+'</td><td>'+(c['المدرسة']||'—')+'</td><td>'+(c['الحضانة_الحالية']||'—')+'</td><td>'+(c['محل_الإقامة']||'—')+'</td><td>'+(c['النفقة_الحالية']?c['النفقة_الحالية']+' ج.م':'—')+'</td><td><button class="btn btn-ghost btn-sm btn-icon" onclick="editChild('+ri+')" title="تعديل">'+childUiIcon('act-edit','&#9998;',16)+'</button> <button class="btn btn-danger btn-sm btn-icon" onclick="deleteChild('+ri+')" title="حذف">'+childUiIcon('act-delete','&#128465;',16)+'</button></td>';
   }
 
   function childCardInner(c){
@@ -658,6 +679,7 @@ function renderChildren(){
     tb.innerHTML=rows.map(function(c){return '<tr>'+childRowInner(c)+'</tr>';}).join('');
     ml.innerHTML=rows.map(function(c){return '<div class="m-card">'+childCardInner(c)+'</div>';}).join('');
   }
+  childDeskHeader();
 }
 
 // ================================================================

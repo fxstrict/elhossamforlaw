@@ -362,6 +362,27 @@ function resolveSessionIndex(list, record) {
 // RENDER — عرض قائمة الجلسات
 // ================================================================
 
+// DESKTOP-UI MOD-12 — paired local-SVG icon (legacy glyph stays visible below 1024px via css/desktop.css).
+// Falls back to the plain glyph when UiIcon is not loaded (e.g. VM-based tests, Safe Mode).
+function sessionUiIcon(name, legacy, size) {
+  return (typeof UiIcon !== 'undefined' && UiIcon && UiIcon.pair) ? UiIcon.pair(name, legacy, size) : legacy;
+}
+
+// DESKTOP-UI MOD-12 — page header (>=1024px only; DesktopHeader ignores other widths). Reads the DOM that
+// renderSessions() just painted (row count) — no data access. Never throws.
+function sessionDeskHeader() {
+  try {
+    if (!window.DesktopHeader || window.currentPage !== 'sessions') return;
+    var n = document.querySelectorAll('#sessionsListView .session-item').length;
+    window.DesktopHeader.set({
+      page: 'sessions',
+      subtitle: n ? n + ' جلسة' : 'لا نتائج',
+      actions: [{ label: 'إضافة جلسة', icon: 'act-add', variant: 'primary', replacesAdd: true,
+                  title: 'إضافة جلسة جديدة', onClick: function () { openAddModal(); } }]
+    });
+  } catch (e) {}
+}
+
 /**
  * renderSessions — renders the sessions list view.
  * Reads: SessionsRepository (search + getAll — both synchronous),
@@ -421,6 +442,7 @@ function renderSessions() {
     // clients.js).
     if (window.DomKeyIndex) DomKeyIndex.reset(c);
     em.style.display = '';
+    sessionDeskHeader();
     return;
   }
   em.style.display = 'none';
@@ -453,27 +475,27 @@ function renderSessions() {
           ' ' + urgencyBadge(s['التاريخ']) +
         '</div>' +
         '<div class="session-meta">' +
-          '<span>&#128336; ' + formatTime(s['الوقت']) + '</span>' +
-          '<span>&#127963; ' + (s['المحكمة'] || '—') + '</span>' +
-          (s['رقم_الدائرة'] ? '<span>&#127959; د. ' + s['رقم_الدائرة'] + '</span>' : '') +
-          (s['رقم_القاعة']  ? '<span>&#128682; ق. ' + s['رقم_القاعة'] + '</span>' : '') +
-          (s['القاضي']     ? '<span>&#128100; ' + s['القاضي']     + '</span>' : '') +
-          (s['نوع_الدعوى'] ? '<span>&#128203; ' + s['نوع_الدعوى'] + '</span>' : '') +
+          '<span>' + sessionUiIcon('status-pending', '&#128336;', 14) + ' ' + formatTime(s['الوقت']) + '</span>' +
+          '<span>' + sessionUiIcon('sys-building', '&#127963;', 14) + ' ' + (s['المحكمة'] || '—') + '</span>' +
+          (s['رقم_الدائرة'] ? '<span>' + sessionUiIcon('sys-building', '&#127959;', 14) + ' د. ' + s['رقم_الدائرة'] + '</span>' : '') +
+          (s['رقم_القاعة']  ? '<span>' + sessionUiIcon('sys-pin', '&#128682;', 14) + ' ق. ' + s['رقم_القاعة'] + '</span>' : '') +
+          (s['القاضي']     ? '<span>' + sessionUiIcon('sys-user', '&#128100;', 14) + ' ' + s['القاضي']     + '</span>' : '') +
+          (s['نوع_الدعوى'] ? '<span>' + sessionUiIcon('nav-agenda', '&#128203;', 14) + ' ' + s['نوع_الدعوى'] + '</span>' : '') +
           statusBadge(s['الحالة']) +
         '</div>' +
         (s['ما_تم_في_الجلسة']
-          ? '<div style="font-size:12px;color:var(--muted);margin-top:5px;">&#128221; ' + s['ما_تم_في_الجلسة'] + '</div>'
+          ? '<div style="font-size:12px;color:var(--muted);margin-top:5px;">' + sessionUiIcon('act-edit', '&#128221;', 14) + ' ' + s['ما_تم_في_الجلسة'] + '</div>'
           : '') +
         (s['القرار']
-          ? '<div style="font-size:12px;color:var(--gold);margin-top:3px;">&#9878; القرار: ' + s['القرار'] + '</div>'
+          ? '<div style="font-size:12px;color:var(--gold);margin-top:3px;">' + sessionUiIcon('nav-cases', '&#9878;', 14) + ' القرار: ' + s['القرار'] + '</div>'
           : '') +
         (s['التأجيل_إلى']
-          ? '<div style="font-size:12px;color:var(--info);margin-top:3px;">&#128197; التأجيل: ' + formatDate(s['التأجيل_إلى']) + '</div>'
+          ? '<div style="font-size:12px;color:var(--info);margin-top:3px;">' + sessionUiIcon('nav-calendar', '&#128197;', 14) + ' التأجيل: ' + formatDate(s['التأجيل_إلى']) + '</div>'
           : '') +
       '</div>' +
       '<div class="session-actions">' +
-        '<button class="btn btn-ghost btn-sm btn-icon" onclick="editSession(' + ri + ')">&#9998;</button>' +
-        '<button class="btn btn-danger btn-sm btn-icon" onclick="deleteSession(' + ri + ')">&#128465;</button>' +
+        '<button class="btn btn-ghost btn-sm btn-icon" onclick="editSession(' + ri + ')">' + sessionUiIcon('act-edit', '&#9998;', 16) + '</button>' +
+        '<button class="btn btn-danger btn-sm btn-icon" onclick="deleteSession(' + ri + ')">' + sessionUiIcon('act-delete', '&#128465;', 16) + '</button>' +
       '</div>'
     );
   }
@@ -507,6 +529,7 @@ function renderSessions() {
       return '<div class="session-item">' + sessionInnerHtml(s) + '</div>';
     }).join('');
   }
+  sessionDeskHeader();
 }
 
 // ================================================================

@@ -561,6 +561,28 @@ function resolveClientIndex(list, record) {
 // RENDER — عرض قائمة الموكلين
 // ================================================================
 
+// DESKTOP-UI MOD-09 — paired local-SVG icon (legacy glyph stays visible below 1024px via css/desktop.css).
+// Falls back to the plain glyph when UiIcon is not loaded (e.g. VM-based tests, Safe Mode).
+function clientUiIcon(name, legacy, size) {
+  return (typeof UiIcon !== 'undefined' && UiIcon && UiIcon.pair) ? UiIcon.pair(name, legacy, size) : legacy;
+}
+
+// DESKTOP-UI MOD-09 — page header (>=1024px only; DesktopHeader ignores other widths). Reads the DOM that
+// renderClients() just painted (row count) — no data access. Never throws.
+function clientDeskHeader() {
+  try {
+    if (!window.DesktopHeader || window.currentPage !== 'clients') return;
+    var tbody = document.getElementById('clientsTableBody');
+    var n = tbody && tbody.rows ? tbody.rows.length : 0;
+    window.DesktopHeader.set({
+      page: 'clients',
+      subtitle: n ? n + ' موكل' : 'لا نتائج',
+      actions: [{ label: 'إضافة موكل', icon: 'act-add', variant: 'primary', replacesAdd: true,
+                  title: 'إضافة موكل جديد', onClick: function () { openAddModal(); } }]
+    });
+  } catch (e) {}
+}
+
 /**
  * renderClients — renders the clients table (desktop) and mobile
  * card list, respecting the search filter.
@@ -598,6 +620,7 @@ function renderClients() {
     // renderCases() (js/modules/cases.js).
     if (window.DomKeyIndex) { if (tb) DomKeyIndex.reset(tb); if (ml) DomKeyIndex.reset(ml); }
     if (em) em.style.display = '';
+    clientDeskHeader();
     return;
   }
   if (em) em.style.display = 'none';
@@ -625,12 +648,12 @@ function renderClients() {
       '<td>'         + escapeHtml(c['العنوان']        || '—') + '</td>' +
       '<td>'         + escapeHtml(c['الوظيفة']        || '—') + '</td>' +
       '<td>' +
-        '<button class="btn btn-call btn-sm btn-icon" onclick="callClient(' + ri + ')" title="اتصال هاتفي">&#128222;</button> ' +
-        '<button class="btn btn-whatsapp btn-sm btn-icon" onclick="whatsappClient(' + ri + ')" title="محادثة واتساب">&#128172;</button> ' +
-        '<button class="btn btn-info btn-sm btn-icon" onclick="viewClient(' + ri + ')" title="عرض الملف">&#128065;</button> ' +
-        '<button class="btn btn-ghost btn-sm btn-icon" onclick="editClient(' + ri + ')" title="تعديل">&#9998;</button> ' +
-        '<button class="btn btn-success btn-sm btn-icon" onclick="genClientQR(' + ri + ')" title="QR الموكل">&#128275;</button> ' +
-        '<button class="btn btn-danger btn-sm btn-icon" onclick="deleteClient(' + ri + ')" title="حذف">&#128465;</button>' +
+        '<button class="btn btn-call btn-sm btn-icon" onclick="callClient(' + ri + ')" title="اتصال هاتفي">' + clientUiIcon('sys-phone', '&#128222;', 16) + '</button> ' +
+        '<button class="btn btn-whatsapp btn-sm btn-icon" onclick="whatsappClient(' + ri + ')" title="محادثة واتساب">' + clientUiIcon('sys-message', '&#128172;', 16) + '</button> ' +
+        '<button class="btn btn-info btn-sm btn-icon" onclick="viewClient(' + ri + ')" title="عرض الملف">' + clientUiIcon('act-view', '&#128065;', 16) + '</button> ' +
+        '<button class="btn btn-ghost btn-sm btn-icon" onclick="editClient(' + ri + ')" title="تعديل">' + clientUiIcon('act-edit', '&#9998;', 16) + '</button> ' +
+        '<button class="btn btn-success btn-sm btn-icon" onclick="genClientQR(' + ri + ')" title="QR الموكل">' + clientUiIcon('status-unlock', '&#128275;', 16) + '</button> ' +
+        '<button class="btn btn-danger btn-sm btn-icon" onclick="deleteClient(' + ri + ')" title="حذف">' + clientUiIcon('act-delete', '&#128465;', 16) + '</button>' +
       '</td>';
   }
 
@@ -694,6 +717,7 @@ function renderClients() {
       }).join('');
     }
   }
+  clientDeskHeader();
 }
 
 // ================================================================

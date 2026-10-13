@@ -186,6 +186,29 @@
       var title = entry.kind === 'directory' ? entry.directory.title : entry.node.title;
       addCrumb(title, function () { goToDepth(index); }, isLast);
     });
+
+    // DESKTOP-UI MOD-11: mirror the path into the desktop page header (>=1024px only; DesktopHeader.set is a
+    // no-op below that). Segments call the SAME goToRoot/goToDepth as the in-page breadcrumb above. At the root
+    // the header title already says the page name, so no breadcrumb is passed there. Never throws.
+    try {
+      if (global.DesktopHeader && typeof global.DesktopHeader.set === 'function' && global.currentPage === 'legalDirectories') {
+        var crumbs = [];
+        if (_stack.length > 0) {
+          crumbs.push({ label: 'الأجندة والمواقع الرسمية', onClick: function () { goToRoot(); } });
+          _stack.forEach(function (entry, index) {
+            crumbs.push({
+              label: entry.kind === 'directory' ? entry.directory.title : entry.node.title,
+              onClick: function () { goToDepth(index); }
+            });
+          });
+        }
+        global.DesktopHeader.set({
+          page: 'legalDirectories',
+          subtitle: 'محاكم، نيابات، نقابة المحامين، ومواقع قانونية مرجعية',
+          breadcrumb: crumbs
+        });
+      }
+    } catch (e) { /* header is cosmetic — never break the page */ }
   }
 
   // ================================================================
@@ -282,10 +305,16 @@
     var bar = doc.createElement('div');
     bar.className = 'legal-dir-admin-toolbar';
 
-    function btn(label, onClick) {
+    function btn(label, onClick, ico) {
       var b = doc.createElement('button');
       b.type = 'button';
-      b.textContent = label;
+      // DESKTOP-UI MOD-11: ico = [iconName, legacyHtml, text] -> paired icon + text; otherwise plain label as before.
+      if (ico && global.UiIcon && typeof global.UiIcon.pair === 'function') {
+        try { b.innerHTML = global.UiIcon.pair(ico[0], ico[1], 16) + ' ' + ico[2]; }
+        catch (e) { b.textContent = label; }
+      } else {
+        b.textContent = label;
+      }
       b.addEventListener('click', onClick);
       bar.appendChild(b);
       return b;
@@ -301,17 +330,17 @@
     });
     btn('\u270E \u062A\u0639\u062F\u064A\u0644', function () { // ✎ تعديل
       renderCurrentLevel({ kind: kind, id: id, values: node });
-    });
+    }, ['act-edit', '&#9998;', 'تعديل']);
     btn(node.enabled === false ? '\u{1F441} \u062A\u0641\u0639\u064A\u0644' : '\u{1F441} \u062A\u0639\u0637\u064A\u0644', function () {
       if (kind === 'directory') Admin.toggleDirectoryEnabled(id); else Admin.toggleNodeEnabled(id);
       renderCurrentLevel();
-    });
+    }, ['act-view', '&#128065;', node.enabled === false ? 'تفعيل' : 'تعطيل']);
     btn('\u{1F5D1} \u062D\u0630\u0641', function () { // 🗑 حذف
       var confirmFn = global.confirm || function () { return true; };
       if (!confirmFn('هل تريد حذف هذا العنصر نهائياً من المسودة؟')) return;
       if (kind === 'directory') Admin.removeDirectory(id); else Admin.removeNode(id);
       renderCurrentLevel();
-    });
+    }, ['act-delete', '&#128465;', 'حذف']);
 
     return bar;
   }
@@ -335,9 +364,17 @@
     var status = doc.createElement('div');
     status.className = 'legal-dir-admin-status';
     var result = Admin.validateDraft();
-    status.textContent = result.valid
-      ? '\u2705 المسودة صالحة (' + (Admin.isDirty() ? 'بها تعديلات غير محفوظة خارج المتصفح' : 'بدون تعديلات') + ')'
-      : '\u26A0 ' + result.errors.length + ' خطأ في المسودة — التنزيل معطّل حتى يتم الإصلاح';
+    var statusText = result.valid
+      ? 'المسودة صالحة (' + (Admin.isDirty() ? 'بها تعديلات غير محفوظة خارج المتصفح' : 'بدون تعديلات') + ')'
+      : result.errors.length + ' خطأ في المسودة — التنزيل معطّل حتى يتم الإصلاح';
+    // DESKTOP-UI MOD-11: paired status icon (static text only, no user content); plain glyph text when UiIcon absent.
+    if (global.UiIcon && typeof global.UiIcon.pair === 'function') {
+      try {
+        status.innerHTML = global.UiIcon.pair(result.valid ? 'status-success' : 'status-warning', result.valid ? '&#9989;' : '&#9888;', 16) + ' ' + statusText;
+      } catch (e) { status.textContent = (result.valid ? '\u2705 ' : '\u26A0 ') + statusText; }
+    } else {
+      status.textContent = (result.valid ? '\u2705 ' : '\u26A0 ') + statusText;
+    }
     dom.adminBar.appendChild(status);
 
     var downloadBtn = doc.createElement('button');

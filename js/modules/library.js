@@ -410,6 +410,27 @@ function resolveLibIndex(list, record) {
 // RENDER — عرض قائمة المكتبة
 // ================================================================
 
+// DESKTOP-UI MOD-14 — paired local-SVG icon (legacy glyph stays visible below 1024px via css/desktop.css).
+// Falls back to the plain glyph when UiIcon is not loaded (e.g. VM-based tests, Safe Mode).
+function libUiIcon(name, legacy, size) {
+  return (typeof UiIcon !== 'undefined' && UiIcon && UiIcon.pair) ? UiIcon.pair(name, legacy, size) : legacy;
+}
+
+// DESKTOP-UI MOD-14 — page header (>=1024px only). Reads the DOM renderLibrary() just painted. Never throws.
+function libDeskHeader() {
+  try {
+    if (!window.DesktopHeader || window.currentPage !== 'library') return;
+    var grid = document.getElementById('libGrid');
+    var n = grid && grid.children ? grid.children.length : 0;
+    window.DesktopHeader.set({
+      page: 'library',
+      subtitle: n ? n + ' عنصر' : 'لا نتائج',
+      actions: [{ label: 'إضافة إلى المكتبة', icon: 'act-add', variant: 'primary',
+                  title: 'إضافة كتاب أو ملف', onClick: function () { openAddLibModal(); } }]
+    });
+  } catch (e) {}
+}
+
 /**
  * renderLibrary — renders the library grid view, rebuilds the category
  * filter <select> options from the current data, and updates the
@@ -475,11 +496,18 @@ function renderLibrary() {
     // clients.js/sessions.js).
     if (window.DomKeyIndex) DomKeyIndex.reset(g);
     em.style.display = '';
+    libDeskHeader();
     return;
   }
   em.style.display = 'none';
 
-  var ti = { pdf: '&#128213;', word: '&#128216;', folder: '&#128193;', other: '&#128196;' };
+  // DESKTOP-UI MOD-14 — card type glyphs paired with local SVGs (32px, see css/desktop.css). pdf/word/other all map to the document icon.
+  var ti = {
+    pdf: libUiIcon('nav-templates', '&#128213;', 24),
+    word: libUiIcon('nav-templates', '&#128216;', 24),
+    folder: libUiIcon('sys-folder', '&#128193;', 24),
+    other: libUiIcon('nav-templates', '&#128196;', 24)
+  };
 
   // ----------------------------------------------------------------
   // PHASE 16.15 — DomRecycler Migration (Library)
@@ -499,18 +527,18 @@ function renderLibrary() {
       '<span class="lib-card-type ' + (b['النوع'] || 'other') + '">' +
         (b['النوع'] ? b['النوع'].toUpperCase() : 'ملف') +
       '</span>' +
-      '<span class="lib-card-icon">' + (ti[b['النوع']] || '&#128196;') + '</span>' +
+      '<span class="lib-card-icon">' + (ti[b['النوع']] || ti.other) + '</span>' +
       '<div class="lib-card-title">' + b['العنوان'] + '</div>' +
-      '<div class="lib-card-meta">&#128193; ' + (b['القسم'] || 'عام') + '</div>' +
+      '<div class="lib-card-meta">' + libUiIcon('sys-folder', '&#128193;', 14) + ' ' + (b['القسم'] || 'عام') + '</div>' +
       (b['الوصف']
         ? '<div style="font-size:11px;color:var(--muted);margin-top:5px;line-height:1.5;">' + b['الوصف'] + '</div>'
         : '') +
       '<div class="lib-card-actions">' +
         (b['الرابط']
-          ? '<a href="' + b['الرابط'] + '" target="_blank" class="btn btn-success btn-sm" style="flex:1;justify-content:center;">&#128279; فتح</a>'
+          ? '<a href="' + b['الرابط'] + '" target="_blank" class="btn btn-success btn-sm" style="flex:1;justify-content:center;"><span>' + libUiIcon('act-link', '&#128279;', 16) + ' فتح</span></a>'
           : '<span style="font-size:11px;color:var(--muted);flex:1;">بدون رابط</span>') +
-        '<button class="btn btn-ghost btn-sm btn-icon" onclick="editLibBook(' + ri + ')">&#9998;</button>' +
-        '<button class="btn btn-danger btn-sm btn-icon" onclick="deleteLibBook(' + ri + ')">&#128465;</button>' +
+        '<button class="btn btn-ghost btn-sm btn-icon" onclick="editLibBook(' + ri + ')" title="تعديل">' + libUiIcon('act-edit', '&#9998;', 16) + '</button>' +
+        '<button class="btn btn-danger btn-sm btn-icon" onclick="deleteLibBook(' + ri + ')" title="حذف">' + libUiIcon('act-delete', '&#128465;', 16) + '</button>' +
       '</div>'
     );
   }
@@ -544,6 +572,7 @@ function renderLibrary() {
       return '<div class="lib-card">' + libCardInnerHtml(b) + '</div>';
     }).join('');
   }
+  libDeskHeader();
 }
 
 // ================================================================

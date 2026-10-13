@@ -602,6 +602,27 @@ function filterTemplates(cat) {
 // RENDER — عرض قائمة صيغ الدعاوى
 // ================================================================
 
+// DESKTOP-UI MOD-15 — paired local-SVG icon (legacy glyph stays visible below 1024px via css/desktop.css).
+// Falls back to the plain glyph when UiIcon is not loaded (e.g. VM-based tests, Safe Mode).
+function tplUiIcon(name, legacy, size) {
+  return (typeof UiIcon !== 'undefined' && UiIcon && UiIcon.pair) ? UiIcon.pair(name, legacy, size) : legacy;
+}
+
+// DESKTOP-UI MOD-15 — page header (>=1024px only). Reads the DOM renderTemplates() just painted. Never throws.
+function tplDeskHeader() {
+  try {
+    if (!window.DesktopHeader || window.currentPage !== 'templates') return;
+    var grid = document.getElementById('templatesGrid');
+    var n = grid && grid.children ? grid.children.length : 0;
+    window.DesktopHeader.set({
+      page: 'templates',
+      subtitle: n ? n + ' صيغة' : 'لا نتائج',
+      actions: [{ label: 'إضافة صيغة', icon: 'act-add', variant: 'primary',
+                  title: 'إضافة صيغة دعوى', onClick: function () { openAddTemplateModal(); } }]
+    });
+  } catch (e) {}
+}
+
 /**
  * renderTemplates — rebuilds the category tab bar from the current
  * data, then renders the templates grid filtered by currentTplFilter.
@@ -625,7 +646,7 @@ function renderTemplates() {
   document.getElementById('templateTabs').innerHTML = cats.map(function(c) {
     return (
       '<button class="tab-btn' + (c === currentTplFilter ? ' active' : '') + '" onclick="filterTemplates(\'' + c + '\')">' +
-        (c === 'all' ? '&#128203; الكل' : '&#9878; ' + c) +
+        (c === 'all' ? tplUiIcon('nav-agenda', '&#128203;', 14) + ' الكل' : tplUiIcon('nav-cases', '&#9878;', 14) + ' ' + c) +
       '</button>'
     );
   }).join('');
@@ -649,11 +670,17 @@ function renderTemplates() {
     // cases.js/clients.js/sessions.js/documents.js/fees.js/children.js).
     if (window.DomKeyIndex) DomKeyIndex.reset(g);
     em.style.display = '';
+    tplDeskHeader();
     return;
   }
   em.style.display = 'none';
 
-  var ti = { word: '&#128216;', pdf: '&#128213;', other: '&#128196;' };
+  // DESKTOP-UI MOD-15 — card type glyphs paired with local SVGs (pdf/word/other all map to the document icon).
+  var ti = {
+    word: tplUiIcon('nav-templates', '&#128216;', 24),
+    pdf: tplUiIcon('nav-templates', '&#128213;', 24),
+    other: tplUiIcon('nav-templates', '&#128196;', 24)
+  };
 
   // ----------------------------------------------------------------
   // PHASE 16.16 — DomRecycler Migration (Templates)
@@ -673,18 +700,18 @@ function renderTemplates() {
       '<span class="lib-card-type ' + (t['النوع'] === 'word' ? 'word' : t['النوع'] === 'pdf' ? 'pdf' : 'other') + '">' +
         (t['النوع'] ? t['النوع'].toUpperCase() : 'ملف') +
       '</span>' +
-      '<span class="lib-card-icon">' + (ti[t['النوع']] || '&#128196;') + '</span>' +
+      '<span class="lib-card-icon">' + (ti[t['النوع']] || ti.other) + '</span>' +
       '<div class="lib-card-title">' + t['العنوان'] + '</div>' +
-      '<div class="lib-card-meta">&#128193; ' + t['القسم'] + '</div>' +
+      '<div class="lib-card-meta">' + tplUiIcon('sys-folder', '&#128193;', 14) + ' ' + t['القسم'] + '</div>' +
       (t['الوصف']
         ? '<div style="font-size:11px;color:var(--muted);margin-top:5px;line-height:1.5;">' + t['الوصف'] + '</div>'
         : '') +
       '<div class="lib-card-actions">' +
         (t['الرابط']
-          ? '<a href="' + t['الرابط'] + '" target="_blank" class="btn btn-success btn-sm" style="flex:1;justify-content:center;">&#11015; تحميل</a>'
+          ? '<a href="' + t['الرابط'] + '" target="_blank" class="btn btn-success btn-sm" style="flex:1;justify-content:center;"><span>' + tplUiIcon('act-download', '&#11015;', 16) + ' تحميل</span></a>'
           : '<span style="font-size:11px;color:var(--muted);flex:1;">بدون رابط</span>') +
-        '<button class="btn btn-ghost btn-sm btn-icon" onclick="editTemplate(' + ri + ')">&#9998;</button>' +
-        '<button class="btn btn-danger btn-sm btn-icon" onclick="deleteTemplate(' + ri + ')">&#128465;</button>' +
+        '<button class="btn btn-ghost btn-sm btn-icon" onclick="editTemplate(' + ri + ')" title="تعديل">' + tplUiIcon('act-edit', '&#9998;', 16) + '</button>' +
+        '<button class="btn btn-danger btn-sm btn-icon" onclick="deleteTemplate(' + ri + ')" title="حذف">' + tplUiIcon('act-delete', '&#128465;', 16) + '</button>' +
       '</div>'
     );
   }
@@ -718,6 +745,7 @@ function renderTemplates() {
       return '<div class="lib-card">' + templateCardInnerHtml(t) + '</div>';
     }).join('');
   }
+  tplDeskHeader();
 }
 
 // ================================================================

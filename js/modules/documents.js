@@ -316,6 +316,27 @@ function resolveDocIndex(list, record) {
 // RENDER — عرض قائمة المستندات
 // ================================================================
 
+// DESKTOP-UI MOD-14 — paired local-SVG icon (legacy glyph stays visible below 1024px via css/desktop.css).
+// Falls back to the plain glyph when UiIcon is not loaded (e.g. VM-based tests, Safe Mode).
+function documentUiIcon(name, legacy, size) {
+  return (typeof UiIcon !== 'undefined' && UiIcon && UiIcon.pair) ? UiIcon.pair(name, legacy, size) : legacy;
+}
+
+// DESKTOP-UI MOD-14 — page header (>=1024px only). Reads the DOM renderDocuments() just painted. Never throws.
+function documentDeskHeader() {
+  try {
+    if (!window.DesktopHeader || window.currentPage !== 'documents') return;
+    var tbody = document.getElementById('documentsTableBody');
+    var n = tbody && tbody.rows ? tbody.rows.length : 0;
+    window.DesktopHeader.set({
+      page: 'documents',
+      subtitle: n ? n + ' مستند' : 'لا نتائج',
+      actions: [{ label: 'إضافة مستند', icon: 'act-add', variant: 'primary',
+                  title: 'إضافة مستند جديد', onClick: function () { openAddDocModal(); } }]
+    });
+  } catch (e) {}
+}
+
 /**
  * renderDocuments — renders the documents list view (table + mobile cards).
  * Reads: DocumentsRepository (search + getAll — both synchronous),
@@ -383,6 +404,7 @@ function renderDocuments() {
     // renderClients()/renderSessions().
     if (window.DomKeyIndex) { DomKeyIndex.reset(tb); DomKeyIndex.reset(ml); }
     em.style.display = '';
+    documentDeskHeader();
     return;
   }
   em.style.display = 'none';
@@ -405,13 +427,13 @@ function renderDocuments() {
       '<td>' + formatDate(d['تاريخ_الإيداع']) + '</td>' +
       '<td>' +
         (d['رابط_Drive']
-          ? '<a href="' + d['رابط_Drive'] + '" target="_blank" class="btn btn-success btn-sm">&#128279; فتح</a>'
+          ? '<a href="' + d['رابط_Drive'] + '" target="_blank" class="btn btn-success btn-sm"><span>' + documentUiIcon('act-link', '&#128279;', 16) + ' فتح</span></a>'
           : '—') +
       '</td>' +
       '<td><small>' + (d['الملاحظات'] || '—') + '</small></td>' +
       '<td>' +
-        '<button class="btn btn-ghost btn-sm btn-icon" onclick="editDocument(' + ri + ')">&#9998;</button> ' +
-        '<button class="btn btn-danger btn-sm btn-icon" onclick="deleteDocument(' + ri + ')">&#128465;</button>' +
+        '<button class="btn btn-ghost btn-sm btn-icon" onclick="editDocument(' + ri + ')" title="تعديل">' + documentUiIcon('act-edit', '&#9998;', 16) + '</button> ' +
+        '<button class="btn btn-danger btn-sm btn-icon" onclick="deleteDocument(' + ri + ')" title="حذف">' + documentUiIcon('act-delete', '&#128465;', 16) + '</button>' +
       '</td>'
     );
   }
@@ -472,6 +494,7 @@ function renderDocuments() {
       return '<div class="m-card">' + documentMobileCardInner(d) + '</div>';
     }).join('');
   }
+  documentDeskHeader();
 }
 
 // ================================================================

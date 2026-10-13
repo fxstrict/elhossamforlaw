@@ -298,6 +298,12 @@ if (typeof settingsRepositoryReadyPromise !== 'undefined') {
   });
 }
 
+// DESKTOP-UI MOD-19 — paired legacy glyph + local SVG (SVG visible only >=1024px via desktop.css; the legacy glyph stays
+// exactly as before below 1024px). Falls back to the plain glyph when UiIcon is not loaded. Display only.
+function _frUi(name, legacy, size) {
+  try { return (window.UiIcon && window.UiIcon.pair) ? window.UiIcon.pair(name, legacy, size) : legacy; } catch (e) { return legacy; }
+}
+
 async function wizardTestConnection() {
   var input = document.getElementById('wizardApiUrlInput');
   var url = input ? input.value.trim() : '';
@@ -306,17 +312,17 @@ async function wizardTestConnection() {
     if (res) res.innerHTML = '<span style="color:var(--danger)">أدخل الرابط أولاً</span>';
     return;
   }
-  if (res) res.innerHTML = '<span style="color:var(--muted)">&#9203; جارٍ الاتصال...</span>';
+  if (res) res.innerHTML = '<span style="color:var(--muted)">' + _frUi('sys-hourglass', '&#9203;', 16) + ' جارٍ الاتصال...</span>';
   try {
     var r = await fetch(url + '?action=setup', { signal: AbortSignal.timeout(30000) });
     var d = await r.json();
     if (d && d.status === 'ok') {
-      if (res) res.innerHTML = '<span style="color:var(--success)">&#10003; تم الاتصال بنجاح.</span>';
+      if (res) res.innerHTML = '<span style="color:var(--success)">' + _frUi('act-check', '&#10003;', 16) + ' تم الاتصال بنجاح.</span>';
     } else {
-      if (res) res.innerHTML = '<span style="color:var(--danger)">&#10007; تعذر الاتصال. راجع الرابط ثم حاول مرة أخرى.</span>';
+      if (res) res.innerHTML = '<span style="color:var(--danger)">' + _frUi('status-error', '&#10007;', 16) + ' تعذر الاتصال. راجع الرابط ثم حاول مرة أخرى.</span>';
     }
   } catch (e) {
-    if (res) res.innerHTML = '<span style="color:var(--danger)">&#10007; تعذر الاتصال. راجع الرابط ثم حاول مرة أخرى.</span>';
+    if (res) res.innerHTML = '<span style="color:var(--danger)">' + _frUi('status-error', '&#10007;', 16) + ' تعذر الاتصال. راجع الرابط ثم حاول مرة أخرى.</span>';
   }
 }
 
@@ -352,7 +358,7 @@ async function wizardSaveAndStart() {
   }
 
   _hideFirstRunFallback();
-  if (res) res.innerHTML = '<span style="color:var(--muted)">&#9203; جارٍ الاتصال...</span>';
+  if (res) res.innerHTML = '<span style="color:var(--muted)">' + _frUi('sys-hourglass', '&#9203;', 16) + ' جارٍ الاتصال...</span>';
 
   var connected = false;
   try {
@@ -364,7 +370,7 @@ async function wizardSaveAndStart() {
   }
 
   if (!connected) {
-    if (res) res.innerHTML = '<span style="color:var(--danger)">&#10007; تعذر الاتصال. راجع الرابط ثم حاول مرة أخرى.</span>';
+    if (res) res.innerHTML = '<span style="color:var(--danger)">' + _frUi('status-error', '&#10007;', 16) + ' تعذر الاتصال. راجع الرابط ثم حاول مرة أخرى.</span>';
     _showFirstRunFallback('');
     return;
   }

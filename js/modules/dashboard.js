@@ -102,21 +102,21 @@ function renderAlertsWidget(){
   var todayStr=now.getFullYear()+'-'+pad(now.getMonth()+1)+'-'+pad(now.getDate());
   var alerts=document.getElementById('dashAlerts');alerts.innerHTML='';
   var ts=data.sessions.filter(function(s){return String(s['التاريخ']).slice(0,10)===todayStr;});
-  if(ts.length)alerts.innerHTML='<div class="alert-bar">&#9888;&#65039; لديك <strong>'+ts.length+' جلسة</strong> اليوم: '+ts.map(function(s){return(s['عنوان_القضية']||'جلسة')+' الساعة '+formatTime(s['الوقت']);}).join(' | ')+'</div>';
+  if(ts.length)alerts.innerHTML='<div class="alert-bar"><span>'+(typeof UiIcon!=='undefined'?UiIcon.pair('status-warning','&#9888;&#65039;',16):'&#9888;&#65039;')+' لديك </span><strong>'+ts.length+' جلسة</strong> اليوم: '+ts.map(function(s){return(s['عنوان_القضية']||'جلسة')+' الساعة '+formatTime(s['الوقت']);}).join(' | ')+'</div>';
 }
 
 function renderSessionsWidget(){
   var now=new Date();now.setHours(0,0,0,0);
   var up=data.sessions.filter(function(s){var d=parseLocalDate(s['التاريخ']);return d&&d>=now;}).sort(function(a,b){return parseLocalDate(a['التاريخ'])-parseLocalDate(b['التاريخ']);}).slice(0,5);
   var ds=document.getElementById('dashSessions');
-  if(!up.length)ds.innerHTML='<div class="empty-state"><div class="icon">&#128197;</div><p>لا توجد جلسات قادمة</p></div>';
-  else ds.innerHTML=up.map(function(s){var d=parseLocalDate(s['التاريخ']);if(!d)return'';return'<div class="session-item"><div class="session-date"><div class="day">'+d.getDate()+'</div><div class="month">'+d.toLocaleDateString('ar-EG',{month:'short'})+'</div></div><div class="session-info"><div class="session-title">'+(s['عنوان_القضية']||'جلسة')+' '+urgencyBadge(s['التاريخ'])+'</div><div class="session-meta"><span>&#128336; '+formatTime(s['الوقت'])+'</span><span>&#127963; '+(s['المحكمة']||'—')+'</span></div></div></div>';}).join('');
+  if(!up.length)ds.innerHTML='<div class="empty-state"><div class="icon">'+(typeof UiIcon!=='undefined'?UiIcon.pair('nav-sessions','&#128197;',24):'&#128197;')+'</div><p>لا توجد جلسات قادمة</p></div>';
+  else ds.innerHTML=up.map(function(s){var d=parseLocalDate(s['التاريخ']);if(!d)return'';return'<div class="session-item"><div class="session-date"><div class="day">'+d.getDate()+'</div><div class="month">'+d.toLocaleDateString('ar-EG',{month:'short'})+'</div></div><div class="session-info"><div class="session-title">'+(s['عنوان_القضية']||'جلسة')+' '+urgencyBadge(s['التاريخ'])+'</div><div class="session-meta"><span>'+(typeof UiIcon!=='undefined'?UiIcon.pair('status-pending','&#128336;',16):'&#128336;')+' '+formatTime(s['الوقت'])+'</span><span>'+(typeof UiIcon!=='undefined'?UiIcon.pair('sys-building','&#127963;',16):'&#127963;')+' '+(s['المحكمة']||'—')+'</span></div></div></div>';}).join('');
 }
 
 function renderTasksWidget(){
   var ut=data.tasks.filter(function(t){return t['الأولوية']==='high'&&t['الحالة']!=='done';}).slice(0,5);
   var dt=document.getElementById('dashTasks');
-  if(!ut.length)dt.innerHTML='<div class="empty-state"><div class="icon">&#9989;</div><p>لا توجد مهام عاجلة</p></div>';
+  if(!ut.length)dt.innerHTML='<div class="empty-state"><div class="icon">'+(typeof UiIcon!=='undefined'?UiIcon.pair('nav-tasks','&#9989;',24):'&#9989;')+'</div><p>لا توجد مهام عاجلة</p></div>';
   // PHASE 13.14 PART 1 — Checkbox removed entirely (the .task-check
   // circle is no longer emitted, matching tasks.js's renderTasks()). In
   // its place, the whole card now opens the same Task Edit Dialog used
@@ -135,7 +135,7 @@ function renderTasksWidget(){
   else dt.innerHTML=ut.map(function(t){
     var ri=resolveTaskIndex(data.tasks,t);
     var caseSpan = t['رقم_القضية']
-      ? '<span class="task-due">&#9878; '+t['رقم_القضية']+'</span>'
+      ? '<span class="task-due">'+(typeof UiIcon!=='undefined'?UiIcon.pair('nav-cases','&#9878;',16):'&#9878;')+' '+t['رقم_القضية']+'</span>'
       : '';
     var dueSpan = t['الموعد_النهائي']
       ? '<span class="task-due">'+urgencyBadge(t['الموعد_النهائي'])+' '+formatDate(t['الموعد_النهائي'])+'</span>'
@@ -249,7 +249,7 @@ function renderTodayCenterWidget(){
   // support that, so the click handler is intentionally not
   // duplicated per sub-element.
   el.innerHTML=
-    '<span class="today-center-icon" aria-hidden="true">&#128197;</span>'+
+    '<span class="today-center-icon" aria-hidden="true">'+(typeof UiIcon!=='undefined'?UiIcon.pair('nav-calendar','&#128197;',16):'&#128197;')+'</span>'+
     '<div class="today-center-dates">'+
       '<span class="today-center-day">'+dayName+'</span>'+
       '<span class="today-center-gregorian">'+gregorian+'</span>'+
@@ -299,13 +299,13 @@ function renderAlertsCenterWidget(){
   });
 
   var chips=[];
-  if(soonSessions.length)chips.push({level:'danger',icon:'&#9200;',label:'جلسة خلال ساعتين',count:soonSessions.length,page:'sessions'});
-  if(overdueTasks.length)chips.push({level:'danger',icon:'&#128204;',label:'مهام إدارية متأخرة',count:overdueTasks.length,page:'tasks'});
-  if(casesNoOpponent.length)chips.push({level:'warning',icon:'&#128100;',label:'قضايا بدون بيانات خصم',count:casesNoOpponent.length,page:'cases'});
-  if(casesNoDocuments.length)chips.push({level:'warning',icon:'&#128196;',label:'قضايا بدون مستندات',count:casesNoDocuments.length,page:'documents'});
+  if(soonSessions.length)chips.push({level:'danger',icon:(typeof UiIcon!=='undefined'?UiIcon.pair('sys-hourglass','&#9200;',16):'&#9200;'),label:'جلسة خلال ساعتين',count:soonSessions.length,page:'sessions'});
+  if(overdueTasks.length)chips.push({level:'danger',icon:(typeof UiIcon!=='undefined'?UiIcon.pair('sys-pin','&#128204;',16):'&#128204;'),label:'مهام إدارية متأخرة',count:overdueTasks.length,page:'tasks'});
+  if(casesNoOpponent.length)chips.push({level:'warning',icon:(typeof UiIcon!=='undefined'?UiIcon.pair('sys-user','&#128100;',16):'&#128100;'),label:'قضايا بدون بيانات خصم',count:casesNoOpponent.length,page:'cases'});
+  if(casesNoDocuments.length)chips.push({level:'warning',icon:(typeof UiIcon!=='undefined'?UiIcon.pair('nav-documents','&#128196;',16):'&#128196;'),label:'قضايا بدون مستندات',count:casesNoDocuments.length,page:'documents'});
 
   if(!chips.length){
-    list.innerHTML='<div class="alerts-center-empty"><span>&#9989;</span><span>لا توجد تنبيهات حالياً — كل شيء تحت السيطرة</span></div>';
+    list.innerHTML='<div class="alerts-center-empty"><span>'+(typeof UiIcon!=='undefined'?UiIcon.pair('status-success','&#9989;',16):'&#9989;')+'</span><span>لا توجد تنبيهات حالياً — كل شيء تحت السيطرة</span></div>';
     return;
   }
   list.innerHTML=chips.map(function(c){

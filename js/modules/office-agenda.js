@@ -233,7 +233,7 @@ function agendaFooterHtml(type, sourceId) {
   var html = (notes.length ? '<div class="agenda-item-note" onclick="event.stopPropagation()">' + notes.join(' &middot; ') + '</div>' : '') +
     '<div class="agenda-item-actions" onclick="event.stopPropagation()">' +
     '<span class="agenda-status-chip st-' + st + '">' + AGENDA_STATUS_LABELS[st] + '</span>' +
-    '<span class="agenda-assignee">&#128100; ' + (assignee ? agendaEscape(agendaAssigneeLabel(assignee)) : 'غير مُسند') + '</span>';
+    '<span class="agenda-assignee">' + agendaUiIcon('sys-user', '&#128100;', 14) + ' ' + (assignee ? agendaEscape(agendaAssigneeLabel(assignee)) : 'غير مُسند') + '</span>';
   if (agendaCan('CanAssignAgendaWork')) html += btn('assign', assignee ? 'تغيير الإسناد' : 'إسناد');
   if (agendaCan('CanChangeAgendaExecutionStatus')) {
     if (st === 'NOT_STARTED') html += btn('start', 'بدء');
@@ -245,7 +245,7 @@ function agendaFooterHtml(type, sourceId) {
   if (agendaCan('CanCreateWorkSheet') && typeof workSheetsRepository !== 'undefined' && workSheetsRepository) {
     var onOpenSheets = workSheetsRepository.findOpenSheetsContaining(type, sourceId);
     if (onOpenSheets.length) {
-      html += '<span class="agenda-on-sheet-flag" title="موجود بالفعل على ' + onOpenSheets.length + ' ورقة شغل مفتوحة">&#128203; على ورقة أخرى</span>';
+      html += '<span class="agenda-on-sheet-flag" title="موجود بالفعل على ' + onOpenSheets.length + ' ورقة شغل مفتوحة">' + agendaUiIcon('nav-agenda', '&#128203;', 12) + ' على ورقة أخرى</span>';
     }
     html += '<button type="button" class="btn btn-ghost btn-sm agenda-act-btn" onclick="agendaAddToSheetPrompt(\'' + type + '\',\'' + id + '\')">+ ورقة شغل</button>';
   }
@@ -680,6 +680,12 @@ function agendaEscape(v) {
   });
 }
 
+// DESKTOP-UI MOD-18 — paired legacy glyph + local SVG (SVG visible only >=1024px via desktop.css; the legacy glyph stays
+// exactly as before below 1024px). Falls back to the plain glyph when UiIcon is not loaded (VM tests, Safe Mode).
+function agendaUiIcon(name, legacy, size) {
+  return (typeof UiIcon !== 'undefined' && UiIcon && UiIcon.pair) ? UiIcon.pair(name, legacy, size) : legacy;
+}
+
 function agendaSourceChip(type) {
   var labels = { session: 'جلسة', administrativeWork: 'عمل إداري', processServerWork: 'عمل محضرين' };
   return '<span class="agenda-source-chip src-' + type + '">' + labels[type] + '</span>';
@@ -694,10 +700,10 @@ function agendaSessionItemHtml(s) {
         '<div class="agenda-item-title">' + agendaEscape(s['عنوان_القضية'] || 'جلسة') + '</div>' +
         '<div class="agenda-item-meta">' +
           agendaSourceChip('session') +
-          '<span>&#127963; ' + agendaEscape(s['المحكمة'] || '—') + '</span>' +
+          '<span>' + agendaUiIcon('sys-building', '&#127963;', 14) + ' ' + agendaEscape(s['المحكمة'] || '—') + '</span>' +
           (typeof statusBadge === 'function' ? statusBadge(s['الحالة']) : '') +
         '</div>' +
-        (s['القرار'] ? '<div style="font-size:11px;color:var(--gold);margin-top:3px;">&#9878; ' + agendaEscape(s['القرار']) + '</div>' : '') +
+        (s['القرار'] ? '<div style="font-size:11px;color:var(--gold);margin-top:3px;">' + agendaUiIcon('nav-cases', '&#9878;', 14) + ' ' + agendaEscape(s['القرار']) + '</div>' : '') +
         agendaFooterHtml('session', id) +
       '</div>' +
     '</div>'
@@ -715,8 +721,8 @@ function agendaAdminWorkItemHtml(t, opts) {
         '<div class="agenda-item-title' + (done ? ' done' : '') + '">' + agendaEscape(t['العنوان'] || 'عمل إداري') + '</div>' +
         '<div class="agenda-item-meta">' +
           agendaSourceChip('administrativeWork') +
-          (t['اسم_الموكل'] ? '<span>&#128100; ' + agendaEscape(t['اسم_الموكل']) + '</span>' : '') +
-          (t['رقم_القضية'] ? '<span>&#9878; ' + agendaEscape(t['رقم_القضية']) + '</span>' : '') +
+          (t['اسم_الموكل'] ? '<span>' + agendaUiIcon('sys-user', '&#128100;', 14) + ' ' + agendaEscape(t['اسم_الموكل']) + '</span>' : '') +
+          (t['رقم_القضية'] ? '<span>' + agendaUiIcon('nav-cases', '&#9878;', 14) + ' ' + agendaEscape(t['رقم_القضية']) + '</span>' : '') +
           (opts.overdue ? '<span class="badge badge-urgent">متأخر</span>' : '') +
         '</div>' +
         agendaFooterHtml('administrativeWork', id) +
@@ -731,12 +737,12 @@ function agendaPswItemHtml(w, opts) {
   var received = w['الحالة'] === 'مستلم';
   return (
     '<div class="agenda-item src-processServerWork' + (opts.overdue ? ' is-overdue' : '') + '" onclick="agendaOpenPsw(\'' + agendaEscape(id) + '\')">' +
-      '<div class="agenda-item-time">' + (agendaPswDeadline(w) ? agendaEscape(formatDate(agendaDateKey(agendaPswDeadline(w)))) : '&#9203;') + '</div>' +
+      '<div class="agenda-item-time">' + (agendaPswDeadline(w) ? agendaEscape(formatDate(agendaDateKey(agendaPswDeadline(w)))) : agendaUiIcon('sys-hourglass', '&#9203;', 14)) + '</div>' +
       '<div class="agenda-item-body">' +
         '<div class="agenda-item-title">' + agendaEscape(w['طبيعة_الاعلان'] || 'عمل محضرين') + '</div>' +
         '<div class="agenda-item-meta">' +
           agendaSourceChip('processServerWork') +
-          (w['رقم_المحضرين'] ? '<span>&#128100; ' + agendaEscape(w['رقم_المحضرين']) + '</span>' : '') +
+          (w['رقم_المحضرين'] ? '<span>' + agendaUiIcon('sys-user', '&#128100;', 14) + ' ' + agendaEscape(w['رقم_المحضرين']) + '</span>' : '') +
           (w['قلم_المحضرين'] ? '<span>' + agendaEscape(w['قلم_المحضرين']) + '</span>' : '') +
           '<span class="badge ' + (received ? 'badge-active' : 'badge-pending') + '">' + (received ? 'مستلم' : 'غير مستلم') + '</span>' +
           (opts.overdue ? '<span class="badge badge-urgent">متأخر</span>' : '') +
@@ -785,7 +791,7 @@ function agendaOverdueSectionsHtml(asOfAdmin, asOfPsw, shown, labels) {
 
 function agendaBlockedSectionHtml(shown) {
   var blocked = agendaBlockedItems(shown);
-  return agendaSectionHtml('&#9940; أعمال متوقفة', blocked.length,
+  return agendaSectionHtml(agendaUiIcon('status-error', '&#9940;', 16) + ' أعمال متوقفة', blocked.length,
     blocked.map(function (b) { return agendaItemHtml(b.type, b.rec, { overdue: false }); }).join(''),
     { attention: true, emptyLabel: 'لا توجد أعمال متوقفة' });
 }
@@ -807,25 +813,25 @@ function agendaRenderDay() {
   agendaIdsOf('processServerWork', psw, shown);
 
   var html = '';
-  html += agendaSectionHtml('&#9878; جلسات ' + (isToday ? 'اليوم' : ''), sessions.length,
+  html += agendaSectionHtml(agendaUiIcon('nav-cases', '&#9878;', 16) + ' جلسات ' + (isToday ? 'اليوم' : ''), sessions.length,
     sessions.map(agendaSessionItemHtml).join(''), { emptyLabel: 'لا توجد جلسات في هذا اليوم' });
-  html += agendaSectionHtml('&#128203; أعمال إدارية مستحقة ' + (isToday ? 'اليوم' : ''), adminWorks.length,
+  html += agendaSectionHtml(agendaUiIcon('nav-agenda', '&#128203;', 16) + ' أعمال إدارية مستحقة ' + (isToday ? 'اليوم' : ''), adminWorks.length,
     adminWorks.map(function (t) { return agendaAdminWorkItemHtml(t, { overdue: false }); }).join(''),
     { emptyLabel: 'لا توجد أعمال إدارية مستحقة' });
-  html += agendaSectionHtml('&#128231; أعمال محضرين مرتبطة بموعد ' + (isToday ? 'اليوم' : 'هذا اليوم'), psw.length,
+  html += agendaSectionHtml(agendaUiIcon('sys-mail', '&#128231;', 16) + ' أعمال محضرين مرتبطة بموعد ' + (isToday ? 'اليوم' : 'هذا اليوم'), psw.length,
     psw.map(function (w) { return agendaPswItemHtml(w); }).join(''),
     { emptyLabel: 'لا توجد أعمال محضرين مرتبطة بهذه الفترة' });
 
   // "متأخر/متوقف/بانتظار الاستلام" مرتبطة بلحظة الآن، فتظهر على يوم اليوم فقط.
   if (isToday) {
     html += agendaOverdueSectionsHtml(new Date(), today, shown, {
-      admin: '&#9888; أعمال إدارية متأخرة', adminEmpty: 'لا توجد أعمال إدارية متأخرة',
-      psw: '&#9888; أعمال محضرين متأخرة'
+      admin: agendaUiIcon('status-warning', '&#9888;', 16) + ' أعمال إدارية متأخرة', adminEmpty: 'لا توجد أعمال إدارية متأخرة',
+      psw: agendaUiIcon('status-warning', '&#9888;', 16) + ' أعمال محضرين متأخرة'
     });
     var awaiting = agendaExcluding('processServerWork', agendaPswAwaitingNoDate(), shown);
     agendaIdsOf('processServerWork', awaiting, shown);
     if (awaiting.length) {
-      html += agendaSectionHtml('&#128231; أعمال محضرين بانتظار الاستلام', awaiting.length,
+      html += agendaSectionHtml(agendaUiIcon('sys-mail', '&#128231;', 16) + ' أعمال محضرين بانتظار الاستلام', awaiting.length,
         awaiting.map(function (w) { return agendaPswItemHtml(w); }).join(''));
     }
     html += agendaBlockedSectionHtml(shown);
@@ -877,8 +883,8 @@ function agendaRenderWeek() {
 
   // المتأخر قبل بداية الأسبوع (§11.2) بنفس القاعدة الوحيدة، ثم المتوقف.
   html += agendaOverdueSectionsHtml(weekStart, weekStart, shown, {
-    admin: '&#9888; متأخر (قبل هذا الأسبوع)', adminEmpty: 'لا توجد أعمال إدارية متأخرة قبل هذا الأسبوع',
-    psw: '&#9888; أعمال محضرين متأخرة (قبل هذا الأسبوع)'
+    admin: agendaUiIcon('status-warning', '&#9888;', 16) + ' متأخر (قبل هذا الأسبوع)', adminEmpty: 'لا توجد أعمال إدارية متأخرة قبل هذا الأسبوع',
+    psw: agendaUiIcon('status-warning', '&#9888;', 16) + ' أعمال محضرين متأخرة (قبل هذا الأسبوع)'
   });
   html += agendaBlockedSectionHtml(shown);
 
@@ -915,18 +921,18 @@ function agendaRenderCustom() {
   agendaIdsOf('processServerWork', psw, shown);
 
   var html = '';
-  html += agendaSectionHtml('&#9878; جلسات', sessions.length, sessions.map(agendaSessionItemHtml).join(''),
+  html += agendaSectionHtml(agendaUiIcon('nav-cases', '&#9878;', 16) + ' جلسات', sessions.length, sessions.map(agendaSessionItemHtml).join(''),
     { emptyLabel: 'لا توجد جلسات في هذه الفترة' });
-  html += agendaSectionHtml('&#128203; أعمال إدارية', adminWorks.length,
+  html += agendaSectionHtml(agendaUiIcon('nav-agenda', '&#128203;', 16) + ' أعمال إدارية', adminWorks.length,
     adminWorks.map(function (t) { return agendaAdminWorkItemHtml(t, { overdue: false }); }).join(''),
     { emptyLabel: 'لا توجد أعمال إدارية مستحقة في هذه الفترة' });
-  html += agendaSectionHtml('&#128231; أعمال محضرين', psw.length,
+  html += agendaSectionHtml(agendaUiIcon('sys-mail', '&#128231;', 16) + ' أعمال محضرين', psw.length,
     psw.map(function (w) { return agendaPswItemHtml(w); }).join(''),
     { emptyLabel: 'لا توجد أعمال محضرين مرتبطة بهذه الفترة' });
 
   html += agendaOverdueSectionsHtml(from, from, shown, {
-    admin: '&#9888; متأخر (قبل بداية الفترة)', adminEmpty: 'لا توجد أعمال إدارية متأخرة قبل بداية الفترة',
-    psw: '&#9888; أعمال محضرين متأخرة (قبل بداية الفترة)'
+    admin: agendaUiIcon('status-warning', '&#9888;', 16) + ' متأخر (قبل بداية الفترة)', adminEmpty: 'لا توجد أعمال إدارية متأخرة قبل بداية الفترة',
+    psw: agendaUiIcon('status-warning', '&#9888;', 16) + ' أعمال محضرين متأخرة (قبل بداية الفترة)'
   });
   html += agendaBlockedSectionHtml(shown);
 
@@ -1103,7 +1109,7 @@ function agendaSheetCardHtml(ws) {
         '<div class="agenda-item-title">ورقة شغل ' + agendaEscape(formatDate(ws['تاريخ_الاستهداف'])) + '</div>' +
         '<div class="agenda-item-meta">' +
           '<span class="agenda-status-chip st-' + (st === 'IN_PROGRESS' || st === 'ISSUED' ? 'IN_PROGRESS' : (st === 'CANCELLED' ? 'BLOCKED' : st === 'CLOSED' || st === 'SETTLED' ? 'COMPLETED' : '')) + '">' + WORK_SHEET_STATUS_LABELS[st] + '</span>' +
-          '<span>&#128100; ' + (ws['المسند_إلى'] ? agendaEscape(agendaAssigneeLabel(ws['المسند_إلى'])) : 'بلا إسناد') + '</span>' +
+          '<span>' + agendaUiIcon('sys-user', '&#128100;', 14) + ' ' + (ws['المسند_إلى'] ? agendaEscape(agendaAssigneeLabel(ws['المسند_إلى'])) : 'بلا إسناد') + '</span>' +
           '<span>' + items.length + ' عنصر</span>' +
         '</div>' +
       '</div>' +
@@ -1126,7 +1132,7 @@ function agendaRenderSheetsList() {
       '<button type="button" class="btn btn-primary btn-sm" onclick="agendaCreateSheet()">+ ورقة شغل جديدة</button>' +
     '</div>';
   }
-  html += agendaSectionHtml('&#128203; أوراق الشغل', sheets.length,
+  html += agendaSectionHtml(agendaUiIcon('nav-agenda', '&#128203;', 16) + ' أوراق الشغل', sheets.length,
     sheets.map(agendaSheetCardHtml).join(''), { emptyLabel: 'لا توجد أوراق شغل بعد' });
 
   document.getElementById('agendaContent').innerHTML = html;
@@ -1166,7 +1172,7 @@ function agendaSheetItemRowHtml(ws, type, entry) {
         '<div class="agenda-item-title">' + agendaEscape(label) + '</div>' +
         statusHtml +
       '</div>' +
-      (removable ? '<button type="button" class="btn btn-ghost btn-sm" onclick="agendaSheetRemoveItem(\'' + agendaEscape(ws['معرف_الورقة']) + '\',\'' + type + '\',\'' + agendaEscape(entry.ref.sourceRecordId) + '\')">&#10005;</button>' : '') +
+      (removable ? '<button type="button" class="btn btn-ghost btn-sm" onclick="agendaSheetRemoveItem(\'' + agendaEscape(ws['معرف_الورقة']) + '\',\'' + type + '\',\'' + agendaEscape(entry.ref.sourceRecordId) + '\')">' + agendaUiIcon('act-close', '&#10005;', 16) + '</button>' : '') +
     '</div>'
   );
 }
@@ -1184,13 +1190,13 @@ function agendaRenderSheetDetail(id) {
   var canEdit = agendaCan('CanCreateWorkSheet');
   var canAssign = agendaCan('CanAssignAgendaWork');
 
-  var html = '<button type="button" class="btn btn-ghost btn-sm" onclick="agendaBackToSheetsList()">&#8592; كل أوراق الشغل</button>';
+  var html = '<button type="button" class="btn btn-ghost btn-sm" onclick="agendaBackToSheetsList()">' + agendaUiIcon('act-back', '&#8592;', 16) + ' كل أوراق الشغل</button>';
 
   html += '<div class="agenda-section" style="margin-top:10px;">' +
     '<div class="agenda-item-meta" style="margin-bottom:10px;">' +
       '<span class="agenda-status-chip">' + WORK_SHEET_STATUS_LABELS[st] + '</span>' +
       '<span>تاريخ الاستهداف: ' + agendaEscape(formatDate(ws['تاريخ_الاستهداف'])) + '</span>' +
-      '<span>&#128100; ' + (ws['المسند_إلى'] ? agendaEscape(agendaAssigneeLabel(ws['المسند_إلى'])) : 'بلا إسناد') +
+      '<span>' + agendaUiIcon('sys-user', '&#128100;', 14) + ' ' + (ws['المسند_إلى'] ? agendaEscape(agendaAssigneeLabel(ws['المسند_إلى'])) : 'بلا إسناد') +
         (canAssign && (st === 'DRAFT' || st === 'ISSUED') ? ' <button type="button" class="btn btn-ghost btn-sm" onclick="agendaSheetAssignPrompt(\'' + agendaEscape(id) + '\')">تغيير</button>' : '') +
       '</span>' +
     '</div>';

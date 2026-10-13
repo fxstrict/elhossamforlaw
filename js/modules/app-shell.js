@@ -177,7 +177,7 @@
       if(!dst) return;
       if(typeof renderAlertsCenterWidget === 'function') renderAlertsCenterWidget();
       var src = document.getElementById('dashAlertsCenterList');
-      dst.innerHTML = src ? src.innerHTML : '<div class="alerts-center-empty"><span>&#9989;</span><span>لا توجد تنبيهات حالياً — كل شيء تحت السيطرة</span></div>';
+      dst.innerHTML = src ? src.innerHTML : '<div class="alerts-center-empty"><span>' + (window.UiIcon && UiIcon.pair ? UiIcon.pair('status-success', '&#9989;', 20) : '&#9989;') + '</span><span>لا توجد تنبيهات حالياً — كل شيء تحت السيطرة</span></div>';
     });
   }
 

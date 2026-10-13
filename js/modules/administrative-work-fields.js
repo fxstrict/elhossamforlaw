@@ -36,6 +36,10 @@
   function safeAttr(v) {
     return esc(v).replace(/"/g, '&quot;');
   }
+  function fileLink(u) {   /* DESKTOP-UI F9: http(s) only + rel=noopener noreferrer; anything else renders no link */
+    u = String(u == null ? '' : u);
+    return /^https?:\/\//i.test(u) ? '<a href="' + safeAttr(u) + '" target="_blank" rel="noopener noreferrer">فتح</a>' : '';
+  }
   function uidLocal() {
     return (typeof uid === 'function') ? uid() : (Date.now().toString(36) + Math.random().toString(36).slice(2, 6));
   }
@@ -70,9 +74,14 @@
       '<div class="form-group full"><label>اسم المستند</label><input type="text" class="tw-doc-name" value="' + safeAttr(data.name) + '" placeholder="محضر / إفادة / إيصال..."></div>' +
       '<div class="repeat-file-row">' +
         '<input type="file" class="tw-doc-file" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" onchange="AdministrativeWorkFields.uploadRowFile(this,\'' + rowId + '\')">' +
-        '<span class="repeat-file-status' + (data.fileUrl ? ' ok' : '') + '">' + (data.fileUrl ? '&#10003; تم رفع الملف — <a href="' + safeAttr(data.fileUrl) + '" target="_blank">فتح</a>' : 'لم يُرفع ملف بعد') + '</span>' +
+        '<span class="repeat-file-status' + (data.fileUrl ? ' ok' : '') + '">' + (data.fileUrl ? awIcon('act-check', '&#10003;', 14) + ' تم رفع الملف — ' + fileLink(data.fileUrl) : 'لم يُرفع ملف بعد') + '</span>' +
       '</div>';
     container.appendChild(row);
+  }
+
+  // DESKTOP-UI MOD-12 — paired local-SVG icon (legacy glyph stays visible below 1024px). Plain-glyph fallback.
+  function awIcon(name, legacy, size) {
+    return (typeof UiIcon !== 'undefined' && UiIcon && UiIcon.pair) ? UiIcon.pair(name, legacy, size) : legacy;
   }
 
   function removeRow(rowId) {
@@ -93,7 +102,7 @@
 
     if (statusEl) {
       statusEl.className = 'repeat-file-status';
-      statusEl.textContent = '⏳ جارِ رفع الملف...';
+      statusEl.innerHTML = awIcon('sys-hourglass', '&#9203;', 14) + ' جارِ رفع الملف...';
     }
 
     var reader = new FileReader();
@@ -103,7 +112,7 @@
       var fileName = clientName + ' - ' + file.name;
 
       if (!window.ApiService || typeof ApiService.uploadFile !== 'function') {
-        if (statusEl) { statusEl.className = 'repeat-file-status err'; statusEl.textContent = '⚠️ خدمة الرفع غير متاحة حاليًا (اعمل أونلاين)'; }
+        if (statusEl) { statusEl.className = 'repeat-file-status err'; statusEl.innerHTML = awIcon('status-warning', '&#9888;&#65039;', 14) + ' خدمة الرفع غير متاحة حاليًا (اعمل أونلاين)'; }
         return;
       }
 
@@ -115,17 +124,17 @@
             row.setAttribute('data-uploaded-at', new Date().toISOString());
             if (statusEl) {
               statusEl.className = 'repeat-file-status ok';
-              statusEl.innerHTML = '&#10003; تم رفع الملف — <a href="' + safeAttr(res.url) + '" target="_blank">فتح</a>';
+              statusEl.innerHTML = awIcon('act-check', '&#10003;', 14) + ' تم رفع الملف — ' + fileLink(res.url);
             }
             var nameInput = row.querySelector('.tw-doc-name');
             if (nameInput && !nameInput.value.trim()) nameInput.value = file.name;
             if (typeof toast === 'function') toast('تم رفع المستند بنجاح', 'success');
           } else {
-            if (statusEl) { statusEl.className = 'repeat-file-status err'; statusEl.textContent = '⚠️ تعذّر رفع الملف — حاول مرة أخرى'; }
+            if (statusEl) { statusEl.className = 'repeat-file-status err'; statusEl.innerHTML = awIcon('status-warning', '&#9888;&#65039;', 14) + ' تعذّر رفع الملف — حاول مرة أخرى'; }
           }
         })
         .catch(function () {
-          if (statusEl) { statusEl.className = 'repeat-file-status err'; statusEl.textContent = '⚠️ تعذّر رفع الملف — تحقق من الاتصال'; }
+          if (statusEl) { statusEl.className = 'repeat-file-status err'; statusEl.innerHTML = awIcon('status-warning', '&#9888;&#65039;', 14) + ' تعذّر رفع الملف — تحقق من الاتصال'; }
         });
     };
     reader.readAsDataURL(file);

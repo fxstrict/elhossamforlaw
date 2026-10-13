@@ -128,6 +128,27 @@ function filterPswStatus(status) {
   renderProcessServerWorks();
 }
 
+// DESKTOP-UI MOD-13 — paired local-SVG icon (legacy glyph stays visible below 1024px via css/desktop.css).
+// Falls back to the plain glyph when UiIcon is not loaded (e.g. VM-based tests, Safe Mode).
+function pswUiIcon(name, legacy, size) {
+  return (typeof UiIcon !== 'undefined' && UiIcon && UiIcon.pair) ? UiIcon.pair(name, legacy, size) : legacy;
+}
+
+// DESKTOP-UI MOD-13 — page header (>=1024px only). Reads the DOM renderProcessServerWorks() just painted. Never throws.
+function pswDeskHeader() {
+  try {
+    if (!window.DesktopHeader || window.currentPage !== 'processServerWorks') return;
+    var tbody = document.getElementById('pswTableBody');
+    var n = tbody && tbody.rows ? tbody.rows.length : 0;
+    window.DesktopHeader.set({
+      page: 'processServerWorks',
+      subtitle: n ? n + ' محضر' : 'لا نتائج',
+      actions: [{ label: 'إضافة عمل محضرين', icon: 'act-add', variant: 'primary', replacesAdd: true,
+                  title: 'إضافة عمل محضرين جديد', onClick: function () { openAddModal(); } }]
+    });
+  } catch (e) {}
+}
+
 function renderProcessServerWorks() {
   if (!processServerWorksRepository.isReady()) return;
 
@@ -166,13 +187,14 @@ function renderProcessServerWorks() {
           : (_pswStatusFilter === 'notReceived' ? 'لا يوجد محاضر غير مستلمة' : 'لا يوجد أعمال محضرين مضافة حتى الآن');
       }
     }
+    pswDeskHeader();
     return;
   }
   if (em) em.style.display = 'none';
 
   function statusBadgeHtml(w) {
     var received = w['الحالة'] === 'مستلم';
-    return '<span class="badge ' + (received ? 'badge-active' : 'badge-pending') + '">' + (received ? '&#10003; مستلم' : '&#128337; غير مستلم') + '</span>';
+    return '<span class="badge ' + (received ? 'badge-active' : 'badge-pending') + '">' + (received ? pswUiIcon('act-check', '&#10003;', 12) + ' مستلم' : pswUiIcon('status-pending', '&#128337;', 12) + ' غير مستلم') + '</span>';
   }
 
   function desktopPswRowInner(w) {
@@ -184,9 +206,9 @@ function renderProcessServerWorks() {
       '<td>' + escapeHtml(w['تاريخ_الجلسة'] || '—') + '</td>' +
       '<td>' + statusBadgeHtml(w) + '</td>' +
       '<td>' +
-        '<button class="btn btn-info btn-sm btn-icon" onclick="viewProcessServerWork(' + ri + ')" title="عرض">&#128065;</button> ' +
-        '<button class="btn btn-ghost btn-sm btn-icon" onclick="editProcessServerWork(' + ri + ')" title="تعديل">&#9998;</button> ' +
-        '<button class="btn btn-danger btn-sm btn-icon" onclick="deleteProcessServerWork(' + ri + ')" title="حذف">&#128465;</button>' +
+        '<button class="btn btn-info btn-sm btn-icon" onclick="viewProcessServerWork(' + ri + ')" title="عرض">' + pswUiIcon('act-view', '&#128065;', 16) + '</button> ' +
+        '<button class="btn btn-ghost btn-sm btn-icon" onclick="editProcessServerWork(' + ri + ')" title="تعديل">' + pswUiIcon('act-edit', '&#9998;', 16) + '</button> ' +
+        '<button class="btn btn-danger btn-sm btn-icon" onclick="deleteProcessServerWork(' + ri + ')" title="حذف">' + pswUiIcon('act-delete', '&#128465;', 16) + '</button>' +
       '</td>';
   }
 
@@ -211,6 +233,7 @@ function renderProcessServerWorks() {
 
   if (tb) tb.innerHTML = rows.map(function (w) { return '<tr>' + desktopPswRowInner(w) + '</tr>'; }).join('');
   if (ml) ml.innerHTML = rows.map(function (w) { return '<div class="m-card">' + mobilePswCardInner(w) + '</div>'; }).join('');
+  pswDeskHeader();
 }
 
 function searchProcessServerWorks() { renderProcessServerWorks(); }
@@ -372,7 +395,7 @@ function viewProcessServerWork(i) {
   if (portalBtn) portalBtn.style.display = 'none';
 
   document.getElementById('viewModalTitle').innerHTML =
-    '&#128220; ملف عمل المحضرين — ' + escapeHtml(w['طبيعة_الاعلان'] || '');
+    pswUiIcon('nav-process', '&#128220;', 16) + ' ملف عمل المحضرين — ' + escapeHtml(w['طبيعة_الاعلان'] || '');
   document.getElementById('viewModalBody').innerHTML = buildPswReport(w);
   document.getElementById('modalView').classList.add('open');
 }
