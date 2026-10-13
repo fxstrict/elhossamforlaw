@@ -50,8 +50,8 @@ const EXPECTED_PRECACHED = [
   'css/legal-directories.css?v=1',
   'js/utils/DirectoryModel.js?v=1',
   'js/utils/DirectoryValidation.js?v=1',
-  'js/utils/DirectoryRenderer.js?v=1',
-  'js/modules/legal-directories.js?v=1',
+  'js/utils/DirectoryRenderer.js?v=2',
+  'js/modules/legal-directories.js?v=2',
   'js/data/directories/legal-directories.json'
 ];
 
@@ -93,7 +93,7 @@ EXPECTED_NOT_PRECACHED.forEach((url) => {
 
 check('every precached Legal-Directories JS/CSS URL exactly matches a real <script>/<link> tag in index.html', () => {
   ['css/legal-directories.css?v=1', 'js/utils/DirectoryModel.js?v=1', 'js/utils/DirectoryValidation.js?v=1',
-    'js/utils/DirectoryRenderer.js?v=1', 'js/modules/legal-directories.js?v=1'].forEach((url) => {
+    'js/utils/DirectoryRenderer.js?v=2', 'js/modules/legal-directories.js?v=2'].forEach((url) => {
     assert.ok(indexSource.includes(url), 'index.html has no tag referencing ' + url);
   });
 });

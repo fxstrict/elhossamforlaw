@@ -49,10 +49,10 @@ const html = fs.readFileSync(indexPath, 'utf8');
 const REQUIRED_ORDER = [
   'js/utils/DirectoryModel.js?v=1',
   'js/utils/DirectoryValidation.js?v=1',
-  'js/utils/DirectoryRenderer.js?v=1',
+  'js/utils/DirectoryRenderer.js?v=2',
   'js/utils/DirectoryPublisher.js?v=1',
   'js/modules/legal-directories-admin.js?v=1',
-  'js/modules/legal-directories.js?v=1'
+  'js/modules/legal-directories.js?v=2'
 ];
 
 check('every Legal Directories <script> tag appears exactly once in index.html', () => {
