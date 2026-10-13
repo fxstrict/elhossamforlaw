@@ -73,7 +73,16 @@
     iconEl = global.document.createElement('span');
     iconEl.className = 'legal-dir-card-icon';
     iconEl.setAttribute('aria-hidden', 'true');
-    iconEl.textContent = node.type === NODE_TYPES.FOLDER ? GENERIC_FOLDER_GLYPH : GENERIC_LINK_GLYPH;
+    // DESKTOP-UI MOD-11: paired icon (legacy glyph visible <1024px, local SVG >=1024px by CSS only).
+    // Falls back to the plain glyph when UiIcon is absent (tests / failure) — never throws.
+    var isFolder = node.type === NODE_TYPES.FOLDER;
+    var legacyGlyph = isFolder ? GENERIC_FOLDER_GLYPH : GENERIC_LINK_GLYPH;
+    if (global.UiIcon && typeof global.UiIcon.pair === 'function') {
+      try { iconEl.innerHTML = global.UiIcon.pair(isFolder ? 'sys-folder' : 'act-link', legacyGlyph, 24); }
+      catch (e) { iconEl.textContent = legacyGlyph; }
+    } else {
+      iconEl.textContent = legacyGlyph;
+    }
     container.appendChild(iconEl);
   }
 
