@@ -273,7 +273,74 @@
 // bump does NOT re-state or re-verify any of the N.13.5/N.13.6/N.13.7
 // push/FCM/SyncCoordinator behavior documented in the comments below —
 // those remain exactly as N.13.7 delivered them; only the number changed.
-var SW_VERSION = 'v133'; // PHASE A9 — Backend-only change (Config/00_Config.gs,
+// DESKTOP-UI MOD-01 — SW_VERSION v133 -> v134: PRECACHE_URLS now lists the 14 shell files
+// (5 CSS + 9 JS) that index.html already loaded but the list lacked (verified by
+// tools/verify-precache-sync.js). Shell files changed => SHELL_CACHE recreated (see prior notes). No SW logic touched.
+// DESKTOP-UI MOD-02 — SW_VERSION v134 -> v135: new css/desktop.css (responsive backbone: tablet bridge
+// 769-1023 + desktop column) precached; breakpoints moved 900/769 -> 1024 in app-shell/skeleton/responsive.
+// Shell files changed => SHELL_CACHE recreated (see prior notes). No SW logic touched.
+// DESKTOP-UI MOD-03 — SW_VERSION v135 -> v136: sidebar collapse/expand (new js/modules/desktop-shell.js precached;
+// css/desktop.css ?v=1 -> ?v=2; index.html early-state script + #sidebarCollapseBtn).
+// Shell files changed => SHELL_CACHE recreated (see prior notes). No SW logic touched.
+// DESKTOP-UI MOD-04 — SW_VERSION v136 -> v137: page header + Back button (DesktopHeader added to
+// js/modules/desktop-shell.js ?v=1 -> ?v=2; css/desktop.css ?v=2 -> ?v=3; index.html topbar markup
+// additions). Shell files changed => SHELL_CACHE recreated (see prior notes). No SW logic touched.
+// DESKTOP-UI MOD-05 — SW_VERSION v137 -> v138: local SVG icon system (new js/ui/UiIcon.js precached with an
+// embedded sprite; css/desktop.css ?v=3 -> ?v=4; index.html UiIcon tag). sprite.svg is a generated preview and
+// is NOT fetched at runtime. Shell files changed => SHELL_CACHE recreated (see prior notes). No SW logic touched.
+// DESKTOP-UI MOD-06 — SW_VERSION v138 -> v139: opt-in table/modal-size/side-panel tools in css/desktop.css
+// ?v=4 -> ?v=5 (index.html + PRECACHE_URLS). No markup changed, nothing activated on any page.
+// Shell files changed => SHELL_CACHE recreated (see prior notes). No SW logic touched.
+// DESKTOP-UI MOD-07 — SW_VERSION v139 -> v140: dashboard migrated to paired local SVG icons (index.html #page-dashboard,
+// js/modules/dashboard.js ?v=43 -> ?v=44, js/modules/dashboard-legal-directories-nav.js ?v=1 -> ?v=2, css/desktop.css ?v=5 -> ?v=6).
+// Shell files changed => SHELL_CACHE recreated (see prior notes). No SW logic touched.
+// DESKTOP-UI MOD-08 — SW_VERSION v140 -> v141: cases page migrated to paired local SVG icons + desktop page header
+// (index.html #page-cases / #modalCase, js/modules/cases.js ?v=45 -> ?v=46, css/desktop.css ?v=6 -> ?v=7).
+// Shell files changed => SHELL_CACHE recreated (see prior notes). No SW logic touched.
+// DESKTOP-UI MOD-09 — SW_VERSION v141 -> v142: clients page migrated to paired local SVG icons + desktop page header
+// (index.html #page-clients / #modalClient, js/modules/clients.js ?v=44 -> ?v=45, css/desktop.css ?v=7 -> ?v=8).
+// Shell files changed => SHELL_CACHE recreated (see prior notes). No SW logic touched.
+// DESKTOP-UI MOD-10 — SW_VERSION v142 -> v143: settings page migrated to paired local SVG icons (tab buttons + card titles; new icon sys-plug)
+// (index.html #page-settings, js/ui/UiIcon.js ?v=1 -> ?v=2, css/desktop.css ?v=8 -> ?v=9).
+// Shell files changed => SHELL_CACHE recreated (see prior notes). No SW logic touched.
+// DESKTOP-UI MOD-11 — SW_VERSION v143 -> v144: legalDirectories migrated to paired local SVG icons (card folder/link glyph, admin toolbar/status)
+// + desktop page header breadcrumb (js/modules/legal-directories.js ?v=1 -> ?v=2, js/utils/DirectoryRenderer.js ?v=1 -> ?v=2,
+// css/desktop.css ?v=9 -> ?v=10, index.html #page-legalDirectories). Shell files changed => SHELL_CACHE recreated (see prior notes). No SW logic touched.
+// DESKTOP-UI MOD-12 — SW_VERSION v144 -> v145: sessions + tasks pages migrated to paired local SVG icons + desktop page headers
+// (js/modules/sessions.js ?v=42 -> ?v=43, js/modules/tasks.js ?v=53 -> ?v=54, js/modules/administrative-work-fields.js ?v=53 -> ?v=54,
+// css/desktop.css ?v=10 -> ?v=11, index.html #page-sessions/#page-tasks/#modalSession/#modalTask). Shell files changed => SHELL_CACHE recreated. No SW logic touched.
+// DESKTOP-UI MOD-13 — SW_VERSION v145 -> v146: opponents + processServerWorks pages migrated to paired local SVG icons + desktop page headers
+// (js/modules/opponents.js ?v=42 -> ?v=43, js/modules/process-server-works.js ?v=42 -> ?v=43, js/modules/process-server-fields.js ?v=42 -> ?v=43,
+// css/desktop.css ?v=11 -> ?v=12, index.html #page-opponents/#page-processServerWorks/#modalOpponent/#modalProcessServerWork). Shell files changed => SHELL_CACHE recreated. No SW logic touched.
+// DESKTOP-UI MOD-14 — SW_VERSION v146 -> v147: documents + library pages migrated to paired local SVG icons + desktop page headers
+// (js/modules/documents.js ?v=42 -> ?v=43, js/modules/library.js ?v=42 -> ?v=43, css/desktop.css ?v=12 -> ?v=13,
+// index.html #page-documents/#page-library/#modalDocument/#modalLibrary/#modalDrive). Shell files changed => SHELL_CACHE recreated. No SW logic touched.
+// DESKTOP-UI MOD-15 — SW_VERSION v147 -> v148: children + templates pages migrated to paired local SVG icons + desktop page headers
+// (js/modules/children.js ?v=42 -> ?v=43, js/modules/templates.js ?v=42 -> ?v=43, css/desktop.css ?v=13 -> ?v=14,
+// index.html #page-children/#page-templates/#modalChild/#modalTemplate). Shell files changed => SHELL_CACHE recreated. No SW logic touched.
+// DESKTOP-UI MOD-16 — SW_VERSION v148 -> v149: fees + expenses pages and the financial-reports modal migrated to paired local SVG icons + desktop page headers
+// (js/modules/fees.js ?v=44 -> ?v=45, js/modules/expenses.js ?v=2 -> ?v=3, js/modules/financial-reports-ui.js ?v=1 -> ?v=2, css/desktop.css ?v=14 -> ?v=15,
+// index.html #page-fees/#page-expenses/#modalFee/#modalFeePayment/#modalLedger/#modalFinancialReports/#modalExpense). Display only — no ledger/financial-reports calculation touched. SHELL_CACHE recreated. No SW logic touched.
+// DESKTOP-UI MOD-17 — SW_VERSION v149 -> v150: global search + alerts page migrated to paired local SVG icons
+// (js/modules/global-search-ui.js ?v=1 -> ?v=2, js/modules/app-shell.js ?v=1 -> ?v=2 [renderAlertsPage empty-state only], css/desktop.css ?v=15 -> ?v=16,
+// index.html #page-globalSearch/#page-alerts). Display only — no search/alert logic, no header search box (E-07). SHELL_CACHE recreated. No SW logic touched.
+// DESKTOP-UI MOD-18 — SW_VERSION v150 -> v151: calendar + office agenda pages migrated to paired local SVG icons
+// (js/modules/calendar.js ?v=42 -> ?v=43, js/modules/office-agenda.js ?v=1 -> ?v=2, css/desktop.css ?v=16 -> ?v=17,
+// index.html #page-calendar/#page-officeAgenda). Display only — no calendar/agenda logic touched. SHELL_CACHE recreated. No SW logic touched.
+// DESKTOP-UI MOD-19 — SW_VERSION v151 -> v152: shared elements (modal close/save/confirm buttons, history panel, first-run wizard, toast,
+// top bar buttons) migrated to paired local SVG icons (js/modules/firstrun.js ?v=42 -> ?v=43, js/modules/historypanel-ui.js ?v=42 -> ?v=43,
+// css/desktop.css ?v=17 -> ?v=18, index.html). Display only. SHELL_CACHE recreated. No SW logic touched.
+// DESKTOP-UI MOD-20 — SW_VERSION v152 -> v153: cases/clients master-detail side panel (new js/modules/desktop-detail.js
+// precached; css/desktop.css ?v=18 -> ?v=19; index.html script tag). Shell files changed => SHELL_CACHE recreated
+// (see prior notes). No SW logic touched.
+// DESKTOP-UI MOD-22 — SW_VERSION v153 -> v154: final sweep — settings-page buttons and global-search empty-state icon paired with local SVG
+// (index.html, css/desktop.css ?v=19 -> ?v=20). Display only. SHELL_CACHE recreated (see prior notes). No SW logic touched.
+// DESKTOP-UI F1-F10 batch — SW_VERSION v154 -> v155: tablet .main width (css/desktop.css ?v=20 -> ?v=21), Safe Mode rail badge (same file),
+// clients detail panel without national-ID row (js/modules/desktop-detail.js ?v=1 -> ?v=2), upload-status link hardening
+// (js/modules/administrative-work-fields.js ?v=54 -> ?v=55, js/modules/process-server-fields.js ?v=43 -> ?v=44), nav label stray-letter fix (index.html).
+// Shell files changed => SHELL_CACHE recreated (see prior notes). No SW logic touched.
+// F3 note: the PHASE A9 text trailing the var line below is HISTORICAL (backend-only round, kept verbatim); it does not describe this version.
+var SW_VERSION = 'v155'; // PHASE A9 — Backend-only change (Config/00_Config.gs,
                          // 06_Api.gs, 10_Fcm.gs): FCM notification coverage
                          // expanded to more sheets/events (add on القضايا/
                          // الموكلين/المستندات/أعمال_المحضرين/الأتعاب, critical
@@ -360,6 +427,7 @@ var SW_VERSION = 'v133'; // PHASE A9 — Backend-only change (Config/00_Config.g
                          // installed clients pick them up, same
                          // "Cache Versioning" rule as every previous bump
                          // in this file.
+// (F3 note: the v68 comment below is historical; js/modules/legal-directories.js is listed as ?v=2 since MOD-11.)
 // (v68 note, kept for history) LEGAL DIRECTORIES — Back-button tree-navigation fix.
                          // js/modules/legal-directories.js?v=1 is listed in
                          // PRECACHE_URLS and served cacheFirstIn(SHELL_CACHE), keyed
@@ -548,9 +616,9 @@ var PRECACHE_URLS = [
   'css/base.css?v=42',
   'css/layout.css?v=42',
   'css/components.css?v=54',
-  'css/responsive.css?v=42',
+  'css/responsive.css?v=43',
   'css/utilities.css?v=42',
-  'css/skeleton.css?v=42',
+  'css/skeleton.css?v=43',
   'css/boot-error.css?v=42',
   'css/safe-mode.css?v=42',
   'css/dashboard-smart.css?v=42',
@@ -559,6 +627,12 @@ var PRECACHE_URLS = [
   'css/voice-input.css?v=42',
   'css/legal-directories.css?v=1',
   'css/dashboard-legal-directories-nav.css?v=1',
+  'css/global-search.css?v=1',
+  'css/office-agenda.css?v=1',
+  'css/tokens.css?v=1',
+  'css/app-shell.css?v=2',
+  'css/app-shell-pages.css?v=1',
+  'css/desktop.css?v=21',
   'assets/favicon/favicon.ico',
   'assets/favicon/favicon-16.png',
   'assets/favicon/favicon-32.png',
@@ -634,38 +708,38 @@ var PRECACHE_URLS = [
   'js/auth/TopbarSessionBadge.js?v=42',
   'js/auth/SidebarSessionBadge.js?v=42',
   'js/core/RepositoryReadyTimeout.js?v=42',
-  'js/modules/cases.js?v=45',
+  'js/modules/cases.js?v=46',
   'js/modules/settings.js?v=44',
-  'js/modules/firstrun.js?v=42',
-  'js/modules/calendar.js?v=42',
-  'js/modules/children.js?v=42',
-  'js/modules/dashboard.js?v=43',
-  'js/modules/tasks.js?v=53',
-  'js/modules/documents.js?v=42',
-  'js/modules/sessions.js?v=42',
+  'js/modules/firstrun.js?v=43',
+  'js/modules/calendar.js?v=43',
+  'js/modules/children.js?v=43',
+  'js/modules/dashboard.js?v=44',
+  'js/modules/tasks.js?v=54',
+  'js/modules/documents.js?v=43',
+  'js/modules/sessions.js?v=43',
   'js/core/HistoryPanel.js?v=42',
-  'js/modules/clients.js?v=44',
+  'js/modules/clients.js?v=45',
   'js/modules/client-fields.js?v=42',
-  'js/modules/opponents.js?v=42',
+  'js/modules/opponents.js?v=43',
   'js/modules/opponent-fields.js?v=42',
-  'js/modules/process-server-works.js?v=42',
-  'js/modules/process-server-fields.js?v=42',
-  'js/modules/administrative-work-fields.js?v=53',
+  'js/modules/process-server-works.js?v=43',
+  'js/modules/process-server-fields.js?v=44',
+  'js/modules/administrative-work-fields.js?v=55',
   'js/modules/client-messages.js?v=42',
-  'js/modules/fees.js?v=44',
-  'js/modules/expenses.js?v=2',
+  'js/modules/fees.js?v=45',
+  'js/modules/expenses.js?v=3',
   'js/modules/financial-reports.js?v=4',
   'js/modules/ledger.js?v=1',
-  'js/modules/financial-reports-ui.js?v=1',
-  'js/modules/library.js?v=42',
-  'js/modules/templates.js?v=42',
+  'js/modules/financial-reports-ui.js?v=2',
+  'js/modules/library.js?v=43',
+  'js/modules/templates.js?v=43',
   'js/utils/DirectoryModel.js?v=1',
   'js/utils/DirectoryValidation.js?v=1',
-  'js/utils/DirectoryRenderer.js?v=1',
-  'js/modules/legal-directories.js?v=1',
-  'js/modules/dashboard-legal-directories-nav.js?v=1',
+  'js/utils/DirectoryRenderer.js?v=2',
+  'js/modules/legal-directories.js?v=2',
+  'js/modules/dashboard-legal-directories-nav.js?v=2',
   'js/data/directories/legal-directories.json',
-  'js/modules/historypanel-ui.js?v=42',
+  'js/modules/historypanel-ui.js?v=43',
   'js/core/RepositoryReadyCoordinator.js?v=42',
   'js/core/boot/BootManager.js?v=42',
   'js/core/shell/ShellEvents.js?v=42',
@@ -704,6 +778,18 @@ var PRECACHE_URLS = [
   'js/core/pwa/InstallPromptManager.js?v=42',
   'js/core/pwa/FcmClient.js?v=2', // PHASE A8 — added to keep offline-boot precache in sync with index.html's new <script> tag; SW_VERSION bumped to v94 (see top of file) so this list is re-fetched
   'js/core/pwa/NotificationManager.js?v=45', // PHASE N.13.7 STEP 3 — AHP_PUSH_RECEIVED handler branch added
+  'js/license/InstallationRegistrar.js?v=1',
+  'js/repositories/AgendaMetadataRepository.js?v=1',
+  'js/repositories/WorkSheetsRepository.js?v=1',
+  'js/repositories/CaseClientsRepository.js?v=1',
+  'js/repositories/ExpensesRepository.js?v=1',
+  'js/modules/office-agenda.js?v=2',
+  'js/modules/global-search.js?v=1',
+  'js/modules/global-search-ui.js?v=2',
+  'js/modules/app-shell.js?v=2',
+  'js/ui/UiIcon.js?v=2',
+  'js/modules/desktop-shell.js?v=2',
+  'js/modules/desktop-detail.js?v=2',
   'js/core/VoiceInputController.js?v=42'
 ];
 
