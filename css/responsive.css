@@ -1,7 +1,7 @@
 /* PHASE 12.6B §14 — Tablet tier: compact sync text ("✓ تمت المزامنة"),
    full desktop text hidden. Deliberately BELOW the mobile breakpoint in
    the cascade so the mobile rule below still wins under 769px. */
-@media(max-width:1024px) and (min-width:769px){
+@media(max-width:1023px) and (min-width:769px){
   .tls-full{display:none;}
   .tls-compact{display:inline;}
 }

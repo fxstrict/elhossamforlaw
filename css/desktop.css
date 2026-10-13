@@ -1,0 +1,279 @@
+/* ============================================================================
+ * css/desktop.css — Desktop UI layer (>=1024px). Loaded LAST (after app-shell-pages.css).
+ * RULE: everything that changes appearance lives inside @media (min-width:1024px).
+ * Below 1024px the only unscoped rules are new, inert classes (section 0) and the
+ * tablet bridge (section 1). No new !important (use --sidebar-width + html[data-sidebar]).
+ * MOD-02 ships: section 1 (tablet bridge) + --desk-* tokens + collapsed-width variable
+ * + content column. MOD-03 adds the sidebar parts of sections 0 and 2 (collapse button,
+ * collapsed rail, tooltip). MOD-04 adds the page header (repainted .topbar), Back button,
+ * header-slot helpers and the header height tokens. MOD-05 adds the icon helpers (.ui-icon, tones,
+ * paired legacy/svg switch). MOD-06 adds the opt-in table, modal-size and side-panel tools (MOD-20 uses the side panel for cases/clients). MOD-07 adds the dashboard icon sizes/tones. MOD-08 adds the cases page/modal icon sizes.
+ * ==========================================================================*/
+
+/* ---- 0. Unscoped, inert-by-default helpers --------------------------------*/
+/* [MOD-05] icon helpers. Paired svg stays hidden below 1024px, so mobile keeps the legacy glyph (pixel-identical) */
+.ui-icon{display:inline-block;flex:none;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;vertical-align:middle;}
+.ui-tone-success{color:var(--color-status-active)}.ui-tone-warning{color:var(--color-status-overdue)}.ui-tone-critical{color:var(--color-status-critical)}
+.ui-tone-done{color:var(--color-status-done)}.ui-tone-neutral{color:var(--color-status-neutral)}.ui-tone-gold{color:var(--color-gold-500)}
+.ui-icon--12{width:12px;height:12px}.ui-icon--16{width:16px;height:16px}.ui-icon--20{width:20px;height:20px}.ui-icon--24{width:24px;height:24px}
+[dir="rtl"] .ui-icon--flip{transform:scaleX(-1);}
+.ui-legacy + .ui-icon{display:none;}
+/* [MOD-04] replaces the former inline style on the first .topbar child (pixel-identical below 1024) */
+.topbar-start{display:flex;align-items:center;gap:11px;}
+/* [MOD-03: #sidebarCollapseBtn,#shellTip]  [MOD-04: #deskBackBtn,#deskBreadcrumb,#deskSubtitle,#deskActions]  */
+#sidebarCollapseBtn,#deskBackBtn,#deskBreadcrumb,#deskSubtitle,#deskActions,#shellTip{display:none;}
+
+/* [MOD-02] ---- 1. Tablet bridge 769–1023: shell-critical rules of the <=768 block ----*/
+@media (min-width:769px) and (max-width:1023px){
+  .sidebar{transform:translateX(100%);}
+  .sidebar.open{transform:translateX(0);}
+  .sidebar-overlay.open{opacity:1;visibility:visible;pointer-events:auto;}
+  .main{margin-right:0;max-width:none;}   /* [F4] full width on tablet (was 520px via --app-max-width) */
+  .burger{display:flex;}
+}
+
+/* ---- 2. Desktop layer ------------------------------------------------------*/
+@media (min-width:1024px){
+  :root{   /* [MOD-02] + [MOD-04] header heights */
+    --app-header-h:56px;--app-subheader-h:72px;
+    --desk-text-success:#1E7B45;--desk-text-gold:#8A6A14;--desk-text-warning:#A35A00;   /* [MOD-04] >=4.5:1 on white (status text moved from navy to white header) */
+    --desk-border:#E7E9ED;--desk-content-max:1600px;
+    --desk-row-hover:rgba(201,168,76,.08);--desk-row-selected:rgba(201,168,76,.14);
+    --desk-sidebar-collapsed:72px;--desk-z-tip:120;
+  }
+  html[data-sidebar="collapsed"]{--sidebar-width:var(--desk-sidebar-collapsed);}
+
+  /* [MOD-02] content column */
+  .page{padding:24px clamp(24px,3vw,48px);}
+  .main > .page{width:100%;max-width:var(--desk-content-max);margin-left:auto;margin-right:auto;}
+
+  /* [MOD-03] sidebar: toggle button */
+  .sidebar-logo{position:relative;}
+  #sidebarCollapseBtn{display:flex;position:absolute;top:10px;left:10px;width:28px;height:28px;border:0;border-radius:50%;
+    align-items:center;justify-content:center;background:rgba(255,255,255,.12);color:#fff;cursor:pointer;padding:0;}
+  #sidebarCollapseBtn:hover,#sidebarCollapseBtn:focus-visible{background:rgba(255,255,255,.24);outline:none;}
+  #sidebarCollapseBtn .ui-icon{display:inline-block;}
+  /* interim chevron before UiIcon exists (MOD-03/04): pure CSS, no font dependency; replaced automatically once the button gets an <svg> */
+  #sidebarCollapseBtn:empty::before{content:"";width:7px;height:7px;border:solid currentColor;border-width:0 2px 2px 0;transform:rotate(-45deg);margin-right:2px;}
+  html[data-sidebar="collapsed"] #sidebarCollapseBtn:empty::before{transform:rotate(135deg);margin-right:-2px;}
+
+  /* [MOD-05] sidebar: paired svg replaces legacy glyph */
+  .ui-legacy{display:none;}
+  .ui-legacy + .ui-icon{display:inline-block;}
+  .nav-icon .ui-icon{width:20px;height:20px;}
+
+  /* [MOD-03] sidebar: collapsed rail */
+  html[data-sidebar="collapsed"] .sidebar-logo{padding:14px 8px 44px;border-radius:0 0 14px 14px;}
+  html[data-sidebar="collapsed"] .sidebar-logo .logo-title,
+  html[data-sidebar="collapsed"] .sidebar-logo .logo-sub{display:none;}
+  html[data-sidebar="collapsed"] .sidebar-logo-badge{width:40px;height:40px;margin:0 auto;}
+  html[data-sidebar="collapsed"] #sidebarCollapseBtn{top:auto;bottom:8px;left:50%;margin-left:-14px;}
+  html[data-sidebar="collapsed"] .sidebar-nav{padding:10px 0 14px;}
+  html[data-sidebar="collapsed"] .nav-section-label{font-size:0;height:0;padding:0;margin:8px 14px 6px;border-top:1px solid #EFF1F4;}
+  html[data-sidebar="collapsed"] .nav-section-label:first-child{display:none;}
+  html[data-sidebar="collapsed"] .nav-item{font-size:0;justify-content:center;gap:0;padding:11px 0;margin:3px 10px;}
+  html[data-sidebar="collapsed"] .nav-item .nav-icon{font-size:16.5px;}
+  html[data-sidebar="collapsed"] .nav-item .nav-badge{position:absolute;top:6px;left:calc(50% + 4px);margin:0;padding:0;min-width:0;
+    width:9px;height:9px;font-size:0;border:2px solid #fff;border-radius:50%;box-sizing:content-box;}
+  html[data-sidebar="collapsed"] .nav-item .nav-badge.is-zero{display:none;}
+  /* [F5] Safe Mode tick/cross: out of flow in the rail so it no longer pushes the icon ~8px off-centre */
+  html[data-sidebar="collapsed"] .nav-item .safe-mode-status{position:absolute;top:4px;left:calc(50% + 4px);}
+  html[data-sidebar="collapsed"] .sidebar-footer{padding:12px 0;}
+  html[data-sidebar="collapsed"] .sidebar-footer .api-status{justify-content:center;}
+  html[data-sidebar="collapsed"] .sidebar-footer #statusText{display:none;}
+
+  /* [MOD-03] tooltip (single body-level element; .sidebar-nav clips overflow) */
+  #shellTip{position:fixed;z-index:var(--desk-z-tip);padding:6px 10px;border-radius:8px;background:var(--color-navy-900);color:#fff;
+    font-size:12px;font-weight:700;white-space:nowrap;pointer-events:none;transform:translateY(-50%);box-shadow:var(--shadow-card);}
+  #shellTip.show{display:block;}
+
+  /* [MOD-04] page header = the existing .topbar repainted (light, 72px) */
+  .topbar{background:var(--color-surface);border-bottom:1px solid var(--desk-border);box-shadow:var(--shadow-header);padding:0 24px;
+    justify-content:space-between;}
+  .topbar-start{display:grid;grid-template-columns:auto auto 1fr;grid-template-areas:"back crumb crumb" "back title sub";
+    column-gap:12px;align-items:center;align-content:center;min-width:0;}
+  .topbar-start .burger{display:none;}
+  #deskBackBtn{grid-area:back;display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:50%;
+    border:1px solid var(--desk-border);background:var(--color-surface);color:var(--color-navy-900);cursor:pointer;padding:0;}
+  #deskBackBtn:hover,#deskBackBtn:focus-visible{background:rgba(201,168,76,.12);outline:none;}
+  #deskBackBtn[hidden]{display:none;}
+  /* interim arrow before UiIcon exists (MOD-04): pure CSS chevron, no font dependency; replaced once the button gets an <svg> (MOD-05) */
+  #deskBackBtn:empty::before{content:"";width:8px;height:8px;border:solid currentColor;border-width:2px 2px 0 0;transform:rotate(45deg);margin-left:-3px;}
+  #deskBreadcrumb{grid-area:crumb;display:flex;gap:6px;align-items:center;font-size:12px;color:var(--color-muted);}
+  #deskBreadcrumb button{border:0;background:none;color:inherit;cursor:pointer;font:inherit;padding:0;}
+  #deskBreadcrumb button:hover{color:var(--color-gold-700);}
+  #deskBreadcrumb:empty,#deskSubtitle:empty{display:none;}
+  .topbar-title{display:block;grid-area:title;font-size:21px;font-weight:800;line-height:1.3;color:var(--color-navy-900);}
+  .topbar-title span{color:inherit;}                        /* navigate() wraps the title in a gold <span>; gold on white fails contrast at this size */
+  #deskSubtitle{grid-area:sub;display:block;align-self:end;padding-bottom:3px;font-size:12px;color:var(--color-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .topbar-actions{width:auto;justify-content:flex-end;gap:10px;}
+  #deskActions{display:flex;gap:8px;align-items:center;}
+  .topbar-meta{color:var(--color-muted);}
+  .topbar-user{color:var(--color-navy-900);}
+  #topbarLogoutBtn{color:var(--color-navy-700);border-color:var(--desk-border);}
+  /* [MOD-04] last-sync status text: the mobile palette was tuned for the navy strip; on the white header these three fall below 4.5:1 */
+  .topbar-lastsync.is-syncing{color:var(--desk-text-gold);}
+  .topbar-lastsync.is-success{color:var(--desk-text-success);}
+  .topbar-lastsync.is-partial{color:var(--desk-text-warning);}
+  .desk-dup-title{display:none;}                           /* page's own <h2> block, duplicated by the header */
+
+  /* [MOD-06] tables (opt-in by an existing class: .table-wrap). Header keeps the base gold tint but is opaque so rows never show through while sticky */
+  .table-wrap{overflow:auto;max-height:calc(100vh - var(--app-header-h) - var(--app-subheader-h) - 190px);}
+  .table-wrap thead th{position:sticky;top:0;z-index:1;background:linear-gradient(rgba(201,168,76,.12),rgba(201,168,76,.12)),var(--color-surface);box-shadow:0 1px 0 var(--desk-border);}
+  .table-wrap tbody tr:hover{background:var(--desk-row-hover);}
+  .table-wrap tbody tr.is-selected{background:var(--desk-row-selected);}
+  .table-wrap--pin-first th:first-child,.table-wrap--pin-first td:first-child{position:sticky;right:0;background:inherit;z-index:2;}
+
+  /* [MOD-06] modal sizes (opt-in: extra class on .modal) + side panel (opt-in: used since MOD-20 by cases/clients) */
+  .modal--sm{max-width:420px;}.modal--md{max-width:560px;}.modal--lg{max-width:820px;}
+  .side-panel{display:none;position:fixed;top:calc(var(--app-header-h) + var(--app-subheader-h));bottom:0;left:0;width:340px;overflow:auto;
+    background:var(--color-surface);border-right:1px solid var(--desk-border);box-shadow:var(--shadow-card);z-index:var(--z-sidebar,100);}
+  .side-panel.open{display:block;}
+  body.has-side-panel .main{margin-left:340px;}
+  /* [MOD-07] dashboard: paired svg sizes/tones (legacy glyph stays untouched below 1024px) */
+  .qat-icon .ui-icon{width:24px;height:24px;}
+  .stat-icon{color:var(--color-gold-700);}
+  .stat-icon .ui-icon{width:20px;height:20px;}
+  .empty-state .icon .ui-icon,.dashboard-welcome .icon .ui-icon{width:48px;height:48px;stroke-width:1.25;}
+  .dash-legaldir-header-icon{color:var(--color-gold-700);}
+  .today-center-icon{color:var(--color-gold-700);}
+  .alert-bar .ui-icon,.alert-chip .alert-chip-icon{color:var(--color-status-critical);}
+  .alert-chip.warning .alert-chip-icon{color:var(--color-status-overdue);}
+  .session-meta .ui-icon{width:14px;height:14px;}
+  .task-due .ui-icon{width:12px;height:12px;}
+
+  /* [MOD-08] cases: paired svg sizes/tones (legacy glyph stays untouched below 1024px) */
+  #page-cases .search-wrap .icon .ui-icon{width:16px;height:16px;}
+  #page-cases .btn-icon .ui-icon{width:16px;height:16px;}
+  #modalCase .modal-title .icon .ui-icon{width:20px;height:20px;}
+  #caseFormTabs .tab-btn .ui-icon{width:14px;height:14px;margin-inline-end:2px;}
+  #modalCase .section-divider h4 .ui-icon,#modalCase label .ui-icon{width:14px;height:14px;}
+  #modalCase .client-selector-arrow .ui-icon{width:12px;height:12px;}
+  #viewModalTitle .ui-icon{width:16px;height:16px;}
+
+  /* [MOD-09] clients: paired svg sizes (legacy glyph stays untouched below 1024px) */
+  #page-clients .search-wrap .icon .ui-icon{width:16px;height:16px;}
+  #page-clients .btn-icon .ui-icon{width:16px;height:16px;}
+  #modalClient .modal-title .icon .ui-icon{width:20px;height:20px;}
+  #clientFormTabs .tab-btn .ui-icon{width:14px;height:14px;margin-inline-end:2px;}
+  #modalClient .repeat-card-header .ui-icon{width:14px;height:14px;}
+  #modalClient .repeat-card-header .btn .ui-icon{width:14px;height:14px;}
+
+  /* [MOD-10] settings: paired svg sizes for tab buttons + card titles (legacy glyph stays untouched below 1024px) */
+  #settingsTabs .tab-btn .ui-icon{width:14px;height:14px;margin-inline-end:2px;}
+  #page-settings .settings-title .ui-icon{width:16px;height:16px;margin-inline-end:2px;}
+
+  /* [MOD-11] legalDirectories: paired svg sizes (card glyph, admin toolbar/status); in-page h2 + breadcrumb are
+     replaced by the page header (.desk-dup-title). Legacy glyphs stay untouched below 1024px. */
+  .legal-dir-card-icon .ui-icon{width:26px;height:26px;}
+  .legal-dir-admin-toolbar button .ui-icon,.legal-dir-admin-status .ui-icon{width:14px;height:14px;}
+
+  /* [MOD-12] sessions + tasks: paired svg sizes/tones (legacy glyph stays untouched below 1024px) */
+  #page-sessions .search-wrap .icon .ui-icon,#page-tasks .search-wrap .icon .ui-icon{width:16px;height:16px;}
+  #page-sessions .btn-icon .ui-icon,#page-tasks .btn-icon .ui-icon{width:16px;height:16px;}
+  #page-tasks .ps-tab .ui-icon{width:14px;height:14px;margin-inline-end:2px;}
+  #sessionsListView .session-info .ui-icon{width:14px;height:14px;}
+  .task-text .ui-icon{width:14px;height:14px;}
+  #modalSession .modal-title .icon .ui-icon,#modalTask .modal-title .icon .ui-icon{width:20px;height:20px;}
+  #modalTask .repeat-card-header .ui-icon{width:14px;height:14px;}
+  #modalTask .client-selector-arrow .ui-icon{width:12px;height:12px;}
+  .repeat-file-status .ui-icon{width:14px;height:14px;}
+
+  /* [MOD-13] opponents + processServerWorks: paired svg sizes (legacy glyph stays untouched below 1024px) */
+  #page-opponents .search-wrap .icon .ui-icon,#page-processServerWorks .search-wrap .icon .ui-icon{width:16px;height:16px;}
+  #page-opponents .btn-icon .ui-icon,#page-processServerWorks .btn-icon .ui-icon{width:16px;height:16px;}
+  #page-processServerWorks .ps-tab .ui-icon{width:14px;height:14px;margin-inline-end:2px;}
+  #page-processServerWorks .badge .ui-icon{width:12px;height:12px;}
+  #modalOpponent .modal-title .icon .ui-icon,#modalProcessServerWork .modal-title .icon .ui-icon{width:20px;height:20px;}
+  #modalOpponent .repeat-card-header .ui-icon,#modalProcessServerWork .repeat-card-header .ui-icon{width:14px;height:14px;}
+  #modalProcessServerWork .client-selector-arrow .ui-icon{width:12px;height:12px;}
+
+  /* [MOD-14] documents + library: paired svg sizes (legacy glyph stays untouched below 1024px). The inline toolbar
+     add buttons (.desk-dup-add) are replaced by the page header action. */
+  #page-documents .search-wrap .icon .ui-icon,#page-library .search-wrap .icon .ui-icon{width:16px;height:16px;}
+  #page-documents .btn-icon .ui-icon,#page-library .btn-icon .ui-icon{width:16px;height:16px;}
+  .lib-card-icon .ui-icon{width:32px;height:32px;}
+  .lib-card-meta .ui-icon{width:14px;height:14px;}
+  .drive-link-bar .icon .ui-icon{width:22px;height:22px;}
+  #modalDrive .modal-body strong .ui-icon{width:14px;height:14px;}
+  #modalDocument .modal-title .icon .ui-icon,#modalLibrary .modal-title .icon .ui-icon,#modalDrive .modal-title .icon .ui-icon{width:20px;height:20px;}
+  #modalDocument .client-selector-arrow .ui-icon{width:12px;height:12px;}
+  .toolbar .desk-dup-add{display:none;}
+
+  /* [MOD-15] children + templates: paired svg sizes (legacy glyph untouched below 1024px). #page-templates keeps its own
+     title block (.desk-dup-title) and add button (.desk-dup-add) hidden because the page header supplies both. */
+  #page-children .search-wrap .icon .ui-icon{width:16px;height:16px;}
+  #page-children .btn-icon .ui-icon,#page-templates .btn-icon .ui-icon{width:16px;height:16px;}
+  #page-templates .lib-card-actions .btn .ui-icon{width:16px;height:16px;}
+  #templateTabs .tab-btn .ui-icon{width:14px;height:14px;}
+  #modalChild .modal-title .icon .ui-icon,#modalTemplate .modal-title .icon .ui-icon{width:20px;height:20px;}
+  #page-templates .desk-dup-add{display:none;}
+
+  /* [MOD-16] fees + expenses + financial-reports modal: paired svg sizes (legacy glyph untouched below 1024px). Display only.
+     The inline toolbar add buttons (.desk-dup-add) are replaced by the page-header actions. */
+  #page-fees .search-wrap .icon .ui-icon,#page-expenses .search-wrap .icon .ui-icon{width:16px;height:16px;}
+  #page-fees .btn-icon .ui-icon,#page-expenses .btn-icon .ui-icon{width:16px;height:16px;}
+  #feesTableBody td > span .ui-icon,#expensesTableBody td .ui-icon{width:14px;height:14px;}
+  #modalFee .modal-title .icon .ui-icon,#modalFeePayment .modal-title .icon .ui-icon,#modalLedger .modal-title .icon .ui-icon,#modalFinancialReports .modal-title .icon .ui-icon,#modalExpense .modal-title .icon .ui-icon{width:20px;height:20px;}
+  #financialReportsTabs .tab-btn .ui-icon{width:14px;height:14px;}
+  #modalFinancialReports .btn .ui-icon{width:16px;height:16px;}
+
+  /* [MOD-17] global search + alerts page: paired svg sizes (legacy glyph untouched below 1024px). Display only;
+     no search box is added to the header (E-07). */
+  #page-globalSearch .search-wrap .icon .ui-icon{width:16px;height:16px;}
+  .global-search-scope-icon .ui-icon{width:14px;height:14px;}
+  .global-search-result-icon{color:var(--color-gold-300);}
+  .global-search-result-icon .ui-icon{width:18px;height:18px;}
+  .global-search-clear-btn .ui-icon,.global-search-recent-chip-remove .ui-icon{width:12px;height:12px;}
+  #page-alerts .dash-section-title > span .ui-icon,#page-alerts .alerts-center-empty .ui-icon{width:20px;height:20px;}
+
+  /* [MOD-18] calendar + office agenda: paired svg sizes (legacy glyph untouched below 1024px). Display only.
+     No header actions (neither page has an add flow); the page title comes from the existing header sync. */
+  #page-calendar .calendar-header .btn-icon .ui-icon,#page-officeAgenda .agenda-nav .btn-icon .ui-icon{width:16px;height:16px;}
+  #page-calendar .card-header .icon .ui-icon{width:18px;height:18px;}
+  #calSessionsList .session-meta .ui-icon,#calSessionsList .session-info .ui-icon{width:14px;height:14px;}
+  .agenda-section-title > span:first-child .ui-icon{width:16px;height:16px;}
+  .agenda-item-meta .ui-icon,.agenda-item-actions .agenda-assignee .ui-icon,.agenda-item-time .ui-icon{width:14px;height:14px;}
+  .agenda-on-sheet-flag .ui-icon{width:12px;height:12px;}
+  #agendaContent .agenda-item > .btn .ui-icon,#agendaContent > .btn .ui-icon{width:16px;height:16px;}
+
+  /* [MOD-19] shared elements (modals, confirm, history panel, first-run wizard, toast, top bar buttons): paired svg sizes
+     (legacy glyph untouched below 1024px). Display only. The history-panel z-index stack (920/921) is not touched;
+     the client-portal modal is intentionally left as is (protected system). */
+  .modal-close .ui-icon,.hp-close-btn .ui-icon{width:16px;height:16px;}
+  .hp-search-clear .ui-icon{width:12px;height:12px;}
+  .modal-footer .btn .ui-icon,.firstrun-modal .btn .ui-icon,.topbar .btn .ui-icon,#modalView .btn .ui-icon{width:16px;height:16px;}
+  .modal-title .icon .ui-icon{width:20px;height:20px;}
+  .firstrun-badge .ui-icon{width:28px;height:28px;}
+  .firstrun-privacy-title .ui-icon,#firstRunResult .ui-icon{width:16px;height:16px;}
+  .hp-header-title .ui-icon{width:18px;height:18px;}
+  .hp-search-icon .ui-icon{width:14px;height:14px;}
+  .hp-marker-dot .ui-icon{width:14px;height:14px;color:#fff;}
+  .hp-entity-badge .ui-icon{width:12px;height:12px;}
+  .hp-empty-icon .ui-icon{width:34px;height:34px;}
+  .toast > span:first-child .ui-icon{width:16px;height:16px;}
+
+  /* [MOD-20] master/detail: summary inside the existing .side-panel (opened by js/modules/desktop-detail.js; never created below 1024px) */
+  .desk-detail{display:none;flex-direction:column;}
+  .desk-detail.open{display:flex;}
+  .desk-detail-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;padding:16px 18px;border-bottom:1px solid var(--desk-border);}
+  .desk-detail-titles{min-width:0;display:flex;flex-direction:column;gap:4px;}
+  .desk-detail-title{font-size:16px;font-weight:800;line-height:1.4;color:var(--color-navy-900);overflow-wrap:anywhere;}
+  .desk-detail-sub{font-size:12px;color:var(--color-muted);}
+  .desk-detail-badge{align-self:flex-start;}
+  .desk-detail-close{flex:none;display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:50%;border:1px solid var(--desk-border);background:var(--color-surface);color:var(--color-navy-900);cursor:pointer;padding:0;}
+  .desk-detail-close:hover,.desk-detail-close:focus-visible{background:rgba(201,168,76,.12);outline:none;}
+  .desk-detail-fields{margin:0;padding:12px 18px;overflow:auto;flex:1;}
+  .desk-detail-fields dt{font-size:11px;font-weight:700;color:var(--color-muted);margin-top:10px;}
+  .desk-detail-fields dt:first-child{margin-top:0;}
+  .desk-detail-fields dd{margin:2px 0 0;font-size:13px;color:var(--color-navy-900);overflow-wrap:anywhere;}
+  .desk-detail-fields dd.is-ltr{direction:ltr;text-align:right;}
+  .desk-detail-fields dd.is-long{line-height:1.7;color:var(--color-muted);}
+  .desk-detail-empty{font-size:12px;color:var(--color-muted);}
+  .desk-detail-actions{display:flex;flex-wrap:wrap;gap:8px;padding:12px 18px;border-top:1px solid var(--desk-border);}
+  .desk-detail-actions .btn .ui-icon{width:16px;height:16px;}
+
+  /* [MOD-22] final sweep: global-search empty-state icon (settings-page buttons use the default 16px .ui-icon--16 size) */
+  .global-search-initial .icon .ui-icon{width:48px;height:48px;stroke-width:1.25;}
+  #page-settings .btn .ui-icon,#page-settings p .ui-icon,#notifPermissionStatus .ui-icon{margin-inline-end:2px;}
+}

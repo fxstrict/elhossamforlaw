@@ -261,7 +261,7 @@ body{
        everything above this block is unchanged (identical to the
        phone-width behavior already shipped).
    ------------------------------------------------------------------------- */
-@media (min-width:900px){
+@media (min-width:1024px){
   /* The drawer becomes a persistent, always-visible sidebar instead of an
      overlay — same #sidebar element, same .nav-item list, same
      toggleSidebar()-driven .open class (now simply always matched by the

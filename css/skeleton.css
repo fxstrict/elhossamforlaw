@@ -48,7 +48,7 @@
    z-index/show-hide behavior otherwise unchanged. Mobile sidebar is an
    off-canvas overlay (not fixed to the viewport edge at rest), so this
    is intentionally left untouched below 769px. */
-@media (min-width:769px){
+@media (min-width:1024px){
   .boot-skeleton{right:var(--sidebar-width,268px);}
 }
 
